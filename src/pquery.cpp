@@ -2,7 +2,7 @@
  =========================================================
  #       Created by Alexey Bychko, Percona LLC           #
  #     Expanded by Roel Van de Paar, Percona LLC         #
- ========================================================= 
+ =========================================================
 */
 
 #include <cstdio>
@@ -11,7 +11,7 @@
 #include <cstring>
 #include <cerrno>
 #include <vector>
-#include <thread>                                 /* c++11 or gnu++11 */
+#include <thread>                /* c++11 or gnu++11 */
 #include <string>
 #include <fstream>
 #include <sstream>
@@ -36,7 +36,8 @@ char sock[] = "/var/run/mysqld/mysqld.sock";
 char sqlfile[] = "pquery.sql";
 char outdir[] = "/tmp";
 
-struct conndata{
+struct conndata
+{
   char database[255];
   char addr[255];
   char socket[255];
@@ -49,19 +50,19 @@ struct conndata{
   int queries_per_thread;
 } m_conndata;
 
-void executor(int number, const vector<string>& qlist){
-  if(verbose_flag){
+void executor(int number, const vector<string>& qlist) {
+  if(verbose_flag) {
     printf("Thread %d started\n", number);
   }
 
   int failed_queries = 0;
   int total_queries = 0;
-  int max_con_failures = 250; /* Maximum consecutive failures (likely indicating crash/assert, user priveleges drop etc.) */
+  int max_con_failures = 250;    /* Maximum consecutive failures (likely indicating crash/assert, user priveleges drop etc.) */
   int max_con_fail_count = 0;
 
   FILE * thread_log = NULL;
 
-  if ((log_failed_queries) || (log_all_queries)){
+  if ((log_failed_queries) || (log_all_queries)) {
     ostringstream os;
     os << m_conndata.logdir << "/pquery_thread-" << number << ".sql";
     thread_log = fopen(os.str().c_str(), "w+");
@@ -70,72 +71,74 @@ void executor(int number, const vector<string>& qlist){
   MYSQL * conn;
 
   conn = mysql_init(NULL);
-  if (conn == NULL){
+  if (conn == NULL) {
     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
 
-    if (thread_log != NULL){
+    if (thread_log != NULL) {
       fclose(thread_log);
     }
     printf("Thread #%d is exiting\n", number);
     return;
   }
   if (mysql_real_connect(conn, m_conndata.addr, m_conndata.username,
-  m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL){
+  m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL) {
     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
     mysql_close(conn);
-    if (thread_log != NULL){
+    if (thread_log != NULL) {
       fclose(thread_log);
     }
     mysql_thread_end();
     return;
   }
 
-  for (int i=0; i<m_conndata.queries_per_thread; i++){
+  for (int i=0; i<m_conndata.queries_per_thread; i++) {
     int query_number;
-    if(no_shuffle){
+    if(no_shuffle) {
       query_number = i;
-    }else{
-    struct timeval t1;
-    gettimeofday(&t1, NULL);
-    unsigned int seed = t1.tv_usec * t1.tv_sec;
-    srand(seed);
-    query_number = rand() % qlist.size();
     }
-    if (log_all_queries){
+    else {
+      struct timeval t1;
+      gettimeofday(&t1, NULL);
+      unsigned int seed = t1.tv_usec * t1.tv_sec;
+      srand(seed);
+      query_number = rand() % qlist.size();
+    }
+    if (log_all_queries) {
       fprintf(thread_log, "%s\n", qlist[query_number].c_str());
     }
 
-    if (mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()))){
+    if (mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()))) {
       failed_queries++;
-      if(verbose_flag){
+      if(verbose_flag) {
         fprintf(stderr, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
       }
-      if (log_failed_queries){
+      if (log_failed_queries) {
         fprintf(thread_log, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
       }
       max_con_fail_count++;
-      if (max_con_fail_count >= max_con_failures){
+      if (max_con_fail_count >= max_con_failures) {
         printf("* Last %d consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.\n", max_con_fail_count);
-        if (thread_log != NULL){
+        if (thread_log != NULL) {
           fprintf(thread_log,"# Last %d consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.\n", max_con_fail_count);
         }
         break;
       }
-    }else{
-      if(verbose_flag){
+    }
+    else {
+      if(verbose_flag) {
         fprintf(stderr, "%s\n", qlist[query_number].c_str());
       }
       max_con_fail_count=0;
     }
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
-    if (result != NULL){
+    if (result != NULL) {
       mysql_free_result(result);
     }
   }
 
   printf("* SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
-  if (thread_log != NULL){
+  if (thread_log != NULL) {
     fprintf(thread_log,"# SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
     fclose(thread_log);
   }
@@ -143,7 +146,8 @@ void executor(int number, const vector<string>& qlist){
   mysql_thread_end();
 }
 
-int main(int argc, char* argv[]){
+
+int main(int argc, char* argv[]) {
 
   m_conndata.threads = 10;
   m_conndata.port = 0;
@@ -157,7 +161,7 @@ int main(int argc, char* argv[]){
   strncpy(m_conndata.infile, sqlfile, strlen(sqlfile) + 1);
   strncpy(m_conndata.logdir, outdir, strlen(outdir) + 1);
 
-  while(true){
+  while(true) {
 
     static struct option long_options[] = {
       {"database", required_argument, 0, 'd'},
@@ -181,11 +185,11 @@ int main(int argc, char* argv[]){
 
     c = getopt_long_only(argc, argv, "d:a:i:l:s:p:u:P:t:q", long_options, &option_index);
 
-    if (c == -1){
+    if (c == -1) {
       break;
     }
 
-    switch (c){
+    switch (c) {
       case 'd':
         printf("Database is %s\n", optarg);
         memcpy(m_conndata.database, optarg, strlen(optarg) + 1);
@@ -229,11 +233,11 @@ int main(int argc, char* argv[]){
       default:
         break;
     }
-  }                                             //while
+  }                              //while
 
   MYSQL * conn;
   conn = mysql_init(NULL);
-  if (conn == NULL){
+  if (conn == NULL) {
     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
     printf("* PQUERY: Unable to continue [1], exiting\n");
     mysql_close(conn);
@@ -242,7 +246,7 @@ int main(int argc, char* argv[]){
   }
 
   if (mysql_real_connect(conn, m_conndata.addr, m_conndata.username,
-  m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL){
+  m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL) {
     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
     printf("* PQUERY: Unable to continue [2], exiting\n");
     mysql_close(conn);
@@ -258,7 +262,7 @@ int main(int argc, char* argv[]){
   ifstream infile;
   infile.open(m_conndata.infile);
 
-  if (!infile){
+  if (!infile) {
     printf("Unable to open SQL file %s: %s\n", m_conndata.infile, strerror(errno));
     exit(EXIT_FAILURE);
   }
@@ -266,15 +270,15 @@ int main(int argc, char* argv[]){
   shared_ptr<vector<string>> querylist(new vector<string>);
   string line;
 
-  while (getline(infile, line)){
-    if(!line.empty()){
+  while (getline(infile, line)) {
+    if(!line.empty()) {
       querylist->push_back(line);
     }
   }
   infile.close();
 
   /* log replaying */
-  if(no_shuffle){
+  if(no_shuffle) {
     m_conndata.threads = 1;
     m_conndata.queries_per_thread = querylist->size();
   }
@@ -283,11 +287,11 @@ int main(int argc, char* argv[]){
   threads.clear();
   threads.resize(m_conndata.threads);
 
-  for (int i=0; i<m_conndata.threads; i++){
+  for (int i=0; i<m_conndata.threads; i++) {
     threads[i] = thread(executor, i, *querylist);
   }
 
-  for (int i=0; i<m_conndata.threads; i++){
+  for (int i=0; i<m_conndata.threads; i++) {
     threads[i].join();
   }
 
