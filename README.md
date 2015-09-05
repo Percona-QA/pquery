@@ -2,7 +2,7 @@
 PQuery is a small utility written to test/crash MySQL for QA purposes. It's name stands for P(arallel) Query.
 
 # Build HOWTO
-1. install cmake >= 2.6 and GCC >= 4.7 and dependencies, usually OpenSSL and AIO development files, other deps if needed. 
+1. install cmake >= 2.6 and GCC >= 4.7, development files for your MySQL version/fork, maybe OpenSSL and AIO development files and other deps if needed. 
 2. change dir to pquery
 3. run cmake with required options, which are:
   * *WEBSCALESQL* - **OFF** by default, build PQuery with WebScaleSQL support
