@@ -17,7 +17,7 @@ ENDIF()
 #  MYSQL_FOUND       - True if MySQL found.
 
 IF (MYSQL_INCLUDE_DIR)
-# Already in cache, be silent
+  # Already in cache, be silent
   SET(MYSQL_FIND_QUIETLY TRUE)
 ENDIF (MYSQL_INCLUDE_DIR)
 
@@ -45,13 +45,11 @@ IF (MYSQL_FOUND)
     MESSAGE(STATUS "Found ${FORK}: ${MYSQL_LIBRARY}")
   ENDIF (NOT MYSQL_FIND_QUIETLY)
 ELSE (MYSQL_FOUND)
-  IF (MYSQL_FIND_REQUIRED)
-    MESSAGE(STATUS "Looked for ${FORK} libraries named ${MYSQL_NAMES}.")
-    MESSAGE(FATAL_ERROR "Could NOT find ${FORK} library")
-  ENDIF (MYSQL_FIND_REQUIRED)
+  MESSAGE(STATUS "Looked for ${FORK} libraries named ${MYSQL_NAMES}.")
+  MESSAGE(FATAL_ERROR "Could NOT find ${FORK} library")
 ENDIF (MYSQL_FOUND)
 
 MARK_AS_ADVANCED(
   MYSQL_LIBRARY
   MYSQL_INCLUDE_DIR
-)
+  )
