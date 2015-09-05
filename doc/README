@@ -1,4 +1,4 @@
-# PQuery 
+#                PQuery 
 # ===========================================  #
 # Invented by Roel Van de Paar, Percona LLC    #
 # Created by Alexey Bychko, Percona LLC        #
@@ -6,13 +6,11 @@
 # Expanded by Sergei Glushchenko, Percona LLC  #
 # ===========================================  #
 
-# PQuery Farmework
-# == pquery Framework ======================== #
+#           PQuery Framework
+# ============================================ #
 # Invented by Roel Van de Paar, Percona LLC    #
 # Created by Roel Van de Paar, Percona LLC     #
 # Expanded by Ramesh Sivaraman, Percona LLC    #
 # Expanded by David Bennett, Percona LLC       #
 # Contributions from Shahriyar Rzayev          #
 # ============================================ #
-
-
