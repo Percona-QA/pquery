@@ -21,7 +21,11 @@ IF (STRICT)
 ENDIF ()
 #
 IF (STATIC_LIB)
+  # we will link shared libraries
   INCLUDE(FindOpenSSL REQUIRED)
+  INCLUDE(FindThreads REQUIRED)
+  INCLUDE(FindZLIB REQUIRED)
+  # and link static MySQL client library
   SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
   SET (OTHER_LIBS pthread dl z)
   IF(PERCONASERVER OR WEBSCALESQL)
