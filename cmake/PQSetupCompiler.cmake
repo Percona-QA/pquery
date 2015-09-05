@@ -1,6 +1,6 @@
 # c++11 is needed to compile the source, so we're accepting GCC >= 4.7
 IF ((CMAKE_CXX_COMPILER_ID STREQUAL GNU) AND
-    (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0"))
+  (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0"))
   MESSAGE(FATAL_ERROR "Your compiler is too old, please install GCC >= 4.7")    
 ENDIF ()
 #
@@ -8,7 +8,7 @@ ADD_DEFINITIONS(-std=gnu++11)
 #
 OPTION(STRICT "Turn on a lot of compiler warnings" ON)
 OPTION(DEBUG "Add debug info for GDB" OFF)
-OPTION(STATIC "Build static PQuery" OFF)
+OPTION(STATIC_MYSQL "Statically compile MySQL library into PQuery" OFF)
 # 
 IF (DEBUG)
   ADD_DEFINITIONS(-O0 -pipe -g3 -ggdb3)
@@ -20,6 +20,10 @@ IF (STRICT)
   ADD_DEFINITIONS(-Wall -Werror -Wextra -pedantic-errors -Wmissing-declarations)
 ENDIF ()
 #
-IF (STATIC)
+IF (STATIC_MYSQL)
   SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-ENDIF()
+  SET (OTHER_LIBS pthread dl z)
+  IF(PERCONASERVER OR WEBSCALESQL)
+    SET(OTHER_LIBS ${OTHER_LIBS} ssl crypto)
+  ENDIF(PERCONASERVER OR WEBSCALESQL)
+ENDIF(STATIC_MYSQL)
