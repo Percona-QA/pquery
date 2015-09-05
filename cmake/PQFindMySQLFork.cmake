@@ -1,13 +1,19 @@
-OPTION (MYSQL   "Build with MySQL support" OFF)
-OPTION (PERCONA "Build with Percona Server support" OFF)
-OPTION (WSSQL   "Build with WebScaleSQL support" OFF)
+OPTION (MYSQL         "Build with MySQL support" OFF)
+OPTION (PERCONASERVER "Build with Percona Server support" OFF)
+OPTION (WSSQL         "Build with WebScaleSQL support" OFF)
 #
 IF (MYSQL)
   SET(MYSQL_NAMES mysqlclient mysqlclient_r)
-  SET(PQUERY_EXT "mysql")
+  SET(PQUERY_EXT "ms")
   SET(FORK "MySQL")
 ENDIF()
-
+#
+IF (PERCONASERVER)
+  SET(MYSQL_NAMES perconaserverclient perconaserverclient_r)
+  SET(PQUERY_EXT "ps")
+  SET(FORK "Percona Server")
+ENDIF()
+#
 
 # - Find mysqlclient
 # Find the native MySQL includes and library
@@ -28,7 +34,7 @@ FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
 
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS /usr/lib /usr/local/lib
+  PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu
   PATH_SUFFIXES mysql
   )
 
