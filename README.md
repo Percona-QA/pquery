@@ -7,17 +7,19 @@ PQuery is a small utility written to test/crash MySQL for QA purposes. It's name
 3. run cmake with required options, which are:
   * *WEBSCALESQL* - **OFF** by default, build PQuery with WebScaleSQL support
   * *PERCONASERVER* - **OFF** by default, build PQuery with Percona Server support 
-  * *MYSQL* - **OFF** by default, build PQuery with Oracle MySQL support 
+  * *MYSQL* - **OFF** by default, build PQuery with Oracle MySQL support
+  * *MARIADB* - **OFF** by default, build PQuery with MariaDB support
   * *STATIC_LIB* - **OFF** by default, compile PQuery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
   * *DEBUG* - **OFF** by default, compile PQuery with debug inforamation for GDB
   * *STRICT* - **ON** by default, compile PQuery with strict flags   
-4. if you have MySQL | Percona Server | WebScaleSQL installed to some custom location you may consider setting the additional flags to cmake:
+4. if you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake:
   * *MYSQL_INCLUDE_DIR*
   * *MYSQL_LIBRARY*
 5. resulting binary will have appropriate extension:
   * *pquery-ms* for MySQL
   * *pquery-ps* for Percona Server
   * *pquery-ws* for WebScaleSQL
+  * *pquery-md* for MariaDB
 
 # Example
 so, your commands may look like the following example:
@@ -27,7 +29,6 @@ $ cmake . -DPERCONASERVER=ON -DSTATIC_LIB=ON
 $ make
 $ ./src/pquery-ps
 ```
-also, you can compile 2 or 3 PQuery variants, just run cmake with different options from different directories or use ```git clean -xfd``` after compilation
 
 # PQuery accepts the following options
 * --database

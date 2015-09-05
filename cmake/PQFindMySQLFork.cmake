@@ -5,15 +5,24 @@
 #  MYSQL_FOUND       - True if MySQL found.                 #
 #############################################################
 #
-OPTION (MYSQL         "Build with MySQL support" OFF)
-OPTION (PERCONASERVER "Build with Percona Server support" OFF)
-OPTION (WEBSCALESQL   "Build with WebScaleSQL support" OFF)
+OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
+OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
+OPTION (WEBSCALESQL   "Build PQuery with WebScaleSQL support" OFF)
+OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
 #
-IF (MYSQL)
+# Also use MYSQL for MariaDB, as library names and all locations are the same
+#
+IF (MYSQL OR MARIADB)
   SET(MYSQL_NAMES mysqlclient mysqlclient_r)
-  SET(PQUERY_EXT "ms")
-  SET(FORK "MySQL")
-ENDIF()
+  if(MYSQL)
+    SET(PQUERY_EXT "ms")
+    SET(FORK "MySQL")
+  ENDIF(MYSQL)
+  IF(MARIADB)
+    SET(PQUERY_EXT "md")
+    SET(FORK "MariaDB")
+  ENDIF(MARIADB)
+ENDIF(MYSQL OR MARIADB)
 #
 IF (PERCONASERVER)
   SET(MYSQL_NAMES perconaserverclient perconaserverclient_r)
