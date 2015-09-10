@@ -8,7 +8,7 @@ ADD_DEFINITIONS(-std=gnu++11)
 #
 OPTION(STRICT "Turn on a lot of compiler warnings" ON)
 OPTION(DEBUG "Add debug info for GDB" OFF)
-OPTION(STATIC_LIB "Statically compile MySQL library into PQuery" OFF)
+OPTION(STATIC_LIB "Statically compile MySQL library into PQuery" ON)
 # 
 IF (DEBUG)
   ADD_DEFINITIONS(-O0 -pipe -g3 -ggdb3)
