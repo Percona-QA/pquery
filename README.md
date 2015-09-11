@@ -13,7 +13,7 @@ PQuery is a small utility written to test/crash MySQL for QA purposes. Its name 
   * *DEBUG* - **OFF** by default, compile PQuery with debug inforamation for GDB
   * *STRICT* - **ON** by default, compile PQuery with strict flags   
 4. if you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake:
-  * *MYSQL_INCLUDE_DIR* and * *MYSQL_LIBRARY*
+  * *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*
   OR you can set *MYSQL_BASEDIR* if you have binary tarball extracted to some custom place
 
 5. resulting binary will have appropriate extension:
