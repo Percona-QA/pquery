@@ -10,6 +10,10 @@ OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
 OPTION (WEBSCALESQL   "Build PQuery with WebScaleSQL support" OFF)
 OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
 #
+IF (MYSQL_BASEDIR)
+  SET (MYSQL_ROOT_PATH ${MYSQL_BASEDIR})
+ENDIF()
+  #
 # Also use MYSQL for MariaDB, as library names and all locations are the same
 #
 IF (MYSQL OR MARIADB)
@@ -44,11 +48,12 @@ ENDIF (MYSQL_INCLUDE_DIR)
 FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
   /usr/local/include/mysql
   /usr/include/mysql
+  ${MYSQL_ROOT_PATH}/include/mysql
   )
 #
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 
+  PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 ${MYSQL_ROOT_PATH}/lib ${MYSQL_ROOT_PATH}/lib64
   PATH_SUFFIXES mysql
   )
 #
