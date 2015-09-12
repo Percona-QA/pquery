@@ -42,18 +42,19 @@ IF (MYSQL_INCLUDE_DIR)
 ENDIF (MYSQL_INCLUDE_DIR)
 #
 IF (BASEDIR)
-  MESSAGE(STATUS "BASEDIR is set, looking for ${FORK} in ${BASEDIR}")
+  MESSAGE(STATUS "* BASEDIR is set, looking for ${FORK} in ${BASEDIR}")
 ENDIF()
 #
 FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
+  ${BASEDIR}/include
+  ${BASEDIR}/include/mysql
   /usr/local/include/mysql
   /usr/include/mysql
-  ${BASEDIR}/include/mysql
   )
 #
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 ${BASEDIR}/lib ${BASEDIR}/lib64
+  PATHS ${BASEDIR}/lib ${BASEDIR}/lib64 /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 
   PATH_SUFFIXES mysql
   )
 #
@@ -67,11 +68,12 @@ ENDIF (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
 #
 IF (MYSQL_FOUND)
   IF (NOT MYSQL_FIND_QUIETLY)
-    MESSAGE(STATUS "Found ${FORK}: ${MYSQL_LIBRARY}")
+    MESSAGE(STATUS "* Found ${FORK} library: ${MYSQL_LIBRARY}")
+    MESSAGE(STATUS "* Found ${FORK} include directory: ${MYSQL_INCLUDE_DIR}")
   ENDIF (NOT MYSQL_FIND_QUIETLY)
 ELSE (MYSQL_FOUND)
-  MESSAGE(STATUS "Looked for ${FORK} libraries named ${MYSQL_NAMES}.")
-  MESSAGE(FATAL_ERROR "Could NOT find ${FORK} library")
+  MESSAGE(STATUS "* Looked for ${FORK} libraries named ${MYSQL_NAMES}.")
+  MESSAGE(FATAL_ERROR "* Could NOT find ${FORK} library")
 ENDIF (MYSQL_FOUND)
 #
 MARK_AS_ADVANCED(MYSQL_LIBRARY MYSQL_INCLUDE_DIR)
