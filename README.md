@@ -12,9 +12,7 @@ PQuery is a small utility written to test/crash MySQL for QA purposes. Its name 
   * *STATIC_LIB* - **ON** by default, compile PQuery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
   * *DEBUG* - **OFF** by default, compile PQuery with debug inforamation for GDB
   * *STRICT* - **ON** by default, compile PQuery with strict flags   
-4. if you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake:
-  * *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*
-  OR you can set *MYSQL_BASEDIR* if you have binary tarball extracted to some custom place
+4. if you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR you can set *BASEDIR* variable if you have binary tarball extracted to some custom place
 
 5. resulting binary will have appropriate extension:
   * *pquery-ms* for MySQL
@@ -22,13 +20,16 @@ PQuery is a small utility written to test/crash MySQL for QA purposes. Its name 
   * *pquery-ws* for WebScaleSQL
   * *pquery-md* for MariaDB
 
+Please note that only MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries will be linked dynamically.
+
 # Example
 so, your commands may look like the following example:
 ```
 $ cd pquery
-$ cmake . -DPERCONASERVER=ON -DSTATIC_LIB=OFF -DMYSQL_BASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
-$ make
-$ ./src/pquery-ps
+$ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
+$ make && make install
+$ git clean -xfd
+$ ... building other forks here ...
 ```
 
 # PQuery accepts the following options
