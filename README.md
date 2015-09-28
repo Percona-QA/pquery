@@ -61,7 +61,7 @@ Option | Function| Example
 
 # Where can I find more information on pquery?
 [https://www.percona.com/blog/2015/02/04/future-mysql-quality-assurance-introducing-pquery/](https://www.percona.com/blog/2015/02/04/future-mysql-quality-assurance-introducing-pquery/)
-[https://www.percona.com/blog/2015/04/09/pquery-binaries-with-statically-included-client-libs-now-available/](https://www.percona.com/blog/2015/04/09/pquery-binaries-with-statically-included-client-libs-now-available/)
+[https://www.percona.com/blog/2015/04/09/pquery-binaries-with-statically-included-client-libs-now-available/](https://www.percona.com/blog/2015/04/09/pquery-binaries-with-statically-included-client-libs-now-available/)       
 [https://www.percona.com/blog/2015/07/08/mysql-qa-episode-4-qa-framework-setup-time/](https://www.percona.com/blog/2015/07/08/mysql-qa-episode-4-qa-framework-setup-time/)
 [https://www.percona.com/blog/2015/07/13/mysql-qa-episode-5-preparing-your-qa-run-with-pquery/](https://www.percona.com/blog/2015/07/13/mysql-qa-episode-5-preparing-your-qa-run-with-pquery/)
 
@@ -79,4 +79,4 @@ Option | Function| Example
 # Contributors
 * Alexey Bychko - C++ code, cmake extensions
 * Roel Van de Paar - invention, scripted framework
-* For the full list of contributors, please see doc/README
+* For the full list of contributors, please see [CONTRIBUTORS](https://github.com/Percona-QA/pquery/blob/master/doc/CONTRIBUTORS)
