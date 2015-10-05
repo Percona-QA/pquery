@@ -26,10 +26,11 @@
 
 using namespace std;
 
-static int verbose_flag;
+static int verbose;
 static int log_all_queries;
 static int log_failed_queries;
 static int no_shuffle;
+static int query_analysis;
 
 char db[] = "test";
 char sock[] = "/var/run/mysqld/mysqld.sock";
@@ -51,7 +52,7 @@ struct conndata
 } m_conndata;
 
 void executor(int number, const vector<string>& qlist) {
-  if(verbose_flag) {
+  if(verbose) {
     printf("Thread %d started\n", number);
   }
 
@@ -109,7 +110,8 @@ void executor(int number, const vector<string>& qlist) {
 
     if (mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()))) {
       failed_queries++;
-      if(verbose_flag) {
+      
+      if(verbose) {
         fprintf(stderr, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
       }
       if (log_failed_queries) {
@@ -125,7 +127,7 @@ void executor(int number, const vector<string>& qlist) {
       }
     }
     else {
-      if(verbose_flag) {
+      if(verbose) {
         fprintf(stderr, "%s\n", qlist[query_number].c_str());
       }
       max_con_fail_count=0;
@@ -133,6 +135,10 @@ void executor(int number, const vector<string>& qlist) {
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
     if (result != NULL) {
+      const char* qres = mysql_info(conn);
+      if (qres != NULL){
+        fprintf(stderr, "%s\n", qres);
+      }
       mysql_free_result(result);
     }
   }
@@ -174,9 +180,10 @@ int main(int argc, char* argv[]) {
       {"password", required_argument, 0, 'P'},
       {"threads", required_argument, 0, 't'},
       {"queries_per_thread", required_argument, 0, 'q'},
-      {"verbose", no_argument, &verbose_flag, 1},
+      {"verbose", no_argument, &verbose, 1},
       {"log_all_queries", no_argument, &log_all_queries, 1},
       {"log_failed_queries", no_argument, &log_failed_queries, 1},
+      {"query-analysis", no_argument, &query_analysis, 1},
       {"no-shuffle", no_argument, &no_shuffle, 1},
       {0, 0, 0, 0}
     };
@@ -235,6 +242,12 @@ int main(int argc, char* argv[]) {
     }
   }                              //while
 
+  // turning all logging on if query analysis is set
+  if (query_analysis){
+    log_all_queries = 1;
+    log_failed_queries = 1;
+  }
+
   MYSQL * conn;
   conn = mysql_init(NULL);
   if (conn == NULL) {
@@ -253,9 +266,29 @@ int main(int argc, char* argv[]) {
     mysql_library_end();
     exit(EXIT_FAILURE);
   }
-  printf("MySQL Connection Info: %s \n", mysql_get_host_info(conn));
-  printf("MySQL Client Info: %s \n", mysql_get_client_info());
-  printf("MySQL Server Info: %s \n", mysql_get_server_info(conn));
+  
+  printf("- Connected to server (%s)... \n", mysql_get_host_info(conn));
+  printf("- PQuery v%s compiled with %s-%s \n", PQVERSION, FORK, mysql_get_client_info());
+  
+  // getting the real server version
+  MYSQL_RES *result = NULL;
+  string server_version;
+  
+  if (!mysql_query(conn, "select @@version_comment limit 1") && (result = mysql_use_result(conn))) {
+    MYSQL_ROW row = mysql_fetch_row(result);
+    if (row && row[0]){
+      server_version = mysql_get_server_info(conn);
+      server_version.append(" ");
+      server_version.append(row[0]);
+    }
+  } else {
+    server_version = mysql_get_server_info(conn);
+  }
+  printf("- Connected server version: %s \n", server_version.c_str());
+  
+  if (result){
+    mysql_free_result(result);
+  }
 
   mysql_close(conn);
 
