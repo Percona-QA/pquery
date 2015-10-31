@@ -35,7 +35,8 @@ Please note that only the MySQL client library will be linked statically if STAT
 ```
 $ cd pquery
 $ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
-$ make && make install
+$ make
+$ sudo make install   # If you want pquery to be installed on your system, otherwise pquery binary can be found in ./src
 $ git clean -xfd
 $ ... building other MySQL flavors/forks here ...
 ```
