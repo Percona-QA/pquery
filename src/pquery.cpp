@@ -24,18 +24,12 @@
 
 using namespace std;
 
-static int verbose;
-static int log_all_queries;
-static int log_failed_queries;
-static int no_shuffle;
-static int query_analysis;
-
 char db[] = "test";
 char sock[] = "/var/run/mysqld/mysqld.sock";
 char sqlfile[] = "pquery.sql";
 char outdir[] = "/tmp";
 
-struct conndata
+static struct conndata
 {
   char database[255];
   char addr[255];
@@ -47,23 +41,28 @@ struct conndata
   int port;
   int threads;
   int queries_per_thread;
-} m_conndata;
+  int verbose;
+  int log_all_queries;
+  int log_failed_queries;
+  int no_shuffle;
+  int query_analysis;
+} m_config;
 
 void executor(int number, const vector<string>& qlist) {
-  if(verbose) {
+  if(m_config.verbose) {
     printf("Thread %d started\n", number);
   }
 
   int failed_queries = 0;
   int total_queries = 0;
-  int max_con_failures = 250;    /* Maximum consecutive failures (likely indicating crash/assert, user priveleges drop etc.) */
+  int max_con_failures = 250;    /* Maximum consecutive failures (likely indicating crash/assert, user privileges drop etc.) */
   int max_con_fail_count = 0;
 
   FILE * thread_log = NULL;
 
-  if ((log_failed_queries) || (log_all_queries)) {
+  if ((m_config.log_failed_queries) || (m_config.log_all_queries)) {
     ostringstream os;
-    os << m_conndata.logdir << "/pquery_thread-" << number << ".sql";
+    os << m_config.logdir << "/pquery_thread-" << number << ".sql";
     thread_log = fopen(os.str().c_str(), "w+");
   }
 
@@ -76,11 +75,13 @@ void executor(int number, const vector<string>& qlist) {
     if (thread_log != NULL) {
       fclose(thread_log);
     }
-    printf("Thread #%d is exiting\n", number);
+    if(m_config.verbose){
+      printf("Thread #%d is exiting\n", number);
+    }
     return;
   }
-  if (mysql_real_connect(conn, m_conndata.addr, m_conndata.username,
-  m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL) {
+  if (mysql_real_connect(conn, m_config.addr, m_config.username,
+  m_config.password, m_config.database, m_config.port, m_config.socket, 0) == NULL) {
     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
     mysql_close(conn);
     if (thread_log != NULL) {
@@ -90,9 +91,9 @@ void executor(int number, const vector<string>& qlist) {
     return;
   }
 
-  for (int i=0; i<m_conndata.queries_per_thread; i++) {
+  for (int i=0; i<m_config.queries_per_thread; i++) {
     int query_number;
-    if(no_shuffle) {
+    if(m_config.no_shuffle) {
       query_number = i;
     }
     else {
@@ -102,17 +103,17 @@ void executor(int number, const vector<string>& qlist) {
       srand(seed);
       query_number = rand() % qlist.size();
     }
-    if (log_all_queries) {
+    if (m_config.log_all_queries) {
       fprintf(thread_log, "%s\n", qlist[query_number].c_str());
     }
 
     if (mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()))) {
       failed_queries++;
 
-      if(verbose) {
+      if(m_config.verbose) {
         fprintf(stderr, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
       }
-      if (log_failed_queries) {
+      if (m_config.log_failed_queries) {
         fprintf(thread_log, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
       }
       max_con_fail_count++;
@@ -125,7 +126,7 @@ void executor(int number, const vector<string>& qlist) {
       }
     }
     else {
-      if(verbose) {
+      if(m_config.verbose) {
         fprintf(stderr, "%s\n", qlist[query_number].c_str());
       }
       max_con_fail_count=0;
@@ -141,7 +142,7 @@ void executor(int number, const vector<string>& qlist) {
     }
   }
 
-  printf("* SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
+  printf("* Thread #%d SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", number, failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
   if (thread_log != NULL) {
     fprintf(thread_log,"# SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
     fclose(thread_log);
@@ -153,48 +154,38 @@ void executor(int number, const vector<string>& qlist) {
 
 int main(int argc, char* argv[]) {
 
-  m_conndata.threads = 10;
-  m_conndata.port = 0;
-  m_conndata.queries_per_thread = 10000;
+  m_config.threads = 10;
+  m_config.port = 0;
+  m_config.queries_per_thread = 10000;
 
-  char db[] = "test";
-  int c;
+  int c, option_index = 0;
 
-  strncpy(m_conndata.database, db, strlen(db) + 1);
-  strncpy(m_conndata.socket, sock, strlen(sock) + 1);
-  strncpy(m_conndata.infile, sqlfile, strlen(sqlfile) + 1);
-  strncpy(m_conndata.logdir, outdir, strlen(outdir) + 1);
+  strncpy(m_config.database, db, strlen(db) + 1);
+  strncpy(m_config.socket, sock, strlen(sock) + 1);
+  strncpy(m_config.infile, sqlfile, strlen(sqlfile) + 1);
+  strncpy(m_config.logdir, outdir, strlen(outdir) + 1);
 
-  while(true) {
+  static struct option long_options[] = {
+    {"help", no_argument, 0, 'h'},
+    {"database", required_argument, 0, 'd'},
+    {"address", required_argument, 0, 'a'},
+    {"infile", required_argument, 0, 'i'},
+    {"logdir", required_argument, 0, 'l'},
+    {"socket", required_argument, 0, 's'},
+    {"port", required_argument, 0, 'p'},
+    {"user", required_argument, 0, 'u'},
+    {"password", required_argument, 0, 'P'},
+    {"threads", required_argument, 0, 't'},
+    {"queries-per-thread", required_argument, 0, 'q'},
+    {"verbose", no_argument, &m_config.verbose, 1},
+    {"log-all-queries", no_argument, &m_config.log_all_queries, 1},
+    {"log-failed-queries", no_argument, &m_config.log_failed_queries, 1},
+    {"query-analysis", no_argument, &m_config.query_analysis, 1},
+    {"no-shuffle", no_argument, &m_config.no_shuffle, 1},
+    {0, 0, 0, 0}
+  };
 
-    static struct option long_options[] = {
-      {"help", no_argument, 0, 'h'},
-      {"database", required_argument, 0, 'd'},
-      {"address", required_argument, 0, 'a'},
-      {"infile", required_argument, 0, 'i'},
-      {"logdir", required_argument, 0, 'l'},
-      {"socket", required_argument, 0, 's'},
-      {"port", required_argument, 0, 'p'},
-      {"user", required_argument, 0, 'u'},
-      {"password", required_argument, 0, 'P'},
-      {"threads", required_argument, 0, 't'},
-      {"queries_per_thread", required_argument, 0, 'q'},
-      {"verbose", no_argument, &verbose, 1},
-      {"log_all_queries", no_argument, &log_all_queries, 1},
-      {"log_failed_queries", no_argument, &log_failed_queries, 1},
-      {"query-analysis", no_argument, &query_analysis, 1},
-      {"no-shuffle", no_argument, &no_shuffle, 1},
-      {0, 0, 0, 0}
-    };
-
-    int option_index = 0;
-
-    c = getopt_long_only(argc, argv, "d:a:i:l:s:p:u:P:t:q", long_options, &option_index);
-
-    if (c == -1) {
-      break;
-    }
-
+  while( (c = getopt_long_only(argc, argv, "d:a:i:l:s:p:u:P:t:q", long_options, &option_index)) != -1){
     switch (c) {
       case 'h':
         show_help();
@@ -202,43 +193,43 @@ int main(int argc, char* argv[]) {
         break; // yes, I know
       case 'd':
         printf("Database is %s\n", optarg);
-        memcpy(m_conndata.database, optarg, strlen(optarg) + 1);
+        memcpy(m_config.database, optarg, strlen(optarg) + 1);
         break;
       case 'a':
         printf("Address is %s\n", optarg);
-        memcpy(m_conndata.addr, optarg, strlen(optarg) + 1);
+        memcpy(m_config.addr, optarg, strlen(optarg) + 1);
         break;
       case 'i':
         printf("Infile is %s\n", optarg);
-        memcpy(m_conndata.infile, optarg, strlen(optarg) + 1);
+        memcpy(m_config.infile, optarg, strlen(optarg) + 1);
         break;
       case 'l':
         printf("Logdir is %s\n", optarg);
-        memcpy(m_conndata.logdir, optarg, strlen(optarg) + 1);
+        memcpy(m_config.logdir, optarg, strlen(optarg) + 1);
         break;
       case 's':
         printf("Socket is %s\n", optarg);
-        memcpy(m_conndata.socket, optarg, strlen(optarg) + 1);
+        memcpy(m_config.socket, optarg, strlen(optarg) + 1);
         break;
       case 'p':
         printf("Port is %s\n", optarg);
-        m_conndata.port = atoi(optarg);
+        m_config.port = atoi(optarg);
         break;
       case 'u':
         printf("User is %s\n", optarg);
-        memcpy(m_conndata.username, optarg, strlen(optarg) + 1);
+        memcpy(m_config.username, optarg, strlen(optarg) + 1);
         break;
       case 'P':
         printf("Password is %s\n", optarg);
-        memcpy(m_conndata.password, optarg, strlen(optarg) + 1);
+        memcpy(m_config.password, optarg, strlen(optarg) + 1);
         break;
       case 't':
         printf("Starting with %s threads\n", optarg);
-        m_conndata.threads = atoi(optarg);
+        m_config.threads = atoi(optarg);
         break;
       case 'q':
         printf("Query limit per thread is %s\n", optarg);
-        m_conndata.queries_per_thread = atoi(optarg);
+        m_config.queries_per_thread = atoi(optarg);
         break;
       default:
         break;
@@ -246,9 +237,9 @@ int main(int argc, char* argv[]) {
   }                              //while
 
   // turning all logging on if query analysis is set
-  if (query_analysis){
-    log_all_queries = 1;
-    log_failed_queries = 1;
+  if (m_config.query_analysis){
+    m_config.log_all_queries = 1;
+    m_config.log_failed_queries = 1;
   }
 
   MYSQL * conn;
@@ -261,8 +252,8 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  if (mysql_real_connect(conn, m_conndata.addr, m_conndata.username,
-  m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL) {
+  if (mysql_real_connect(conn, m_config.addr, m_config.username,
+  m_config.password, m_config.database, m_config.port, m_config.socket, 0) == NULL) {
     printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
     printf("* PQUERY: Unable to continue [2], exiting\n");
     mysql_close(conn);
@@ -270,8 +261,10 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  printf("- Connected to server (%s)... \n", mysql_get_host_info(conn));
-  printf("- PQuery v%s compiled with %s-%s \n", PQVERSION, FORK, mysql_get_client_info());
+  if (m_config.verbose) {
+    printf("- Connected to server (%s)... \n", mysql_get_host_info(conn));
+    printf("- PQuery v%s compiled with %s-%s \n", PQVERSION, FORK, mysql_get_client_info());
+  }
 
   // getting the real server version
   MYSQL_RES *result = NULL;
@@ -287,19 +280,19 @@ int main(int argc, char* argv[]) {
   } else {
     server_version = mysql_get_server_info(conn);
   }
-  printf("- Connected server version: %s \n", server_version.c_str());
-
+  if (m_config.verbose){
+    printf("- Connected server version: %s \n", server_version.c_str());
+  }
   if (result){
     mysql_free_result(result);
   }
-
   mysql_close(conn);
 
   ifstream infile;
-  infile.open(m_conndata.infile);
+  infile.open(m_config.infile);
 
   if (!infile) {
-    printf("Unable to open SQL file %s: %s\n", m_conndata.infile, strerror(errno));
+    printf("Unable to open SQL file %s: %s\n", m_config.infile, strerror(errno));
     exit(EXIT_FAILURE);
   }
 
@@ -314,20 +307,20 @@ int main(int argc, char* argv[]) {
   infile.close();
 
   /* log replaying */
-  if(no_shuffle) {
-    m_conndata.threads = 1;
-    m_conndata.queries_per_thread = querylist->size();
+  if(m_config.no_shuffle) {
+    m_config.threads = 1;
+    m_config.queries_per_thread = querylist->size();
   }
   /* END log replaying */
   vector<thread> threads;
   threads.clear();
-  threads.resize(m_conndata.threads);
+  threads.resize(m_config.threads);
 
-  for (int i=0; i<m_conndata.threads; i++) {
+  for (int i=0; i<m_config.threads; i++) {
     threads[i] = thread(executor, i, *querylist);
   }
 
-  for (int i=0; i<m_conndata.threads; i++) {
+  for (int i=0; i<m_config.threads; i++) {
     threads[i].join();
   }
 
