@@ -1,16 +1,14 @@
-/* 
+/*
  =========================================================
  #       Created by Alexey Bychko, Percona LLC           #
  #     Expanded by Roel Van de Paar, Percona LLC         #
  =========================================================
 */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cctype>
 #include <cstring>
 #include <cerrno>
-#include <vector>
 #include <thread>                /* c++11 or gnu++11 */
 #include <string>
 #include <fstream>
@@ -110,7 +108,7 @@ void executor(int number, const vector<string>& qlist) {
 
     if (mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()))) {
       failed_queries++;
-      
+
       if(verbose) {
         fprintf(stderr, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
       }
@@ -170,10 +168,11 @@ int main(int argc, char* argv[]) {
   while(true) {
 
     static struct option long_options[] = {
+      {"help", no_argument, 0, 'h'},
       {"database", required_argument, 0, 'd'},
       {"address", required_argument, 0, 'a'},
       {"infile", required_argument, 0, 'i'},
-      {"logdir", optional_argument, 0, 'l'},
+      {"logdir", required_argument, 0, 'l'},
       {"socket", required_argument, 0, 's'},
       {"port", required_argument, 0, 'p'},
       {"user", required_argument, 0, 'u'},
@@ -197,6 +196,10 @@ int main(int argc, char* argv[]) {
     }
 
     switch (c) {
+      case 'h':
+        show_help();
+        exit(0);
+        break; // yes, I know
       case 'd':
         printf("Database is %s\n", optarg);
         memcpy(m_conndata.database, optarg, strlen(optarg) + 1);
@@ -266,14 +269,14 @@ int main(int argc, char* argv[]) {
     mysql_library_end();
     exit(EXIT_FAILURE);
   }
-  
+
   printf("- Connected to server (%s)... \n", mysql_get_host_info(conn));
   printf("- PQuery v%s compiled with %s-%s \n", PQVERSION, FORK, mysql_get_client_info());
-  
+
   // getting the real server version
   MYSQL_RES *result = NULL;
   string server_version;
-  
+
   if (!mysql_query(conn, "select @@version_comment limit 1") && (result = mysql_use_result(conn))) {
     MYSQL_ROW row = mysql_fetch_row(result);
     if (row && row[0]){
@@ -285,7 +288,7 @@ int main(int argc, char* argv[]) {
     server_version = mysql_get_server_info(conn);
   }
   printf("- Connected server version: %s \n", server_version.c_str());
-  
+
   if (result){
     mysql_free_result(result);
   }
