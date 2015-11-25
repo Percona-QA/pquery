@@ -12,7 +12,7 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
 + Early MySQL Server 5.7 versions, including RC1 & RC2, were tested with pquery in preparation for Percona Server 5.7. Many bugs, especially in RC1, were found & logged. Chapeau to the MySQL server team who triaged all bugs & resolved major bugs as can be seen in the [5.7.7](http://mysqlserverteam.com/the-mysql-5-7-7-release-candidate-is-available/) and [5.7.8](http://mysqlserverteam.com/the-mysql-5-7-8-release-candidate-is-available/) MYSQL server team notes.
 
 # How to build pquery?
-1. Install cmake >= 2.6 and GCC >= 4.7, the development files for your MySQL version/fork, and potentially OpenSSL and AIO development files and/or other deps if needed.
+1. Install cmake >= 2.6, gcc-c+, and GCC >= 4.7, the development files for your MySQL version/fork, and potentially OpenSSL and AIO development files and/or other deps if needed.
 2. Change dir to pquery
 3. Run cmake with the required options, which are:
   * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server support 
