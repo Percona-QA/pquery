@@ -8,14 +8,14 @@ When the pquery binary is used in combination with the Bash scripted pquery fram
 Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (ref link in the previous pquery framework section above), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh It is developed and maintained by Roel Van de Paar.
 
 # Any pquery success stories?
-+ In the first ~2 months of it's life, over 200 bugs were logged with Oracle, Percona and TokuTek, most with high quality short testcases. 
++ In the first ~2 months of it's life, over 200 bugs were logged with Oracle, Percona and TokuTek, most with high quality short testcases.
 + Early MySQL Server 5.7 versions, including RC1 & RC2, were tested with pquery in preparation for Percona Server 5.7. Many bugs, especially in RC1, were found & logged. Chapeau to the MySQL server team who triaged all bugs & resolved major bugs as can be seen in the [5.7.7](http://mysqlserverteam.com/the-mysql-5-7-7-release-candidate-is-available/) and [5.7.8](http://mysqlserverteam.com/the-mysql-5-7-8-release-candidate-is-available/) MYSQL server team notes.
 
 # How to build pquery?
-1. Install cmake >= 2.6 and GCC >= 4.7, the development files for your MySQL version/fork, and potentially OpenSSL and AIO development files and/or other deps if needed.
+1. Install cmake >= 2.6 and C++ compiler >= 4.7 (gcc-c++ for RedHat-based, g++ for Debian-based), the development files for your MySQL version/fork, and potentially OpenSSL and AIO development files and/or other deps if needed.
 2. Change dir to pquery
 3. Run cmake with the required options, which are:
-  * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server support 
+  * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server support
   * *WEBSCALESQL* - **OFF** by default, build pquery with WebScaleSQL support
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
   * *MARIADB* - **OFF** by default, build pquery with MariaDB support
@@ -29,7 +29,7 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *pquery-ws* for WebScaleSQL
   * *pquery-md* for MariaDB
 
-Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries will be linked dynamically.
+Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
 # Can you give an easy build example using an extracted tarball?
 ```
