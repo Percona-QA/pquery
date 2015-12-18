@@ -362,9 +362,6 @@ int main(int argc, char* argv[]) {
     }
   }                                               //while
 
-// try to connect and print server info
-  try_connect();
-
   ifstream infile;
   infile.open(m_conndata.infile);
 
@@ -372,7 +369,9 @@ int main(int argc, char* argv[]) {
     printf("Unable to open SQL file %s: %s\n", m_conndata.infile, strerror(errno));
     exit(EXIT_FAILURE);
   }
-
+  // try to connect and print server info
+  try_connect();
+  
   shared_ptr<vector<string>> querylist(new vector<string>);
   string line;
 
