@@ -152,22 +152,24 @@ void executor(int number, const vector<string>& qlist) {
       query_number = rand() % qlist.size();
     }
 
-    // perform the query and getting the result
+// perform the query and getting the result
 
-    if(log_query_duration){
+    if(log_query_duration) {
       gettimeofday(&begin, NULL);
     }
 
     res = mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()));
-    
-    if(log_query_duration){
+
+    if(log_query_duration) {
       gettimeofday(&end, NULL);
-      elapsed = ((end.tv_sec - begin.tv_sec)*1000) + ((end.tv_usec - begin.tv_usec)/1000.0); // time in milliseconds (1/1000 sec)
+                                                  // time in milliseconds (1/1000 sec)
+      elapsed = ((end.tv_sec - begin.tv_sec)*1000) + ((end.tv_usec - begin.tv_usec)/1000.0);
     }
 
-    if (res == 0) { //success
+    if (res == 0) {                               //success
       max_con_fail_count=0;
-    }else{
+    }
+    else {
       failed_queries++;
       max_con_fail_count++;
       if (max_con_fail_count >= max_con_failures) {
@@ -178,64 +180,65 @@ void executor(int number, const vector<string>& qlist) {
         break;
       }
     }
-     
+
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
     if (result != NULL) {
       mysql_free_result(result);
     }
 // logging part
-if(verbose){
-  
-  if(res == 0){
-    if(log_all_queries){
-      fprintf(stderr, "%s", qlist[query_number].c_str());
-    
-    fprintf(stderr, " # NOERROR");
-    if(log_query_duration){
-      fprintf(stderr, " # Duration: %f msec", elapsed);
-    }
-    fprintf(stderr, "\n");
-    } 
-  }else{
-    if(log_failed_queries){
-      fprintf(stderr, "%s", qlist[query_number].c_str());
-      fprintf(stderr, " # ERROR:");
-      fprintf(stderr, " %u - %s", mysql_errno(conn), mysql_error(conn));
-      if(log_query_duration){
-        fprintf(stderr, " # Duration: %f msec", elapsed);
-      } 
-      fprintf(stderr, "\n");
-   }
-  }
-  
-  
-}
-//
-if(thread_log != NULL){
-  if(res == 0){
-    if((log_all_queries) || (query_analysis)){
-      fprintf(thread_log, "%s", qlist[query_number].c_str());
-      fprintf(thread_log, " # NOERROR");
-      if(log_query_duration) {
-        fprintf(thread_log, " # Duration: %f msec", elapsed);
-      }
-      fprintf(thread_log, "\n");
-    }
-  }else{
-    if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
-      fprintf(thread_log, "%s", qlist[query_number].c_str());
-      fprintf(thread_log, " # ERROR:");
-      fprintf(thread_log, " %u - %s", mysql_errno(conn), mysql_error(conn));
-      if(log_query_duration) {
-        fprintf(thread_log, " # Duration: %f msec", elapsed);
-      }
-      fprintf(thread_log, "\n");
-    }
-  }
-}
+    if(verbose) {
 
-  } //for loop
+      if(res == 0) {
+        if( (log_all_queries) || (query_analysis) ){
+          fprintf(stderr, "%s", qlist[query_number].c_str());
+
+          fprintf(stderr, " # NOERROR");
+          if(log_query_duration) {
+            fprintf(stderr, " # Duration: %f msec", elapsed);
+          }
+          fprintf(stderr, "\n");
+        }
+      }
+      else {
+        if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
+          fprintf(stderr, "%s", qlist[query_number].c_str());
+          fprintf(stderr, " # ERROR:");
+          fprintf(stderr, " %u - %s", mysql_errno(conn), mysql_error(conn));
+          if(log_query_duration) {
+            fprintf(stderr, " # Duration: %f msec", elapsed);
+          }
+          fprintf(stderr, "\n");
+        }
+      }
+
+    }
+//
+    if(thread_log != NULL) {
+      if(res == 0) {
+        if((log_all_queries) || (query_analysis)) {
+          fprintf(thread_log, "%s", qlist[query_number].c_str());
+          fprintf(thread_log, " # NOERROR");
+          if(log_query_duration) {
+            fprintf(thread_log, " # Duration: %f msec", elapsed);
+          }
+          fprintf(thread_log, "\n");
+        }
+      }
+      else {
+        if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
+          fprintf(thread_log, "%s", qlist[query_number].c_str());
+          fprintf(thread_log, " # ERROR:");
+          fprintf(thread_log, " %u - %s", mysql_errno(conn), mysql_error(conn));
+          if(log_query_duration) {
+            fprintf(thread_log, " # Duration: %f msec", elapsed);
+          }
+          fprintf(thread_log, "\n");
+        }
+      }
+    }
+
+  }                                               //for loop
 
   printf("* SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
   if (thread_log != NULL) {
