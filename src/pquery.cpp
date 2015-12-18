@@ -105,7 +105,9 @@ void executor(int number, const vector<string>& qlist) {
   int total_queries = 0;
   int max_con_failures = 250;                     /* Maximum consecutive failures (likely indicating crash/assert, user priveleges drop etc.) */
   int max_con_fail_count = 0;
-
+  int res;
+  struct timeval begin, end;
+  double elapsed;
   FILE * thread_log = NULL;
 
   if ((log_failed_queries) || (log_all_queries) || (query_analysis)) {
@@ -149,18 +151,24 @@ void executor(int number, const vector<string>& qlist) {
       srand(seed);
       query_number = rand() % qlist.size();
     }
-    if ((log_all_queries) || (query_analysis)) {
-      fprintf(thread_log, "%s\n", qlist[query_number].c_str());
+
+    // perform the query and getting the result
+
+    if(log_query_duration){
+      gettimeofday(&begin, NULL);
     }
 
-    if (mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()))) {
+    res = mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()));
+    
+    if(log_query_duration){
+      gettimeofday(&end, NULL);
+      elapsed = ((end.tv_sec - begin.tv_sec)*1000) + ((end.tv_usec - begin.tv_usec)/1000.0); // time in milliseconds (1/1000 sec)
+    }
+
+    if (res == 0) { //success
+      max_con_fail_count=0;
+    }else{
       failed_queries++;
-      if(verbose) {
-        fprintf(stderr, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
-      }
-      if ((log_failed_queries) || (query_analysis)) {
-        fprintf(thread_log, "# Query: \"%s\" FAILED: %s\n", qlist[query_number].c_str(), mysql_error(conn));
-      }
       max_con_fail_count++;
       if (max_con_fail_count >= max_con_failures) {
         printf("* Last %d consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.\n", max_con_fail_count);
@@ -170,18 +178,64 @@ void executor(int number, const vector<string>& qlist) {
         break;
       }
     }
-    else {
-      if(verbose) {
-        fprintf(stderr, "%s\n", qlist[query_number].c_str());
-      }
-      max_con_fail_count=0;
-    }
+     
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
     if (result != NULL) {
       mysql_free_result(result);
     }
+// logging part
+if(verbose){
+  
+  if(res == 0){
+    if(log_all_queries){
+      fprintf(stderr, "%s", qlist[query_number].c_str());
+    
+    fprintf(stderr, " # NOERROR");
+    if(log_query_duration){
+      fprintf(stderr, " # Duration: %f msec", elapsed);
+    }
+    fprintf(stderr, "\n");
+    } 
+  }else{
+    if(log_failed_queries){
+      fprintf(stderr, "%s", qlist[query_number].c_str());
+      fprintf(stderr, " # ERROR:");
+      fprintf(stderr, " %u - %s", mysql_errno(conn), mysql_error(conn));
+      if(log_query_duration){
+        fprintf(stderr, " # Duration: %f msec", elapsed);
+      } 
+      fprintf(stderr, "\n");
+   }
   }
+  
+  
+}
+//
+if(thread_log != NULL){
+  if(res == 0){
+    if((log_all_queries) || (query_analysis)){
+      fprintf(thread_log, "%s", qlist[query_number].c_str());
+      fprintf(thread_log, " # NOERROR");
+      if(log_query_duration) {
+        fprintf(thread_log, " # Duration: %f msec", elapsed);
+      }
+      fprintf(thread_log, "\n");
+    }
+  }else{
+    if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
+      fprintf(thread_log, "%s", qlist[query_number].c_str());
+      fprintf(thread_log, " # ERROR:");
+      fprintf(thread_log, " %u - %s", mysql_errno(conn), mysql_error(conn));
+      if(log_query_duration) {
+        fprintf(thread_log, " # Duration: %f msec", elapsed);
+      }
+      fprintf(thread_log, "\n");
+    }
+  }
+}
+
+  } //for loop
 
   printf("* SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
   if (thread_log != NULL) {
@@ -270,7 +324,7 @@ int main(int argc, char* argv[]) {
         memcpy(m_conndata.password, optarg, strlen(optarg) + 1);
         break;
       case 't':
-        printf("Starting with %s threads\n", optarg);
+        printf("Starting with %s thread(s)\n", optarg);
         m_conndata.threads = atoi(optarg);
         break;
       case 'q':
