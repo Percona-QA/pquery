@@ -53,6 +53,15 @@ struct conndata
   int queries_per_thread;
 } m_conndata;
 
+inline unsigned long long 
+get_affected_rows(MYSQL * connection){
+  if (mysql_affected_rows(connection) == ~(ulonglong) 0){
+    return 0LL;
+  }
+  return mysql_affected_rows(connection);
+}
+
+
 void try_connect() {
   MYSQL * conn;
   conn = mysql_init(NULL);
@@ -193,30 +202,42 @@ void executor(int number, const vector<string>& qlist) {
         if( (log_all_queries) || (query_analysis) ){
           fprintf(stderr, "%s", qlist[query_number].c_str());
           fprintf(stderr, " # NOERROR");
+          if(query_analysis){
+            fprintf(stderr, " # WARNINGS: %u", mysql_warning_count(conn));
+            fprintf(stderr, " # CHANGED: %llu", get_affected_rows(conn) );
+          }
           if(log_query_duration) {
             fprintf(stderr, " # Duration: %f msec", elapsed);
           }
           fprintf(stderr, "\n");
         }
-      }
-      else {
+      } else {
         if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
           fprintf(stderr, "%s", qlist[query_number].c_str());
           fprintf(stderr, " # ERROR:");
           fprintf(stderr, " %u - %s", mysql_errno(conn), mysql_error(conn));
-          if(log_query_duration) {
+          if(query_analysis){
+            fprintf(stderr, " # WARNINGS: %u", mysql_warning_count(conn));
+            fprintf(stderr, " # CHANGED: %llu", get_affected_rows(conn) );
+          }
+           if(log_query_duration) {
             fprintf(stderr, " # Duration: %f msec", elapsed);
           }
           fprintf(stderr, "\n");
         }
-      }
+      } //if / else
     }
+  
 //
     if(thread_log != NULL) {
       if(res == 0) {
         if((log_all_queries) || (query_analysis)) {
           fprintf(thread_log, "%s", qlist[query_number].c_str());
           fprintf(thread_log, " # NOERROR");
+          if(query_analysis){
+            fprintf(thread_log, " # WARNINGS: %u", mysql_warning_count(conn));
+            fprintf(thread_log, " # CHANGED: %llu", get_affected_rows(conn));
+          }
           if(log_query_duration) {
             fprintf(thread_log, " # Duration: %f msec", elapsed);
           }
@@ -228,6 +249,10 @@ void executor(int number, const vector<string>& qlist) {
           fprintf(thread_log, "%s", qlist[query_number].c_str());
           fprintf(thread_log, " # ERROR:");
           fprintf(thread_log, " %u - %s", mysql_errno(conn), mysql_error(conn));
+          if(query_analysis){
+            fprintf(thread_log, " # WARNINGS: %u", mysql_warning_count(conn));
+            fprintf(thread_log, " # CHANGED: %llu", get_affected_rows(conn) );
+          }
           if(log_query_duration) {
             fprintf(thread_log, " # Duration: %f msec", elapsed);
           }
