@@ -112,7 +112,7 @@ void executor(int number, const vector<string>& qlist) {
 
   if ((log_failed_queries) || (log_all_queries) || (query_analysis)) {
     ostringstream os;
-    os << m_conndata.logdir << "/pquery_thread-" << number << ".sql";
+    os << m_conndata.logdir << "/pquery_thread-" << number << ".log";
     thread_log = fopen(os.str().c_str(), "w+");
   }
 
@@ -186,13 +186,12 @@ void executor(int number, const vector<string>& qlist) {
     if (result != NULL) {
       mysql_free_result(result);
     }
-// logging part
-    if(verbose) {
+// logging part, initial implementation, will be refactored / rewritten
+    if((verbose) && (threads == 1)) { // print it only if 1 thread is active
 
       if(res == 0) {
         if( (log_all_queries) || (query_analysis) ){
           fprintf(stderr, "%s", qlist[query_number].c_str());
-
           fprintf(stderr, " # NOERROR");
           if(log_query_duration) {
             fprintf(stderr, " # Duration: %f msec", elapsed);
@@ -211,7 +210,6 @@ void executor(int number, const vector<string>& qlist) {
           fprintf(stderr, "\n");
         }
       }
-
     }
 //
     if(thread_log != NULL) {
@@ -237,7 +235,6 @@ void executor(int number, const vector<string>& qlist) {
         }
       }
     }
-
   }                                               //for loop
 
   printf("* SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
