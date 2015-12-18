@@ -192,9 +192,7 @@ void executor(int number, const vector<string>& qlist) {
 
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
-    if (result != NULL) {
-      mysql_free_result(result);
-    }
+
 // logging part, initial implementation, will be refactored / rewritten
     if((verbose) && (m_conndata.threads == 1)) { // print it only if 1 thread is active
 
@@ -259,6 +257,9 @@ void executor(int number, const vector<string>& qlist) {
           fprintf(thread_log, "\n");
         }
       }
+    }
+    if (result != NULL) {
+      mysql_free_result(result);
     }
   }                                               //for loop
 
