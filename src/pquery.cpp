@@ -187,7 +187,7 @@ void executor(int number, const vector<string>& qlist) {
       mysql_free_result(result);
     }
 // logging part, initial implementation, will be refactored / rewritten
-    if((verbose) && (threads == 1)) { // print it only if 1 thread is active
+    if((verbose) && (m_conndata.threads == 1)) { // print it only if 1 thread is active
 
       if(res == 0) {
         if( (log_all_queries) || (query_analysis) ){
