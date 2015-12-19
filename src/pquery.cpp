@@ -100,9 +100,9 @@ void try_connect() {
     mysql_free_result(result);
   }
   mysql_close(conn);
-  mysql_library_end();
   if(test_connection){
     printf("- Ending test run\n");
+    mysql_library_end();
     exit(0);
   }
 }
@@ -406,7 +406,7 @@ int main(int argc, char* argv[]) {
   for (int i=0; i<m_conndata.threads; i++) {
     threads[i].join();
   }
-
+  
   mysql_library_end();
 
   return EXIT_SUCCESS;
