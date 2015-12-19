@@ -10,7 +10,6 @@
 #include <cstring>
 #include <cerrno>
 #include <thread>                                 /* c++11 or gnu++11 */
-#include <string>
 #include <fstream>
 #include <sstream>
 

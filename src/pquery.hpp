@@ -3,6 +3,7 @@
 
 #include <cstdio>
 #include <vector>
+#include <string>
 
 // declaration for thread worker function
 void executor(int, const std::vector<std::basic_string<char> >&);
