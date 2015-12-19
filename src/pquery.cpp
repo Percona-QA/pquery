@@ -5,12 +5,10 @@
  =========================================================
 */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cctype>
 #include <cstring>
 #include <cerrno>
-#include <vector>
 #include <thread>                                 /* c++11 or gnu++11 */
 #include <string>
 #include <fstream>
@@ -33,9 +31,10 @@ static int log_failed_queries;
 static int no_shuffle;
 static int query_analysis;
 static int log_query_duration;
+static int test_connection;
 
 char db[] = "test";
-char sock[] = "/var/run/mysqld/mysqld.sock";
+char sock[] = "/tmp/my.sock";
 char sqlfile[] = "pquery.sql";
 char outdir[] = "/tmp";
 
@@ -103,6 +102,10 @@ void try_connect() {
   }
   mysql_close(conn);
   mysql_library_end();
+  if(test_connection){
+    printf("- Ending test run\n");
+    exit(0);
+  }
 }
 
 void executor(int number, const vector<string>& qlist) {
@@ -278,7 +281,6 @@ int main(int argc, char* argv[]) {
   m_conndata.port = 0;
   m_conndata.queries_per_thread = 10000;
 
-  char db[] = "test";
   int c;
 
   strncpy(m_conndata.database, db, strlen(db) + 1);
@@ -289,6 +291,7 @@ int main(int argc, char* argv[]) {
   while(true) {
 
     static struct option long_options[] = {
+      {"help", no_argument, 0, 'h'},
       {"database", required_argument, 0, 'd'},
       {"address", required_argument, 0, 'a'},
       {"infile", required_argument, 0, 'i'},
@@ -298,13 +301,14 @@ int main(int argc, char* argv[]) {
       {"user", required_argument, 0, 'u'},
       {"password", required_argument, 0, 'P'},
       {"threads", required_argument, 0, 't'},
-      {"queries_per_thread", required_argument, 0, 'q'},
+      {"queries-per-thread", required_argument, 0, 'q'},
       {"verbose", no_argument, &verbose, 1},
-      {"log_all_queries", no_argument, &log_all_queries, 1},
-      {"log_failed_queries", no_argument, &log_failed_queries, 1},
+      {"log-all-queries", no_argument, &log_all_queries, 1},
+      {"log-failed-queries", no_argument, &log_failed_queries, 1},
       {"no-shuffle", no_argument, &no_shuffle, 1},
       {"query-analysis", no_argument, &query_analysis, 1},
       {"log-query-duration", no_argument, &log_query_duration, 1},
+      {"test-connection", no_argument, &test_connection, 1},
       {0, 0, 0, 0}
     };
 
@@ -317,6 +321,9 @@ int main(int argc, char* argv[]) {
     }
 
     switch (c) {
+      case 'h':
+        show_help();
+        exit(EXIT_FAILURE);
       case 'd':
         printf("Database is %s\n", optarg);
         memcpy(m_conndata.database, optarg, strlen(optarg) + 1);
@@ -362,6 +369,9 @@ int main(int argc, char* argv[]) {
     }
   }                                               //while
 
+  // try to connect and print server info
+  try_connect();
+
   ifstream infile;
   infile.open(m_conndata.infile);
 
@@ -369,8 +379,6 @@ int main(int argc, char* argv[]) {
     printf("Unable to open SQL file %s: %s\n", m_conndata.infile, strerror(errno));
     exit(EXIT_FAILURE);
   }
-  // try to connect and print server info
-  try_connect();
   
   shared_ptr<vector<string>> querylist(new vector<string>);
   string line;
