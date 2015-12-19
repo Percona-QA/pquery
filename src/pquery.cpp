@@ -52,7 +52,7 @@ struct conndata
   int queries_per_thread;
 } m_conndata;
 
-inline unsigned long long 
+inline unsigned long long
 get_affected_rows(MYSQL * connection){
   if (mysql_affected_rows(connection) == ~(ulonglong) 0){
     return 0LL;
@@ -97,7 +97,7 @@ void try_connect() {
     server_version = mysql_get_server_info(conn);
   }
   printf("- Connected server version: %s \n", server_version.c_str());
-  if (result) {
+  if (result != NULL) {
     mysql_free_result(result);
   }
   mysql_close(conn);
@@ -228,7 +228,7 @@ void executor(int number, const vector<string>& qlist) {
         }
       } //if / else
     }
-  
+
 //
     if(thread_log != NULL) {
       if(res == 0) {
@@ -379,7 +379,7 @@ int main(int argc, char* argv[]) {
     printf("Unable to open SQL file %s: %s\n", m_conndata.infile, strerror(errno));
     exit(EXIT_FAILURE);
   }
-  
+
   shared_ptr<vector<string>> querylist(new vector<string>);
   string line;
 
