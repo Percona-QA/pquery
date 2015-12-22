@@ -1,7 +1,6 @@
 #ifndef __PQUERY_HPP__
 #define __PQUERY_HPP__
 
-#include <cstdio>
 #include <vector>
 #include <string>
 

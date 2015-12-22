@@ -12,6 +12,7 @@
 #include <thread>                                 /* c++11 or gnu++11 */
 #include <fstream>
 #include <sstream>
+#include <iostream>
 
 #include <sys/time.h>
 #include <unistd.h>
@@ -59,27 +60,26 @@ get_affected_rows(MYSQL * connection){
   return mysql_affected_rows(connection);
 }
 
-
 void try_connect() {
   MYSQL * conn;
   conn = mysql_init(NULL);
   if (conn == NULL) {
-    printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
-    printf("* PQUERY: Unable to continue [1], exiting\n");
+    std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
+    std::cerr << "* PQUERY: Unable to continue [1], exiting" << std::endl;
     mysql_close(conn);
     mysql_library_end();
     exit(EXIT_FAILURE);
   }
   if (mysql_real_connect(conn, m_conndata.addr, m_conndata.username,
   m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL) {
-    printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
-    printf("* PQUERY: Unable to continue [2], exiting\n");
+    std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
+    std::cerr << "* PQUERY: Unable to continue [2], exiting" << std::endl;
     mysql_close(conn);
     mysql_library_end();
     exit(EXIT_FAILURE);
   }
-  printf("- PQuery v%s compiled with %s-%s \n", PQVERSION, FORK, mysql_get_client_info());
-  printf("- Connected to %s...\n", mysql_get_host_info(conn));
+  std::cout << "- PQuery v" << PQVERSION << " compiled with " << FORK << "-" << mysql_get_client_info() << std::endl;
+  std::cout << "- Connected to " << mysql_get_host_info(conn) << "..." << std::endl;
 // getting the real server version
   MYSQL_RES *result = NULL;
   string server_version;
@@ -95,22 +95,20 @@ void try_connect() {
   else {
     server_version = mysql_get_server_info(conn);
   }
-  printf("- Connected server version: %s \n", server_version.c_str());
+  std::cout << "- Connected server version: " << server_version << std::endl;
   if (result != NULL) {
     mysql_free_result(result);
   }
   mysql_close(conn);
   if(test_connection){
-    printf("- Ending test run\n");
+    std::cout << "- Ending test run" << std::endl;
     mysql_library_end();
     exit(0);
   }
 }
 
-void executor(int number, const vector<string>& qlist) {
-  if(verbose) {
-    printf("Thread %d started\n", number);
-  }
+void
+executor(int number, const vector<string>& qlist) {
 
   int failed_queries = 0;
   int total_queries = 0;
@@ -119,32 +117,40 @@ void executor(int number, const vector<string>& qlist) {
   int res;
   struct timeval begin, end;
   double elapsed;
-  FILE * thread_log = NULL;
+  ofstream thread_log;
 
   if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
     ostringstream os;
     os << m_conndata.logdir << "/pquery_thread-" << number << ".log";
-    thread_log = fopen(os.str().c_str(), "w+");
+    thread_log.open(os.str(), ios::out | ios::app);
+    if(!thread_log.is_open()){
+      std::cerr << "Unable to open logfile " << os.str() << ": " << strerror(errno) << std::endl;
+      return;
+    }
+    if(log_query_duration) {
+      thread_log.precision(3);
+      thread_log << fixed;
+    }
   }
 
   MYSQL * conn;
 
   conn = mysql_init(NULL);
   if (conn == NULL) {
-    printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+    std::cerr << "Error " <<  mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
 
-    if (thread_log != NULL) {
-      fclose(thread_log);
+    if (thread_log) {
+      thread_log.close();
     }
-    printf("Thread #%d is exiting\n", number);
+    std::cerr << "Thread #" << number << " is exiting abnormally" << std::endl;
     return;
   }
   if (mysql_real_connect(conn, m_conndata.addr, m_conndata.username,
   m_conndata.password, m_conndata.database, m_conndata.port, m_conndata.socket, 0) == NULL) {
-    printf("Error %u: %s\n", mysql_errno(conn), mysql_error(conn));
+    std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
     mysql_close(conn);
-    if (thread_log != NULL) {
-      fclose(thread_log);
+    if (thread_log.is_open()) {
+      thread_log.close();
     }
     mysql_thread_end();
     return;
@@ -184,9 +190,11 @@ void executor(int number, const vector<string>& qlist) {
       failed_queries++;
       max_con_fail_count++;
       if (max_con_fail_count >= max_con_failures) {
-        printf("* Last %d consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.\n", max_con_fail_count);
-        if (thread_log != NULL) {
-          fprintf(thread_log,"# Last %d consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.\n", max_con_fail_count);
+        ostringstream errmsg;
+        errmsg << "* Last " << max_con_fail_count << " consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.";
+        std::cerr <<  errmsg.str() << std::endl;
+        if (thread_log.is_open()) {
+          thread_log << errmsg.str() << std::endl;
         }
         break;
       }
@@ -200,63 +208,53 @@ void executor(int number, const vector<string>& qlist) {
 
       if(res == 0) {
         if( (log_all_queries) || (log_query_statistics) ){
-          fprintf(stderr, "%s", qlist[query_number].c_str());
-          fprintf(stderr, " # NOERROR");
+          std::cerr << qlist[query_number] << " # NOERROR";
           if(log_query_statistics){
-            fprintf(stderr, " # WARNINGS: %u", mysql_warning_count(conn));
-            fprintf(stderr, " # CHANGED: %llu", get_affected_rows(conn) );
+            std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            fprintf(stderr, " # Duration: %f msec", elapsed);
+            std::cerr << " # Duration: " << elapsed << " msec";
           }
-          fprintf(stderr, "\n");
+          std::cerr << std::endl;
         }
       } else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          fprintf(stderr, "%s", qlist[query_number].c_str());
-          fprintf(stderr, " # ERROR:");
-          fprintf(stderr, " %u - %s", mysql_errno(conn), mysql_error(conn));
+          std::cerr << qlist[query_number] << " # ERROR: " << mysql_errno(conn) << " - " <<  mysql_error(conn);
           if(log_query_statistics){
-            fprintf(stderr, " # WARNINGS: %u", mysql_warning_count(conn));
-            fprintf(stderr, " # CHANGED: %llu", get_affected_rows(conn) );
+            std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
            if(log_query_duration) {
-            fprintf(stderr, " # Duration: %f msec", elapsed);
+            std::cerr << " # Duration: " << elapsed << " msec";
           }
-          fprintf(stderr, "\n");
+          std::cerr << std::endl;
         }
       } //if / else
     }
 
 //
-    if(thread_log != NULL) {
+    if(thread_log.is_open()) {
       if(res == 0) {
         if((log_all_queries) || (log_query_statistics)) {
-          fprintf(thread_log, "%s", qlist[query_number].c_str());
-          fprintf(thread_log, " # NOERROR");
+          thread_log << qlist[query_number] << " # NOERROR";
           if(log_query_statistics){
-            fprintf(thread_log, " # WARNINGS: %u", mysql_warning_count(conn));
-            fprintf(thread_log, " # CHANGED: %llu", get_affected_rows(conn));
+            thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            fprintf(thread_log, " # Duration: %f msec", elapsed);
+            thread_log << " # Duration: " << elapsed << " msec";
           }
-          fprintf(thread_log, "\n");
+          thread_log << std::endl;
         }
       }
       else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          fprintf(thread_log, "%s", qlist[query_number].c_str());
-          fprintf(thread_log, " # ERROR:");
-          fprintf(thread_log, " %u - %s", mysql_errno(conn), mysql_error(conn));
+          thread_log << qlist[query_number] << " # ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
           if(log_query_statistics){
-            fprintf(thread_log, " # WARNINGS: %u", mysql_warning_count(conn));
-            fprintf(thread_log, " # CHANGED: %llu", get_affected_rows(conn) );
+            thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            fprintf(thread_log, " # Duration: %f msec", elapsed);
+            thread_log << " # Duration: " << elapsed << " msec";
           }
-          fprintf(thread_log, "\n");
+          thread_log << std::endl;
         }
       }
     }
@@ -265,17 +263,25 @@ void executor(int number, const vector<string>& qlist) {
     }
   }                                               //for loop
 
-  printf("* SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
-  if (thread_log != NULL) {
-    fprintf(thread_log,"# SUMMARY: %d/%d queries failed (%.2f%% were successful)\n", failed_queries, total_queries, (total_queries-failed_queries)*100.0/total_queries);
-    fclose(thread_log);
+  ostringstream exitmsg;
+  exitmsg.precision(2);
+  exitmsg << fixed;
+  exitmsg << "* SUMMARY: " << failed_queries << "/" << total_queries << " queries failed (" <<
+  (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
+  std::cout << exitmsg.str() << std::endl;
+
+  if (thread_log.is_open()) {
+    thread_log << exitmsg.str() << std::endl;
+    thread_log.close();
   }
   mysql_close(conn);
   mysql_thread_end();
 }
 
-int main(int argc, char* argv[]) {
+int
+main(int argc, char* argv[]) {
 
+  std::ios_base::sync_with_stdio(false);
   m_conndata.threads = 10;
   m_conndata.port = 0;
   m_conndata.queries_per_thread = 10000;
@@ -294,7 +300,7 @@ int main(int argc, char* argv[]) {
       {"database", required_argument, 0, 'd'},
       {"address", required_argument, 0, 'a'},
       {"infile", required_argument, 0, 'i'},
-      {"logdir", optional_argument, 0, 'l'},
+      {"logdir", required_argument, 0, 'l'},
       {"socket", required_argument, 0, 's'},
       {"port", required_argument, 0, 'p'},
       {"user", required_argument, 0, 'u'},
@@ -324,43 +330,43 @@ int main(int argc, char* argv[]) {
         show_help();
         exit(EXIT_FAILURE);
       case 'd':
-        printf("Database is %s\n", optarg);
+        std::cout << "Database: " << optarg << std::endl;
         memcpy(m_conndata.database, optarg, strlen(optarg) + 1);
         break;
       case 'a':
-        printf("Address is %s\n", optarg);
+        std::cout << "Address: " << optarg << std::endl;
         memcpy(m_conndata.addr, optarg, strlen(optarg) + 1);
         break;
       case 'i':
-        printf("Infile is %s\n", optarg);
+        std::cout << "Infile: " << optarg << std::endl;
         memcpy(m_conndata.infile, optarg, strlen(optarg) + 1);
         break;
       case 'l':
-        printf("Logdir is %s\n", optarg);
+        std::cout << "Logdir: " << optarg << std::endl;
         memcpy(m_conndata.logdir, optarg, strlen(optarg) + 1);
         break;
       case 's':
-        printf("Socket is %s\n", optarg);
+        std::cout << "Socket: " << optarg << std::endl;
         memcpy(m_conndata.socket, optarg, strlen(optarg) + 1);
         break;
       case 'p':
-        printf("Port is %s\n", optarg);
+        std::cout << "Port: " << optarg << std::endl;
         m_conndata.port = atoi(optarg);
         break;
       case 'u':
-        printf("User is %s\n", optarg);
+        std::cout << "User: " << optarg << std::endl;
         memcpy(m_conndata.username, optarg, strlen(optarg) + 1);
         break;
       case 'P':
-        printf("Password is %s\n", optarg);
+        std::cout << "Password: " << optarg << std::endl;
         memcpy(m_conndata.password, optarg, strlen(optarg) + 1);
         break;
       case 't':
-        printf("Starting with %s thread(s)\n", optarg);
+        std::cout << "Starting with " << optarg << " thread(s)" << std::endl;
         m_conndata.threads = atoi(optarg);
         break;
       case 'q':
-        printf("Query limit per thread is %s\n", optarg);
+        std::cout << "Query limit per thread: " << optarg << std::endl;
         m_conndata.queries_per_thread = atoi(optarg);
         break;
       default:
@@ -375,7 +381,7 @@ int main(int argc, char* argv[]) {
   infile.open(m_conndata.infile);
 
   if (!infile) {
-    printf("Unable to open SQL file %s: %s\n", m_conndata.infile, strerror(errno));
+    std::cerr << "Unable to open SQL file " << m_conndata.infile << ": " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
   }
 
