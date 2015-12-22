@@ -28,7 +28,7 @@ static int verbose;
 static int log_all_queries;
 static int log_failed_queries;
 static int no_shuffle;
-static int query_analysis;
+static int log_query_statistics;
 static int log_query_duration;
 static int test_connection;
 
@@ -121,7 +121,7 @@ void executor(int number, const vector<string>& qlist) {
   double elapsed;
   FILE * thread_log = NULL;
 
-  if ((log_failed_queries) || (log_all_queries) || (query_analysis)) {
+  if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
     ostringstream os;
     os << m_conndata.logdir << "/pquery_thread-" << number << ".log";
     thread_log = fopen(os.str().c_str(), "w+");
@@ -199,10 +199,10 @@ void executor(int number, const vector<string>& qlist) {
     if((verbose) && (m_conndata.threads == 1)) { // print it only if 1 thread is active
 
       if(res == 0) {
-        if( (log_all_queries) || (query_analysis) ){
+        if( (log_all_queries) || (log_query_statistics) ){
           fprintf(stderr, "%s", qlist[query_number].c_str());
           fprintf(stderr, " # NOERROR");
-          if(query_analysis){
+          if(log_query_statistics){
             fprintf(stderr, " # WARNINGS: %u", mysql_warning_count(conn));
             fprintf(stderr, " # CHANGED: %llu", get_affected_rows(conn) );
           }
@@ -212,11 +212,11 @@ void executor(int number, const vector<string>& qlist) {
           fprintf(stderr, "\n");
         }
       } else {
-        if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
+        if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
           fprintf(stderr, "%s", qlist[query_number].c_str());
           fprintf(stderr, " # ERROR:");
           fprintf(stderr, " %u - %s", mysql_errno(conn), mysql_error(conn));
-          if(query_analysis){
+          if(log_query_statistics){
             fprintf(stderr, " # WARNINGS: %u", mysql_warning_count(conn));
             fprintf(stderr, " # CHANGED: %llu", get_affected_rows(conn) );
           }
@@ -231,10 +231,10 @@ void executor(int number, const vector<string>& qlist) {
 //
     if(thread_log != NULL) {
       if(res == 0) {
-        if((log_all_queries) || (query_analysis)) {
+        if((log_all_queries) || (log_query_statistics)) {
           fprintf(thread_log, "%s", qlist[query_number].c_str());
           fprintf(thread_log, " # NOERROR");
-          if(query_analysis){
+          if(log_query_statistics){
             fprintf(thread_log, " # WARNINGS: %u", mysql_warning_count(conn));
             fprintf(thread_log, " # CHANGED: %llu", get_affected_rows(conn));
           }
@@ -245,11 +245,11 @@ void executor(int number, const vector<string>& qlist) {
         }
       }
       else {
-        if((log_failed_queries) || (log_all_queries) || (query_analysis)) {
+        if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
           fprintf(thread_log, "%s", qlist[query_number].c_str());
           fprintf(thread_log, " # ERROR:");
           fprintf(thread_log, " %u - %s", mysql_errno(conn), mysql_error(conn));
-          if(query_analysis){
+          if(log_query_statistics){
             fprintf(thread_log, " # WARNINGS: %u", mysql_warning_count(conn));
             fprintf(thread_log, " # CHANGED: %llu", get_affected_rows(conn) );
           }
@@ -305,7 +305,7 @@ int main(int argc, char* argv[]) {
       {"log-all-queries", no_argument, &log_all_queries, 1},
       {"log-failed-queries", no_argument, &log_failed_queries, 1},
       {"no-shuffle", no_argument, &no_shuffle, 1},
-      {"query-analysis", no_argument, &query_analysis, 1},
+      {"log-query-statistics", no_argument, &log_query_statistics, 1},
       {"log-query-duration", no_argument, &log_query_duration, 1},
       {"test-connection", no_argument, &test_connection, 1},
       {0, 0, 0, 0}
@@ -406,7 +406,7 @@ int main(int argc, char* argv[]) {
   for (int i=0; i<m_conndata.threads; i++) {
     threads[i].join();
   }
-  
+
   mysql_library_end();
 
   return EXIT_SUCCESS;
