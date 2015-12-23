@@ -368,7 +368,7 @@ main(int argc, char* argv[]) {
         memcpy(m_conndata.password, optarg, strlen(optarg) + 1);
         break;
       case 't':
-        std::cout << "Starting with " << optarg << " thread(s)" << std::endl;
+        std::cout << "Threads: " << optarg << std::endl;
         m_conndata.threads = atoi(optarg);
         break;
       case 'q':
@@ -407,9 +407,7 @@ main(int argc, char* argv[]) {
 
   infile.close();
 
-  if(verbose) {
-    std::cerr << "- Read " << querylist->size() << " lines from " << m_conndata.infile << std::endl;
-  }
+  std::cerr << "- Read " << querylist->size() << " lines from " << m_conndata.infile << std::endl;
 
 /* log replaying */
   if(no_shuffle) {
