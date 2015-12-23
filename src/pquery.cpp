@@ -216,7 +216,7 @@ executor(int number, const vector<string>& qlist) {
             std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " µs";
+            std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           std::cerr << std::endl;
         }
@@ -227,7 +227,7 @@ executor(int number, const vector<string>& qlist) {
             std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
            if(log_query_duration) {
-            std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " µs";
+            std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           std::cerr << std::endl;
         }
@@ -243,7 +243,7 @@ executor(int number, const vector<string>& qlist) {
             thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " µs";
+            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           thread_log << std::endl;
         }
@@ -255,7 +255,7 @@ executor(int number, const vector<string>& qlist) {
             thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " µs";
+            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           thread_log << std::endl;
         }
