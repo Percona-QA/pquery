@@ -15,7 +15,7 @@
 #include <iostream>
 
 #include <chrono>
-#include <sys/time.h>
+#include <random>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -55,14 +55,15 @@ struct conndata
 } m_conndata;
 
 inline unsigned long long
-get_affected_rows(MYSQL * connection){
-  if (mysql_affected_rows(connection) == ~(ulonglong) 0){
+get_affected_rows(MYSQL * connection) {
+  if (mysql_affected_rows(connection) == ~(ulonglong) 0) {
     return 0LL;
   }
   return mysql_affected_rows(connection);
 }
 
-void try_connect() {
+void
+try_connect() {
   MYSQL * conn;
   conn = mysql_init(NULL);
   if (conn == NULL) {
@@ -102,7 +103,7 @@ void try_connect() {
     mysql_free_result(result);
   }
   mysql_close(conn);
-  if(test_connection){
+  if(test_connection) {
     std::cout << "- Ending test run" << std::endl;
     mysql_library_end();
     exit(0);
@@ -117,18 +118,22 @@ executor(int number, const vector<string>& qlist) {
   int max_con_failures = 250;                     /* Maximum consecutive failures (likely indicating crash/assert, user priveleges drop etc.) */
   int max_con_fail_count = 0;
   int res;
+
   std::chrono::steady_clock::time_point begin, end;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<int> dis(0, qlist.size() - 1);
   ofstream thread_log;
 
   if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
     ostringstream os;
     os << m_conndata.logdir << "/pquery_thread-" << number << ".log";
     thread_log.open(os.str(), ios::out | ios::app);
-    if(!thread_log.is_open()){
+    if(!thread_log.is_open()) {
       std::cerr << "Unable to open logfile " << os.str() << ": " << strerror(errno) << std::endl;
       return;
     }
-    if(log_query_duration){
+    if(log_query_duration) {
       thread_log.precision(3);
       thread_log << fixed;
       std::cerr.precision(3);
@@ -162,16 +167,14 @@ executor(int number, const vector<string>& qlist) {
   }
 
   for (int i=0; i<m_conndata.queries_per_thread; i++) {
+
     int query_number;
+
     if(no_shuffle) {
       query_number = i;
     }
     else {
-      struct timeval t1;
-      gettimeofday(&t1, NULL);
-      unsigned int seed = t1.tv_usec * t1.tv_sec;
-      srand(seed);
-      query_number = rand() % qlist.size();
+      query_number = dis(gen);
     }
 
 // perform the query and getting the result
@@ -207,12 +210,11 @@ executor(int number, const vector<string>& qlist) {
     MYSQL_RES * result = mysql_store_result(conn);
 
 // logging part, initial implementation, will be refactored / rewritten
-    if((verbose) && (m_conndata.threads == 1)) { // print it only if 1 thread is active
-
+    if((verbose) && (m_conndata.threads == 1)) {  // print it only if 1 thread is active
       if(res == 0) {
-        if( (log_all_queries) || (log_query_statistics) ){
+        if( (log_all_queries) || (log_query_statistics) ) {
           std::cerr << qlist[query_number] << " # NOERROR";
-          if(log_query_statistics){
+          if(log_query_statistics) {
             std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
           if(log_query_duration) {
@@ -220,18 +222,19 @@ executor(int number, const vector<string>& qlist) {
           }
           std::cerr << std::endl;
         }
-      } else {
+      }
+      else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
           std::cerr << qlist[query_number] << " # ERROR: " << mysql_errno(conn) << " - " <<  mysql_error(conn);
-          if(log_query_statistics){
+          if(log_query_statistics) {
             std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
-           if(log_query_duration) {
+          if(log_query_duration) {
             std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           std::cerr << std::endl;
         }
-      } //if / else
+      }                                           //if / else
     }
 
 //
@@ -239,7 +242,7 @@ executor(int number, const vector<string>& qlist) {
       if(res == 0) {
         if((log_all_queries) || (log_query_statistics)) {
           thread_log << qlist[query_number] << " # NOERROR";
-          if(log_query_statistics){
+          if(log_query_statistics) {
             thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
@@ -251,7 +254,7 @@ executor(int number, const vector<string>& qlist) {
       else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
           thread_log << qlist[query_number] << " # ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
-          if(log_query_statistics){
+          if(log_query_statistics) {
             thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
@@ -270,7 +273,7 @@ executor(int number, const vector<string>& qlist) {
   exitmsg.precision(2);
   exitmsg << fixed;
   exitmsg << "* SUMMARY: " << failed_queries << "/" << total_queries << " queries failed (" <<
-  (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
+    (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
   std::cout << exitmsg.str() << std::endl;
 
   if (thread_log.is_open()) {
@@ -377,7 +380,7 @@ main(int argc, char* argv[]) {
     }
   }                                               //while
 
-  // try to connect and print server info
+// try to connect and print server info
   try_connect();
 
   ifstream infile;
@@ -391,12 +394,22 @@ main(int argc, char* argv[]) {
   shared_ptr<vector<string>> querylist(new vector<string>);
   string line;
 
+  int lines_read = 0;
   while (getline(infile, line)) {
     if(!line.empty()) {
+      if(verbose) {
+        lines_read += 1;                          // only counting valid lines. need to check if it's not mailformed, etc
+        std::cerr << "- Read " << lines_read << " lines from " << m_conndata.infile << "\r";
+      }
       querylist->push_back(line);
     }
   }
+
   infile.close();
+
+  if(verbose) {
+    std::cerr << "- Read " << querylist->size() << " lines from " << m_conndata.infile << std::endl;
+  }
 
 /* log replaying */
   if(no_shuffle) {
