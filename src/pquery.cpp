@@ -245,7 +245,7 @@ executor(int number, const vector<string>& qlist) {
           if(log_query_duration) {
             thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
-          thread_log << std::endl;
+          thread_log << "\n";
         }
       }
       else {
@@ -257,7 +257,7 @@ executor(int number, const vector<string>& qlist) {
           if(log_query_duration) {
             thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
-          thread_log << std::endl;
+          thread_log << "\n";
         }
       }
     }
