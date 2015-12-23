@@ -14,7 +14,9 @@
 #include <sstream>
 #include <iostream>
 
+#include <chrono>
 #include <sys/time.h>
+
 #include <unistd.h>
 #include <getopt.h>
 
@@ -115,8 +117,7 @@ executor(int number, const vector<string>& qlist) {
   int max_con_failures = 250;                     /* Maximum consecutive failures (likely indicating crash/assert, user priveleges drop etc.) */
   int max_con_fail_count = 0;
   int res;
-  struct timeval begin, end;
-  double elapsed;
+  std::chrono::steady_clock::time_point begin, end;
   ofstream thread_log;
 
   if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
@@ -126,10 +127,6 @@ executor(int number, const vector<string>& qlist) {
     if(!thread_log.is_open()){
       std::cerr << "Unable to open logfile " << os.str() << ": " << strerror(errno) << std::endl;
       return;
-    }
-    if(log_query_duration) {
-      thread_log.precision(3);
-      thread_log << fixed;
     }
   }
 
@@ -172,15 +169,13 @@ executor(int number, const vector<string>& qlist) {
 // perform the query and getting the result
 
     if(log_query_duration) {
-      gettimeofday(&begin, NULL);
+      begin = std::chrono::steady_clock::now();
     }
 
     res = mysql_real_query(conn, qlist[query_number].c_str(), (unsigned long)strlen(qlist[query_number].c_str()));
 
     if(log_query_duration) {
-      gettimeofday(&end, NULL);
-                                                  // time in milliseconds (1/1000 sec)
-      elapsed = ((end.tv_sec - begin.tv_sec)*1000) + ((end.tv_usec - begin.tv_usec)/1000.0);
+      end = std::chrono::steady_clock::now();
     }
 
     if (res == 0) {                               //success
@@ -213,7 +208,7 @@ executor(int number, const vector<string>& qlist) {
             std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            std::cerr << " # Duration: " << elapsed << " msec";
+            std::cerr << " # Duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()  << " µs";
           }
           std::cerr << std::endl;
         }
@@ -224,7 +219,7 @@ executor(int number, const vector<string>& qlist) {
             std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
           }
            if(log_query_duration) {
-            std::cerr << " # Duration: " << elapsed << " msec";
+            std::cerr << " # Duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()  << " µs";
           }
           std::cerr << std::endl;
         }
@@ -240,7 +235,7 @@ executor(int number, const vector<string>& qlist) {
             thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << elapsed << " msec";
+            thread_log << " # Duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()  << " µs";
           }
           thread_log << std::endl;
         }
@@ -252,7 +247,7 @@ executor(int number, const vector<string>& qlist) {
             thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << elapsed << " msec";
+            thread_log << " # Duration: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - begin).count()  << " µs";
           }
           thread_log << std::endl;
         }
