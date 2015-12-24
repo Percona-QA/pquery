@@ -34,11 +34,19 @@ Please note that only the MySQL client library will be linked statically if STAT
 # Can you give an easy build example using an extracted Percona Server tarball?
 ```
 $ cd pquery
+$ git clean -xfd
 $ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
 $ make
 $ sudo make install   # If you want pquery to be installed on your system, otherwise pquery binary can be found in ./src
 $ git clean -xfd
 $ ... building other MySQL flavors/forks here ...
+```
+If you run into any build problems, please try this;
+```
+$ git reset —hard
+$ git clean -xfd
+$ git pull
+$ ... retry build as per above ...
 ```
 
 # What options does pquery accept?
