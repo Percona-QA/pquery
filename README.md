@@ -70,7 +70,7 @@ Option | Function| Example
 --log-query-duration | Log query duration in milliseconds | --log-query-duration
 --test-connection | Test connection to server and exit | --test-connection
 
-Note that logfiles are appended to, not overwritten. Note that this may reduce issue reproducibility when SQL logs are appended to.
+Note that logfiles are appended to, not overwritten. This may reduce issue reproducibility when SQL logs are appended to.
 
 # Where can I find more information on pquery?
 + [The future of MySQL quality assurance: Introducing pquery](https://www.percona.com/blog/2015/02/04/future-mysql-quality-assurance-introducing-pquery/)
