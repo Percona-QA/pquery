@@ -55,17 +55,22 @@ Option | Function| Example
 --database | The database to connect | --database=test
 --address | IP address to connect to | --address=127.0.0.1
 --port | The port to connect to | --port=3306
---infile | The SQL input file | --infile=main-ms-ps-md.sql
+--infile | The SQL input file | --infile=./main-ms-ps-md.sql
 --logdir | Log directory | --logdir=/tmp/123
 --socket | Socket file to use | --socket=/tmp/socket.sock
 --user | The MySQL userID to be used | --user=root
 --password | The MySQL user's password | --password=pazsw0rd
 --threads | The number of client threads to use | --threads=1
---queries_per_thread | The number of queries to randomly execute per thread | --queries_per_thread=100000
---verbose | Produce verbose output yes/no | --verbose
---log_all_queries | Log all queries yes/no | --log_all_queries
---log_failed_queries | Log failed queries yes/no | --log_failed_queries
+--queries-per-thread | The number of queries to randomly execute per thread | --queries-per-thread=100000
+--verbose | Duplicates log to console when threads=1 | --verbose
+--log-all-queries | Log all queries yes/no | --log-all-queries
+--log-failed-queries | Log failed queries yes/no | --log-failed-queries
 --no-shuffle | Replay SQL shuffled (randomly) or not (sequentially) | --no-shuffle
+--log-query-statistics | Extended output of query result | --log-query-statistics
+--log-query-duration | Log query duration in milliseconds | --log-query-duration
+--test-connection | Test connection to server and exit | --test-connection
+
+Note that logfiles are appended to, not overwritten. Note that this may reduce issue reproducibility when SQL logs are appended to.
 
 # Where can I find more information on pquery?
 + [The future of MySQL quality assurance: Introducing pquery](https://www.percona.com/blog/2015/02/04/future-mysql-quality-assurance-introducing-pquery/)
