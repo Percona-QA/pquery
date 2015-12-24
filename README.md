@@ -31,7 +31,7 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
 
 Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
-# Can you give an easy build example using an extracted tarball?
+# Can you give an easy build example using an extracted Percona Server tarball?
 ```
 $ cd pquery
 $ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
