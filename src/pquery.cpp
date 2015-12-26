@@ -127,7 +127,7 @@ executor(int number, const vector<string>& qlist) {
 
   if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
     ostringstream os;
-    os << m_conndata.logdir << "/pquery_thread-" << number << ".log";
+    os << m_conndata.logdir << "/pquery_thread-" << number << ".sql";
     thread_log.open(os.str(), ios::out | ios::app);
     if(!thread_log.is_open()) {
       std::cerr << "Unable to open logfile " << os.str() << ": " << strerror(errno) << std::endl;
