@@ -63,7 +63,7 @@ Option | Function| Example
 --log-query-duration | Log query duration in milliseconds | --log-query-duration
 --test-connection | Test connection to server and exit | --test-connection
 
-Note that logfiles are appended to, not overwritten. This may reduce issue reproducibility when SQL logs are appended to.
+Note that logfiles (including SQL log files) are appended to, not overwritten. If SQL logs are appended to, it will reduce issue reproducibility. To avoid this, simply use a new log file for each pquery run. The [pquery framework](https://github.com/Percona-QA/percona-qa) (ref [pquery-run.sh](https://github.com/Percona-QA/percona-qa/blob/master/pquery-run.sh) already takes care of this automatically.
 
 # Where can I find more information on pquery?
 + [The future of MySQL quality assurance: Introducing pquery](https://www.percona.com/blog/2015/02/04/future-mysql-quality-assurance-introducing-pquery/)
