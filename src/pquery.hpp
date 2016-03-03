@@ -14,7 +14,7 @@ void try_connect();
 void show_help(void);
 
 #ifndef PQVERSION
-#define PQVERSION "1.0"
+#define PQVERSION "2.0"
 #endif
 
 #ifndef FORK

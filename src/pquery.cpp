@@ -16,6 +16,7 @@
 
 #include <chrono>
 #include <random>
+#include <algorithm>
 
 #include <unistd.h>
 #include <getopt.h>
@@ -24,6 +25,8 @@
 #include <mysql.h>
 
 #include "pquery.hpp"
+#include "node.hpp"
+
 
 using namespace std;
 
@@ -39,6 +42,8 @@ char db[] = "test";
 char sock[] = "/tmp/my.sock";
 char sqlfile[] = "pquery.sql";
 char outdir[] = "/tmp";
+
+std::string confFile;
 
 struct conndata
 {
@@ -303,29 +308,14 @@ main(int argc, char* argv[]) {
 
     static struct option long_options[] = {
       {"help", no_argument, 0, 'h'},
-      {"database", required_argument, 0, 'd'},
-      {"address", required_argument, 0, 'a'},
-      {"infile", required_argument, 0, 'i'},
-      {"logdir", required_argument, 0, 'l'},
-      {"socket", required_argument, 0, 's'},
-      {"port", required_argument, 0, 'p'},
-      {"user", required_argument, 0, 'u'},
-      {"password", required_argument, 0, 'P'},
-      {"threads", required_argument, 0, 't'},
-      {"queries-per-thread", required_argument, 0, 'q'},
-      {"verbose", no_argument, &verbose, 1},
-      {"log-all-queries", no_argument, &log_all_queries, 1},
-      {"log-failed-queries", no_argument, &log_failed_queries, 1},
-      {"no-shuffle", no_argument, &no_shuffle, 1},
-      {"log-query-statistics", no_argument, &log_query_statistics, 1},
-      {"log-query-duration", no_argument, &log_query_duration, 1},
       {"test-connection", no_argument, &test_connection, 1},
+      {"config-file", required_argument, 0, 'c'},
       {0, 0, 0, 0}
     };
 
     int option_index = 0;
 
-    c = getopt_long_only(argc, argv, "d:a:i:l:s:p:u:P:t:q", long_options, &option_index);
+    c = getopt_long_only(argc, argv, "c:", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -335,53 +325,47 @@ main(int argc, char* argv[]) {
       case 'h':
         show_help();
         exit(EXIT_FAILURE);
-      case 'd':
-        std::cout << "Database: " << optarg << std::endl;
-        memcpy(m_conndata.database, optarg, strlen(optarg) + 1);
-        break;
-      case 'a':
-        std::cout << "Address: " << optarg << std::endl;
-        memcpy(m_conndata.addr, optarg, strlen(optarg) + 1);
-        break;
-      case 'i':
-        std::cout << "Infile: " << optarg << std::endl;
-        memcpy(m_conndata.infile, optarg, strlen(optarg) + 1);
-        break;
-      case 'l':
-        std::cout << "Logdir: " << optarg << std::endl;
-        memcpy(m_conndata.logdir, optarg, strlen(optarg) + 1);
-        break;
-      case 's':
-        std::cout << "Socket: " << optarg << std::endl;
-        memcpy(m_conndata.socket, optarg, strlen(optarg) + 1);
-        break;
-      case 'p':
-        std::cout << "Port: " << optarg << std::endl;
-        m_conndata.port = atoi(optarg);
-        break;
-      case 'u':
-        std::cout << "User: " << optarg << std::endl;
-        memcpy(m_conndata.username, optarg, strlen(optarg) + 1);
-        break;
-      case 'P':
-        std::cout << "Password: " << optarg << std::endl;
-        memcpy(m_conndata.password, optarg, strlen(optarg) + 1);
-        break;
-      case 't':
-        std::cout << "Threads: " << optarg << std::endl;
-        m_conndata.threads = atoi(optarg);
-        break;
-      case 'q':
-        std::cout << "Query limit per thread: " << optarg << std::endl;
-        m_conndata.queries_per_thread = atoi(optarg);
+      case 'c':
+        std::cout << "Config file: " << optarg << std::endl;
+        confFile = optarg;
         break;
       default:
         break;
     }
   }                                               //while
 
+
+if(!confFile.empty()){
+  INIReader reader(confFile);
+  if (reader.ParseError() < 0) {
+    std::cout << "Can't load " << confFile << std::endl;
+    exit(1);
+  }
+  std::vector<string> sections;
+  sections = reader.GetSections();
+  std::vector<string>::iterator it;
+  for (it = sections.begin(); it != sections.end(); it++){
+    string secName = *it;
+    std::transform(secName.begin(), secName.end(), secName.begin(), ::tolower);
+    if (secName == "global"){
+      continue;
+    }
+    if(reader.GetBoolean(secName, "run", false)){
+      std::shared_ptr<Node> newNode = std::make_shared<Node>();
+      newNode->StartWork(secName);
+    }
+  }
+}
+
+//
+//
+exit(0);
+//
+//
+
+
 // try to connect and print server info
-  try_connect();
+//  try_connect();
 
   ifstream infile;
   infile.open(m_conndata.infile);
