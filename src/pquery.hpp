@@ -4,12 +4,6 @@
 #include <vector>
 #include <string>
 
-// declaration for thread worker function
-void executor(int, const std::vector<std::basic_string<char> >&);
-
-// declaration for initial connection
-void try_connect();
-
 // declaration for help function
 void show_help(void);
 

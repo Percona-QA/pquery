@@ -5,7 +5,11 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <vector>
+#include <thread>
 #include <INIReader.h>
+#include <my_global.h>
+#include <mysql.h>
 
 /*
 It represents standalone MySQL server or MySQL node in cluster (PXC) setup
@@ -18,9 +22,17 @@ class Node {
    void setName(std::string name){myName = name;}
    void startWork(std::string);
  private:
+  // declaration for worker thread function
+  void workerThread(int);
+  inline unsigned long long getAffectedRows(MYSQL*);
+  void tryConnect();
   bool createGeneralLog();
   void readSettings(std::string);
+
   INIReader * reader;
+  std::vector<std::thread> workers;
+  std::vector<std::string> * querylist;
+
   std::ofstream general_log;
   std::string myName;
   std::string address;
@@ -32,7 +44,7 @@ class Node {
   std::string logdir;
   short port;
   short threads;
-  unsigned queries_per_thread;
+  int queries_per_thread;
   bool verbose;
   bool debug;
   bool log_all_queries;
