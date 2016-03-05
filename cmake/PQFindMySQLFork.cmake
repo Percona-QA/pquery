@@ -40,6 +40,10 @@ IF (WEBSCALESQL)
   ADD_DEFINITIONS(-DFORK="WebScaleSQL")
 ENDIF()
 #
+IF("${FORK}" STREQUAL "")
+  MESSAGE(FATAL_ERROR "\n* Please set fork to compile with:\n* MYSQL | MARIADB | PERCONASERVER | WEBSCALESQL\n")
+ENDIF()
+#
 IF (MYSQL_INCLUDE_DIR)
   # Already in cache, be silent
   SET(MYSQL_FIND_QUIETLY TRUE)
@@ -58,7 +62,7 @@ FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
 #
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS ${BASEDIR}/lib ${BASEDIR}/lib64 /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 
+  PATHS ${BASEDIR}/lib ${BASEDIR}/lib64 /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64
   PATH_SUFFIXES mysql
   )
 #
