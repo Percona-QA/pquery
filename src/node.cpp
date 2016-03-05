@@ -18,6 +18,9 @@ Node::~Node(){
   if(querylist){
     delete querylist;
   }
+  if(runner.joinable()){
+    runner.join();
+  }
 }
 
 bool
@@ -57,6 +60,10 @@ Node::readSettings(std::string secName){
 
 void
 Node::startWork(std::string confFile){
+  runner = std::thread(&Node::startRealWork, this, confFile);
+}
+void
+Node::startRealWork(std::string confFile){
   reader = new INIReader(confFile);
   if (reader->ParseError() < 0) {
     std::cout << "Can't load " << confFile << std::endl;

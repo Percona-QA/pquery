@@ -21,6 +21,7 @@ class Node {
    ~Node();
    void setName(std::string name){myName = name;}
    void startWork(std::string);
+   void startRealWork(std::string);
  private:
   // declaration for worker thread function
   void workerThread(int);
@@ -32,6 +33,7 @@ class Node {
   INIReader * reader;
   std::vector<std::thread> workers;
   std::vector<std::string> * querylist;
+  std::thread runner;
 
   std::ofstream general_log;
   std::string myName;
