@@ -10,9 +10,6 @@
 #include <cstring>
 #include <cerrno>
 #include <thread>                                 /* c++11 or gnu++11 */
-#include <fstream>
-#include <sstream>
-#include <iostream>
 
 #include <chrono>
 #include <random>
@@ -24,6 +21,7 @@
 #include <my_global.h>
 #include <mysql.h>
 
+#include <INIReader.h>
 #include "pquery.hpp"
 #include "node.hpp"
 
@@ -43,7 +41,7 @@ char sock[] = "/tmp/my.sock";
 char sqlfile[] = "pquery.sql";
 char outdir[] = "/tmp";
 
-std::string confFile;
+std::string confFile = "pquery.cfg";
 
 struct conndata
 {
@@ -352,7 +350,8 @@ if(!confFile.empty()){
     }
     if(reader.GetBoolean(secName, "run", false)){
       std::shared_ptr<Node> newNode = std::make_shared<Node>();
-      newNode->StartWork(secName);
+      newNode->setName(secName);
+      newNode->startWork(confFile);
     }
   }
 }

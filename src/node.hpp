@@ -2,6 +2,9 @@
 #define __NODE_HPP__
 
 #include <string>
+#include <fstream>
+#include <sstream>
+#include <iostream>
 #include <INIReader.h>
 
 /*
@@ -12,13 +15,17 @@ class Node {
   public:
     Node();
    ~Node();
-   void StartWork(std::string);
+   void setName(std::string name){myName = name;}
+   void startWork(std::string);
  private:
-  void setDefaults();
+  bool createGeneralLog();
+  void readSettings(std::string);
+  INIReader * reader;
+  std::ofstream general_log;
   std::string myName;
   std::string address;
   std::string socket;
-  std::string user;
+  std::string username;
   std::string password;
   std::string database;
   std::string infile;

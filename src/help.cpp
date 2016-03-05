@@ -14,7 +14,7 @@ void show_help(void) {
     "# The database to connect to\n" <<
     "database = test\n" <<
     "# IP address to connect to, default is AF_UNIX\n" <<
-    "address = <no default>\n"    <<
+    "address = <empty>\n"    <<
     "# The port to connect to\n"          <<
     "port = 3306\n"           <<
     "# The SQL input file\n" <<
@@ -24,9 +24,9 @@ void show_help(void) {
     "# Socket file to use\n" <<
     "socket = /tmp/my.sock\n"   <<
     "# The MySQL userID to be used\n" <<
-    "user = <shell user>\n"     <<
+    "user = test\n"     <<
     "# The MySQL user's password\n" <<
-    "password = <empty>\n"        <<
+    "password = test\n"        <<
     "# The number of threads to use by worker\n" <<
     "threads = 10\n"             <<
     "# The number of queries per thread\n"
