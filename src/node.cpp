@@ -1,6 +1,7 @@
 #include "node.hpp"
 #include <iostream>
 #include <cerrno>
+#include <cstring>
 #include "pquery.hpp"
 
 Node::Node(){
@@ -25,7 +26,7 @@ Node::createGeneralLog(){
   logName = logdir + "/" + myName + "_general" + ".log";
   general_log.open(logName, std::ios::out | std::ios::trunc);
   if (!general_log.is_open()){
-    std::cout << "Unable to open log file " << logName << ": " << strerror(errno) << std::endl;
+    std::cout << "Unable to open log file " << logName << ": " << std::strerror(errno) << std::endl;
     return false;
   }
   return true;

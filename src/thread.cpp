@@ -3,7 +3,7 @@
 #include <chrono>
 #include <random>
 #include <algorithm>
-
+#include <cstring>
 
 
 
@@ -27,16 +27,16 @@ Node::workerThread(int number) {
     os << logdir << "/" << myName << "_thread-" << number << ".sql";
     thread_log.open(os.str(), std::ios::out | std::ios::app);
     if(!thread_log.is_open()) {
-      general_log << "Unable to open logfile " << os.str() << ": " << strerror(errno) << std::endl;
+      general_log << "Unable to open logfile " << os.str() << ": " << std::strerror(errno) << std::endl;
       return;
     }
     if(log_query_duration) {
       thread_log.precision(3);
-      thread_log << std::ios::fixed;
+      thread_log << std::fixed;
       std::cerr.precision(3);
-      std::cerr << std::ios::fixed;
+      std::cerr << std::fixed;
       std::cout.precision(3);
-      std::cout << std::ios::fixed;
+      std::cout << std::fixed;
     }
   }
 
