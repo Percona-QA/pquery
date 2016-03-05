@@ -143,7 +143,7 @@ Node::workerThread(int number) {
   exitmsg << std::fixed;
   exitmsg << "* SUMMARY: " << failed_queries << "/" << total_queries << " queries failed (" <<
     (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
-  std::cout << exitmsg.str() << std::endl;
+  // std::cout << exitmsg.str() << std::endl;
 
   if (thread_log.is_open()) {
     thread_log << exitmsg.str() << std::endl;

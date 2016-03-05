@@ -7,6 +7,9 @@
 
 #include <unistd.h>
 #include <getopt.h>
+#include <sys/wait.h>
+#include <cstring>
+#include <cerrno>
 
 #include <INIReader.h>
 #include "pquery.hpp"
@@ -50,26 +53,45 @@ main(int argc, char* argv[]) {
     }
   }                                               //while
 
-
 if(!confFile.empty()){
+  pid_t childPID, wPID;
   INIReader reader(confFile);
   if (reader.ParseError() < 0) {
     std::cout << "Can't load " << confFile << std::endl;
     exit(1);
   }
+
   std::vector<std::string> sections;
+  int status;
+
   sections = reader.GetSections();
   std::vector<std::string>::iterator it;
   for (it = sections.begin(); it != sections.end(); it++){
     std::string secName = *it;
     if(reader.GetBoolean(secName, "run", false)){
-      std::shared_ptr<Node> newNode = std::make_shared<Node>();
-      newNode->setName(secName);
-      newNode->startWork(confFile);
+
+	childPID = fork();
+	if (childPID == 0){
+		std::shared_ptr<Node> newNode = std::make_shared<Node>();
+		newNode->setName(secName);
+    newNode->startWork(confFile);
+		break;
+	}
+	if (childPID > 0){
+		std::cerr << "Waiting for " << childPID << std::endl;
+
+	}
+	if(childPID < 0){
+	  std::cerr << "Cannot fork() child process: " << strerror(errno) << std::endl;
+	  exit(EXIT_FAILURE);
+	}
+
     }
   }
+	while ((wPID = wait(&status)) > 0){
+        std::cerr << "Exit status of " << wPID << ": " << status << std::endl;
+  }
 }
-
   mysql_library_end();
 
   return EXIT_SUCCESS;
