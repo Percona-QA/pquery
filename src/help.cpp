@@ -8,9 +8,8 @@ void show_help(void) {
   std::cout << " - You can redefine any global param=value pair in host-specific section" << std::endl;
   std::cout << "\nConfig example:\n" << std::endl;
   std::cout <<
-    "# contains global params for all workers\n" <<
-    "[GLOBAL]\n" <<
-    "# The defaults are below\n" <<
+
+    "[node0.domain.tld]\n" <<
     "# The database to connect to\n" <<
     "database = test\n" <<
     "# IP address to connect to, default is AF_UNIX\n" <<
@@ -45,7 +44,7 @@ void show_help(void) {
     "log-query-duration = No\n\n"             <<
     "[node1.domain.tld]\n" <<
     "address = 10.10.6.10\n" <<
-    "# default is No, need to set it explicitly\n" <<
+    "# default for \"run\" is No, need to set it explicitly\n" <<
     "run = Yes\n\n" <<
     "[node2.domain.tld]\n" <<
     "address = 10.10.6.11\n" << std::endl;
