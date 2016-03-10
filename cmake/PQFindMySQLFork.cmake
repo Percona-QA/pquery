@@ -7,6 +7,7 @@
 #
 OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
 OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
+OPTION (PERCONACLUSTER "Build PQuery with Percona XtraDB Cluster support" OFF)
 OPTION (WEBSCALESQL   "Build PQuery with WebScaleSQL support" OFF)
 OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
 #
@@ -31,6 +32,13 @@ IF (PERCONASERVER)
   SET(PQUERY_EXT "ps")
   SET(FORK "Percona Server")
   ADD_DEFINITIONS(-DFORK="Percona-Server")
+ENDIF()
+#
+IF (PERCONACLUSTER)
+  SET(MYSQL_NAMES mysqlclient mysqlclient_r)
+  SET(PQUERY_EXT "pxc")
+  SET(FORK "Percona XtraDB Cluster")
+  ADD_DEFINITIONS(-DFORK="Percona-XtraDB-Cluster")
 ENDIF()
 #
 IF (WEBSCALESQL)
