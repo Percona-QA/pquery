@@ -95,7 +95,7 @@ Node::startWork(std::string confFile){
   /* log replaying */
   if(!shuffle) {
     threads = 1;
-    queries_per_thread = (querylist->size() < queries_per_thread)?querylist->size():queries_per_thread;
+    queries_per_thread = querylist->size();
   }
 /* END log replaying */
   workers.resize(threads);
