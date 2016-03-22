@@ -44,7 +44,7 @@ class Node {
   std::string logdir;
   short port;
   short threads;
-  int queries_per_thread;
+  unsigned long queries_per_thread;
   bool verbose;
   bool debug;
   bool log_all_queries;

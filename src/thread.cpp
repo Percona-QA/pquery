@@ -63,9 +63,10 @@ Node::workerThread(int number) {
     return;
   }
 
-  for (int i=0; i<queries_per_thread; i++) {
+  unsigned long i;
+  for (i=0; i<queries_per_thread; i++) {
 
-    int query_number;
+    unsigned long query_number;
 
     if(!shuffle) {
       query_number = i;
