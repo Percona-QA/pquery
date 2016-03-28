@@ -26,7 +26,7 @@ Node::workerThread(int number) {
   if(log_client_output){
     std::ostringstream cl;
     cl << logdir << "/" << myName << "_thread-" << number << ".out";
-    client_log.open(cl.c_str(), std::ios::out | std::ios::app);
+    client_log.open(cl.str(), std::ios::out | std::ios::app);
     if(!client_log.is_open()) {
       general_log << "Unable to open logfile for client output " << cl.str() << ": " << std::strerror(errno) << std::endl;
     return;
