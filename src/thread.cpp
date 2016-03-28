@@ -143,26 +143,32 @@ Node::workerThread(int number) {
     if(thread_log.is_open()) {
       if(res == 0) {
         if((log_all_queries) || (log_query_statistics)) {
-          thread_log << (*querylist)[query_number] << " # NOERROR";
+          if(log_query_number){
+            thread_log << "|" << query_number+1;
+          }
+          thread_log << (*querylist)[query_number] << "|NOERROR";
           if(log_query_statistics) {
-            thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << getAffectedRows(conn);
+            thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << getAffectedRows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
-          thread_log << "\n";
+          thread_log << "||||\n";
         }
       }
       else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          thread_log << (*querylist)[query_number] << " # ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
+          if(log_query_number){
+            thread_log << "|" << query_number+1;
+          }
+          thread_log << (*querylist)[query_number] << "|ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
           if(log_query_statistics) {
-            thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << getAffectedRows(conn);
+            thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << getAffectedRows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
-          thread_log << "\n";
+          thread_log << "||||\n";
         }
       }
     }
