@@ -116,11 +116,12 @@ Node::workerThread(int number) {
     }
 
     total_queries++;
-    MYSQL_RES * result = mysql_store_result(conn);
+    MYSQL_RES * result = mysql_use_result(conn);
     if(log_client_output){
       if(result != NULL){
         MYSQL_ROW row;
-        unsigned int i, num_fields;
+        unsigned int i, num_fields, num_rows;
+        num_rows =
 
         num_fields = mysql_num_fields(result);
         while ((row = mysql_fetch_row(result))){
