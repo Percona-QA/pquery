@@ -28,7 +28,7 @@ Node::workerThread(int number) {
     cl << logdir << "/" << myName << "_thread-" << number << ".out";
     client_log.open(cl.c_str(), std::ios::out | std::ios::app);
     if(!client_log.is_open()) {
-      general_log << "Unable to open logfile for client output " << os.str() << ": " << std::strerror(errno) << std::endl;
+      general_log << "Unable to open logfile for client output " << cl.str() << ": " << std::strerror(errno) << std::endl;
     return;
     }
   }
@@ -124,8 +124,13 @@ Node::workerThread(int number) {
       num_fields = mysql_num_fields(result);
       while ((row = mysql_fetch_row(result))){
         for(i = 0; i < num_fields; i++){
-          client_log << row[i] ? row[i] : "NULL" << " | " << '\n';
+          if (row[i]){
+            client_log << row[i] << " | ";
+          }else{
+            client_log << "NULL" << " | ";
+          }
         }
+        client_log << '\n';
       }
     }
 
