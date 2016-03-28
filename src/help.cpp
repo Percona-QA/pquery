@@ -41,7 +41,11 @@ void show_help(void) {
     "# Extended output of query result\n"
     "log-query-statistics = No\n"             <<
     "# Log query duration in milliseconds\n" <<
-    "log-query-duration = No\n\n"             <<
+    "log-query-duration = No\n"             <<
+    "# Log output from executed query (separate log)\n" <<
+    "log-client-output = No\n"             <<
+    "# Log query numbers along the query results and statistics\n" <<
+    "log-query-number = No\n\n" <<
     "[node1.domain.tld]\n" <<
     "address = 10.10.6.10\n" <<
     "# default for \"run\" is No, need to set it explicitly\n" <<
