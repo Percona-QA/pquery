@@ -21,13 +21,24 @@ Node::workerThread(int number) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<int> dis(0, querylist->size() - 1);
   std::ofstream thread_log;
+  std::ofstream client_log;
+
+  if(log_client_output){
+    std::ostringstream cl;
+    cl << logdir << "/" << myName << "_thread-" << number << ".out";
+    client_log.open(cl.c_str(), std::ios::out | std::ios::app);
+    if(!client_log.is_open()) {
+      general_log << "Unable to open logfile for client output " << os.str() << ": " << std::strerror(errno) << std::endl;
+    return;
+    }
+  }
 
   if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
     std::ostringstream os;
     os << logdir << "/" << myName << "_thread-" << number << ".sql";
     thread_log.open(os.str(), std::ios::out | std::ios::app);
     if(!thread_log.is_open()) {
-      general_log << "Unable to open logfile " << os.str() << ": " << std::strerror(errno) << std::endl;
+      general_log << "Unable to open thread logfile " << os.str() << ": " << std::strerror(errno) << std::endl;
       return;
     }
     if(log_query_duration) {
@@ -106,6 +117,17 @@ Node::workerThread(int number) {
 
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
+    if(log_client_output){
+      MYSQL_ROW row;
+      unsigned int i, num_fields;
+
+      num_fields = mysql_num_fields(result);
+      while ((row = mysql_fetch_row(result))){
+        for(i = 0; i < num_fields; i++){
+          client_log << row[i] ? row[i] : "NULL" << " | " << '\n';
+        }
+      }
+    }
 
 //
     if(thread_log.is_open()) {
@@ -150,6 +172,10 @@ Node::workerThread(int number) {
     thread_log << exitmsg.str() << std::endl;
     thread_log.close();
   }
+  if(client_log.is_open()) {
+    client_log.close();
+  }
+
   mysql_close(conn);
   mysql_thread_end();
 }
