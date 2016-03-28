@@ -52,6 +52,7 @@ class Node {
   bool log_query_statistics;
   bool log_query_duration;
   bool log_client_output;
+  bool log_query_number;
   bool shuffle;
 
 };

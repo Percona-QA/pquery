@@ -53,6 +53,7 @@ Node::readSettings(std::string secName){
   log_query_statistics = reader->GetBoolean(secName, "log-query-statistics",  false);
   log_query_duration = reader->GetBoolean(secName, "log-query-duration", false);
   log_client_output = reader->GetBoolean(secName, "log-client-output", false);
+  log_query_number = reader->GetBoolean(secName, "log-query-number", false);
   shuffle = reader->GetBoolean(secName, "shuffle", true);
 }
 

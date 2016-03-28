@@ -125,10 +125,13 @@ Node::workerThread(int number) {
         num_fields = mysql_num_fields(result);
         while ((row = mysql_fetch_row(result))){
           for(i = 0; i < num_fields; i++){
+            if(log_query_number){
+              client_log << "|" << query_number+1;
+            }
             if (row[i]){
-              client_log << row[i] << " | ";
+              client_log << "|" << row[i] << "||||";
             }else{
-              client_log << "NULL" << " | ";
+              client_log << "|NULL" << "||||";
             }
           }
           client_log << '\n';
