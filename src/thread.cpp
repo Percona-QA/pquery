@@ -121,7 +121,6 @@ Node::workerThread(int number) {
       if(result != NULL){
         MYSQL_ROW row;
         unsigned int i, num_fields;
-        num_rows =
 
         num_fields = mysql_num_fields(result);
         while ((row = mysql_fetch_row(result))){
