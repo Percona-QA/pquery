@@ -120,7 +120,7 @@ Node::workerThread(int number) {
     if(log_client_output){
       if(result != NULL){
         MYSQL_ROW row;
-        unsigned int i, num_fields, num_rows;
+        unsigned int i, num_fields;
         num_rows =
 
         num_fields = mysql_num_fields(result);
