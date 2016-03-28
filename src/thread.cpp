@@ -118,19 +118,21 @@ Node::workerThread(int number) {
     total_queries++;
     MYSQL_RES * result = mysql_store_result(conn);
     if(log_client_output){
-      MYSQL_ROW row;
-      unsigned int i, num_fields;
+      if(result != NULL){
+        MYSQL_ROW row;
+        unsigned int i, num_fields;
 
-      num_fields = mysql_num_fields(result);
-      while ((row = mysql_fetch_row(result))){
-        for(i = 0; i < num_fields; i++){
-          if (row[i]){
-            client_log << row[i] << " | ";
-          }else{
-            client_log << "NULL" << " | ";
+        num_fields = mysql_num_fields(result);
+        while ((row = mysql_fetch_row(result))){
+          for(i = 0; i < num_fields; i++){
+            if (row[i]){
+              client_log << row[i] << " | ";
+            }else{
+              client_log << "NULL" << " | ";
+            }
           }
+          client_log << '\n';
         }
-        client_log << '\n';
       }
     }
 
