@@ -326,6 +326,10 @@ executor(int number, const vector<string>& qlist) {
     thread_log << exitmsg.str() << std::endl;
     thread_log.close();
   }
+  if (client_log.is_open()){
+    client_log.close();
+  }
+
   mysql_close(conn);
   mysql_thread_end();
 }

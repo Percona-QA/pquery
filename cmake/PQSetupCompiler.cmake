@@ -36,6 +36,6 @@ IF (STATIC_LIB)
   INCLUDE(FindZLIB REQUIRED)
   # and link static MySQL client library
   SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-  SET (OTHER_LIBS pthread dl z)
+  SET (OTHER_LIBS pthread dl z rt)
   SET(OTHER_LIBS ${OTHER_LIBS} ssl crypto)
 ENDIF(STATIC_LIB)
