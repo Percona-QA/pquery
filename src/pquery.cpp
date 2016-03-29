@@ -34,6 +34,8 @@ static int no_shuffle;
 static int log_query_statistics;
 static int log_query_duration;
 static int test_connection;
+static int log_query_number;
+static int log_client_output;
 
 char db[] = "test";
 char sock[] = "/tmp/my.sock";
@@ -124,11 +126,21 @@ executor(int number, const vector<string>& qlist) {
   std::mt19937 gen(rd());
   std::uniform_int_distribution<int> dis(0, qlist.size() - 1);
   ofstream thread_log;
-
+  ofstream client_log;
+  
+  if(log_client_output){
+    std::ostringstream cl;
+    cl << m_conndata.logdir << "/pquery_thread-" << number << ".out";
+    client_log.open(cl.str(), std::ios::out | std::ios::app);
+    if(!client_log.is_open()) {
+      std::cerr << "Unable to open logfile for client output " << cl.str() << ": " << std::strerror(errno) << std::endl;
+    return;
+    }
+  }
   if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
     ostringstream os;
     os << m_conndata.logdir << "/pquery_thread-" << number << ".sql";
-    thread_log.open(os.str(), ios::out | ios::app);
+    thread_log.open(os.str(), std::ios::out | std::ios::app);
     if(!thread_log.is_open()) {
       std::cerr << "Unable to open logfile " << os.str() << ": " << strerror(errno) << std::endl;
       return;
@@ -207,30 +219,58 @@ executor(int number, const vector<string>& qlist) {
     }
 
     total_queries++;
-    MYSQL_RES * result = mysql_store_result(conn);
+    MYSQL_RES * result = mysql_use_result(conn);
+
+    if(log_client_output){
+      if(result != NULL){
+        MYSQL_ROW row;
+        unsigned int i, num_fields;
+        num_fields = mysql_num_fields(result);
+        while ((row = mysql_fetch_row(result))){
+          for(i = 0; i < num_fields; i++){
+            if(log_query_number){
+              client_log << "|" << query_number+1;
+            }
+            if (row[i]){
+              client_log << "|" << row[i] << "||||";
+            }else{
+              client_log << "|NULL" << "||||";
+            }
+          }
+          client_log << '\n';
+        }
+      }
+    }
+
 
 // logging part, initial implementation, will be refactored / rewritten
     if((verbose) && (m_conndata.threads == 1)) {  // print it only if 1 thread is active
       if(res == 0) {
         if( (log_all_queries) || (log_query_statistics) ) {
-          std::cerr << qlist[query_number] << " # NOERROR";
+          if(log_query_number){
+            std::cerr << "|" << query_number+1;
+          }
+          std::cerr << qlist[query_number] << "|NOERROR";
           if(log_query_statistics) {
-            std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
+            std::cerr << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: " << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            std::cerr << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           std::cerr << std::endl;
         }
       }
       else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          std::cerr << qlist[query_number] << " # ERROR: " << mysql_errno(conn) << " - " <<  mysql_error(conn);
+          if(log_query_number){
+            std::cerr << "|" << query_number+1;
+          }
+          std::cerr << qlist[query_number] << "|ERROR: " << mysql_errno(conn) << " - " <<  mysql_error(conn);
           if(log_query_statistics) {
-            std::cerr << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: " << get_affected_rows(conn);
+            std::cerr << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: " << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            std::cerr << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            std::cerr << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           std::cerr << std::endl;
         }
@@ -241,24 +281,30 @@ executor(int number, const vector<string>& qlist) {
     if(thread_log.is_open()) {
       if(res == 0) {
         if((log_all_queries) || (log_query_statistics)) {
-          thread_log << qlist[query_number] << " # NOERROR";
+          if(log_query_number){
+            thread_log << "|" << query_number+1;
+          }
+          thread_log << qlist[query_number] << "|NOERROR";
           if(log_query_statistics) {
-            thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
+            thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           thread_log << "\n";
         }
       }
       else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          thread_log << qlist[query_number] << " # ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
+          if(log_query_number){
+            thread_log << "|" << query_number+1;
+          }
+          thread_log << qlist[query_number] << "|ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
           if(log_query_statistics) {
-            thread_log << " # WARNINGS: " << mysql_warning_count(conn) << " # CHANGED: "  << get_affected_rows(conn);
+            thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << get_affected_rows(conn);
           }
           if(log_query_duration) {
-            thread_log << " # Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           thread_log << "\n";
         }
@@ -320,6 +366,9 @@ main(int argc, char* argv[]) {
       {"log-query-statistics", no_argument, &log_query_statistics, 1},
       {"log-query-duration", no_argument, &log_query_duration, 1},
       {"test-connection", no_argument, &test_connection, 1},
+      {"log-query-number", no_argument, &log_query_number, 1},
+      {"log-client-output", no_argument, &log_client_output, 1},
+
       {0, 0, 0, 0}
     };
 

@@ -25,5 +25,7 @@ void show_help(void) {
     "--log-query-statistics | Extended output of query result              | no\n"             <<
     "--log-query-duration   | Log query duration in milliseconds           | no\n"             <<
     "--test-connection      | Test connection to server and exit           | no\n"             <<
+    "--log-query-number     | Write query # to logs                        | no\n"             <<
+    "--log-client-output    | Log query output to separate file            | no\n"             <<
     "-----------------------------------------------------------------------------------------"   << std::endl;
 }
