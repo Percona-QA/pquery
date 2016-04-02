@@ -1,0 +1,6 @@
+CMakeCache.txt
+*.cmake
+CMakeFiles
+Makefile
+*.a
+src/pquery-*
