@@ -1,8 +1,10 @@
 # What is pquery?
 pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuild pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
-+ *PQuery v1.0* was designed for single-node MySQL setup and do accept CLI options. see ```pquery --cli-help```
-+ *PQuery v2.0* was designed for multi-node MySQL setup (cluster) and do accept options from config file (INI format). see ```pquery --config-help```
++ *PQuery v1.0* was designed for single-node MySQL setup and do accept CLI options. 
+see ```pquery --cli-help```
++ *PQuery v2.0* was designed for multi-node MySQL setup (cluster) and do accept options from config file (INI format). 
+see ```pquery --config-help```
 
 Please note that v2.0 accept the same CLI options (as v1.0 does) only for backward compatibility and can handle only single node setup in that mode. 
 The recommended way to pass all options and params to PQuery v2.0 is config file even for single-node setup.
@@ -11,7 +13,9 @@ v2.0 is under active development, v1.0 will be supported by request.
 
 # What is pquery v2.0? What are the changes and features?
 pquery v2.0 is designed for multi-node cluster setup. it can load *different* SQL to the different cluster nodes. also it's possible to enable SQL randomizer only for some particular nodes. in general it supports the same features as v1.0.
-config file was introduced as replacement for many CLI options. QA engineer can specify if worker should be started for some node in config file by setting ```run = YES | NO``` option  
+
+config file was introduced as replacement for many CLI options. 
+QA engineer can specify if pquery worker should be started for some node in config file by setting ```run = YES | NO``` option  
 
 # What is the pquery framework?
 When the pquery binary is used in combination with the Bash scripted pquery framework and a medium spec QA server (Intel i7/16GB/SSD), a QA engineer can achieve 80+ mysqld crashes per hour. The pquery framework further offers automatic testcase creation, bug filtering, sporadic issue handling, true multi-threaded testcase reduction, near-100% bug reproducibility and much more. The pquery framework furthermore contains high quality SQL input files, and "already known bug" filter lists for Percona Server and MySQL Server. The pquery framework is also GPLv2 licensed, and available from GitHub here: https://github.com/Percona-QA/percona-qa
@@ -34,6 +38,7 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *STATIC_LIB* - **ON** by default, compile pquery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
   * *DEBUG* - **OFF** by default, compile pquery with debug inforamation for GDB
   * *STRICT* - **ON** by default, compile pquery with strict flags   
+  * *ASAN* - address sanitizer, available in GCC >= 4.8
 4. If you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR, you can set *BASEDIR* variable if you have binary tarball extracted to some custom place for fully automatic library detection (recommended).
 5. The resulting binary will automatically receive an appropriate flavor suffix:
   * *pquery-ms* for MySQL
@@ -77,6 +82,51 @@ Option | Function| Example
 --log-query-statistics | Extended output of query result | --log-query-statistics
 --log-query-duration | Log query duration in milliseconds | --log-query-duration
 --test-connection | Test connection to server and exit | --test-connection
+
+# Config file example:
+```
+[node0.ci.percona.com]
+address = 192.168.10.1
+user = test
+password = test
+database = test
+# relative or absolute path so sql file
+infile = pquery.sql
+verbose = True
+threads = 10
+queries-per-thread = 100
+run = Yes
+# Log all queries
+log-all-queries = Yes
+# Log failed queries
+log-failed-queries = Yes
+# Execute SQL randomly
+shuffle = Yes
+# Extended output of query result
+log-query-statistics = Yes
+# Log query duration in milliseconds
+log-query-duration = Yes
+# Log query output to separate file
+log-client-output = No
+# Write also query # from SQL file (to compare query and output for example)
+log-query-number = No
+
+[node1.ci.percona.com]
+address = 127.0.0.1
+user = test
+password = test
+infile = pquery.sql
+shuffle = Yes
+queries-per-thread = 150
+run = No
+
+[node2.ci.percona.com]
+address = 127.0.0.1
+user = root
+password = 1q2w3e
+infile = pquery2.sql
+run = No
+```
 
 Note that logfiles (including SQL log files) are appended to, not overwritten. If SQL logs are appended to, it will reduce issue reproducibility. To avoid this, simply use a new log file for each pquery run. The [pquery framework](https://github.com/Percona-QA/percona-qa) (ref [pquery-run.sh](https://github.com/Percona-QA/percona-qa/blob/master/pquery-run.sh)) already takes care of this automatically.
 
