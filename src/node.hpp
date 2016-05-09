@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include "pquery.hpp"
 #include <INIReader.h>
 #include <my_global.h>
 #include <mysql.h>
@@ -19,8 +20,8 @@ class Node {
   public:
     Node();
    ~Node();
-   void setName(std::string name){myName = name;}
-   void startWork(std::string);
+    void setAllParams(struct workerParams&);
+    void startWork();
  private:
   // declaration for worker thread function
   void workerThread(int);
@@ -28,6 +29,7 @@ class Node {
   void tryConnect();
   bool createGeneralLog();
   void readSettings(std::string);
+
 
   INIReader * reader;
   std::vector<std::thread> workers;
@@ -52,9 +54,9 @@ class Node {
   bool log_query_statistics;
   bool log_query_duration;
   bool log_client_output;
-  bool log_query_number;
+  bool log_query_numbers;
   bool shuffle;
-
+  bool test_connection;
 };
 
 

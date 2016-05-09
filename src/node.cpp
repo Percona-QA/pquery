@@ -2,7 +2,6 @@
 #include <iostream>
 #include <cerrno>
 #include <cstring>
-#include "pquery.hpp"
 
 Node::Node(){
   workers.clear();
@@ -32,46 +31,42 @@ Node::createGeneralLog(){
   return true;
 }
 
-void
-Node::readSettings(std::string secName){
-  address = reader->Get(secName, "address", "");
-  username = reader->Get(secName, "user", "test");
-  password = reader->Get(secName, "password", "test");
-  socket = reader->Get(secName, "socket", "/tmp/my.sock");
-  database = reader->Get(secName, "database", "test");
-  infile = reader->Get(secName, "infile", "pquery.sql");
-  logdir = reader->Get(secName, "logdir", "/tmp");
+void 
+Node::setAllParams(struct workerParams& myParams){
+  myName = myParams.myName;
+  address = myParams.address;
+  username = myParams.username;
+  password = myParams.password;
+  socket = myParams.socket;
+  database = myParams.database;
+  infile = myParams.infile;
+  logdir = myParams.logdir;
 
-  port = reader->GetInteger(secName, "port", 3306);
-  threads = reader->GetInteger(secName, "threads", 10);
-  queries_per_thread = reader->GetInteger(secName, "queries-per-thread", 10000);
+  port = myParams.port;
+  threads = myParams.threads;
+  queries_per_thread = myParams.queries_per_thread;
 
-  verbose = reader->GetBoolean(secName, "verbose", false);
-  debug = reader->GetBoolean(secName, "debug", false);
-  log_all_queries = reader->GetBoolean(secName, "log-all-queries", false);
-  log_failed_queries = reader->GetBoolean(secName, "log-failed-queries", false);
-  log_query_statistics = reader->GetBoolean(secName, "log-query-statistics",  false);
-  log_query_duration = reader->GetBoolean(secName, "log-query-duration", false);
-  log_client_output = reader->GetBoolean(secName, "log-client-output", false);
-  log_query_number = reader->GetBoolean(secName, "log-query-number", false);
-  shuffle = reader->GetBoolean(secName, "shuffle", true);
+  verbose = myParams.verbose;
+  debug = myParams.debug;
+  log_all_queries = myParams.log_all_queries;
+  log_failed_queries = myParams.log_failed_queries;
+  log_query_statistics = myParams.log_query_statistics;
+  log_query_duration = myParams.log_query_duration;
+  log_client_output = myParams.log_client_output;
+  log_query_numbers = myParams.log_query_numbers;
+  shuffle = myParams.shuffle;
 }
 
 void
-Node::startWork(std::string confFile){
-  reader = new INIReader(confFile);
-  if (reader->ParseError() < 0) {
-    std::cout << "Can't load " << confFile << std::endl;
-    exit(1);
-  }
-  readSettings(myName);
+Node::startWork(){
+  
   if(!createGeneralLog()){
     std::cerr << "Exiting..." << std::endl;
     exit(2);
   }
 
-  std::cout << "- Connecting to " << myName << "..." << std::endl;
-  general_log << "- Connecting to " << myName << "..." << std::endl;
+  std::cout << "- Connecting to " << myName << " [" << address << "]..." << std::endl;
+  general_log << "- Connecting to " << myName << " [" << address << "]..." << std::endl;
   tryConnect();
 
   std::ifstream sqlfile_in;
@@ -156,4 +151,7 @@ Node::tryConnect() {
     mysql_free_result(result);
   }
   mysql_close(conn);
+  if(test_connection){
+    exit(EXIT_SUCCESS);
+  }
 }

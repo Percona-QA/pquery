@@ -84,7 +84,7 @@ Option | Function| Example
 --log-query-statistics | Extended output of query result | --log-query-statistics
 --log-query-duration | Log query duration in milliseconds | --log-query-duration
 --test-connection | Test connection to server and exit | --test-connection
---log-query-number | Write query # to logs | NO
+--log-query-numbers | Write query numbers to log | NO
 --log-client-output | Log query output to separate file | NO
 
 # v2.0 config file example:
@@ -113,7 +113,7 @@ log-query-duration = Yes
 # Log query output to separate file
 log-client-output = No
 # Write also query # from SQL file (to compare query and output for example)
-log-query-number = No
+log-query-numbers = No
 
 [node1.ci.percona.com]
 address = 127.0.0.1

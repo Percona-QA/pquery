@@ -125,7 +125,7 @@ Node::workerThread(int number) {
         num_fields = mysql_num_fields(result);
         while ((row = mysql_fetch_row(result))){
           for(i = 0; i < num_fields; i++){
-            if(log_query_number){
+            if(log_query_numbers){
               client_log << "|" << query_number+1;
             }
             if (row[i]){
@@ -143,7 +143,7 @@ Node::workerThread(int number) {
     if(thread_log.is_open()) {
       if(res == 0) {
         if((log_all_queries) || (log_query_statistics)) {
-          if(log_query_number){
+          if(log_query_numbers){
             thread_log << "|" << query_number+1;
           }
           thread_log << (*querylist)[query_number] << "|NOERROR";
@@ -158,7 +158,7 @@ Node::workerThread(int number) {
       }
       else {
         if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          if(log_query_number){
+          if(log_query_numbers){
             thread_log << "|" << query_number+1;
           }
           thread_log << (*querylist)[query_number] << "|ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
