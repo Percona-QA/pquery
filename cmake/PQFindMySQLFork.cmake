@@ -67,11 +67,12 @@ FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
   ${BASEDIR}/include/mysql
   /usr/local/include/mysql
   /usr/include/mysql
+  /usr/local/mysql/include
   )
 #
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS ${BASEDIR}/lib ${BASEDIR}/lib64 /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64
+  PATHS ${BASEDIR}/lib ${BASEDIR}/lib64 /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 /usr/local/mysql/lib
   PATH_SUFFIXES mysql
   )
 #

@@ -28,9 +28,11 @@ main(int argc, char* argv[]) {
 
     static struct option long_options[] = {
       {"help", no_argument, 0, 'h'},
+      {"config-help", no_argument, 0, 'I'},
+      {"cli-help", no_argument, 0, 'C'},
       {"config-file", required_argument, 0, 'c'},
       {0, 0, 0, 0}
-    };
+      };
 
     int option_index = 0;
 
@@ -38,11 +40,17 @@ main(int argc, char* argv[]) {
 
     if (c == -1) {
       break;
-    }
+      }
 
     switch (c) {
       case 'h':
         show_help();
+        exit(EXIT_FAILURE);
+      case 'I':
+        show_config_help();
+        exit(EXIT_FAILURE);
+      case 'C':
+        show_cli_help();
         exit(EXIT_FAILURE);
       case 'c':
         std::cout << "Config file: " << optarg << std::endl;
@@ -50,49 +58,49 @@ main(int argc, char* argv[]) {
         break;
       default:
         break;
+      }
+    }                                             //while
+
+  if(!confFile.empty()) {
+    pid_t childPID, wPID;
+    INIReader reader(confFile);
+    if (reader.ParseError() < 0) {
+      std::cout << "Can't load " << confFile << std::endl;
+      exit(1);
+      }
+
+    std::vector<std::string> sections;
+    int status;
+
+    sections = reader.GetSections();
+    std::vector<std::string>::iterator it;
+    for (it = sections.begin(); it != sections.end(); it++) {
+      std::string secName = *it;
+      if(reader.GetBoolean(secName, "run", false)) {
+
+        childPID = fork();
+        if (childPID == 0) {
+          std::shared_ptr<Node> newNode = std::make_shared<Node>();
+          newNode->setName(secName);
+          newNode->startWork(confFile);
+          break;
+          }
+        if (childPID > 0) {
+          std::cerr << "Waiting for " << childPID << std::endl;
+
+          }
+        if(childPID < 0) {
+          std::cerr << "Cannot fork() child process: " << strerror(errno) << std::endl;
+          exit(EXIT_FAILURE);
+          }
+
+        }
+      }
+    while ((wPID = wait(&status)) > 0) {
+      std::cerr << "Exit status of " << wPID << ": " << status << std::endl;
+      }
     }
-  }                                               //while
-
-if(!confFile.empty()){
-  pid_t childPID, wPID;
-  INIReader reader(confFile);
-  if (reader.ParseError() < 0) {
-    std::cout << "Can't load " << confFile << std::endl;
-    exit(1);
-  }
-
-  std::vector<std::string> sections;
-  int status;
-
-  sections = reader.GetSections();
-  std::vector<std::string>::iterator it;
-  for (it = sections.begin(); it != sections.end(); it++){
-    std::string secName = *it;
-    if(reader.GetBoolean(secName, "run", false)){
-
-	childPID = fork();
-	if (childPID == 0){
-		std::shared_ptr<Node> newNode = std::make_shared<Node>();
-		newNode->setName(secName);
-    newNode->startWork(confFile);
-		break;
-	}
-	if (childPID > 0){
-		std::cerr << "Waiting for " << childPID << std::endl;
-
-	}
-	if(childPID < 0){
-	  std::cerr << "Cannot fork() child process: " << strerror(errno) << std::endl;
-	  exit(EXIT_FAILURE);
-	}
-
-    }
-  }
-	while ((wPID = wait(&status)) > 0){
-        std::cerr << "Exit status of " << wPID << ": " << status << std::endl;
-  }
-}
   mysql_library_end();
 
   return EXIT_SUCCESS;
-}
+  }
