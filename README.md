@@ -61,7 +61,9 @@ $ ... building other MySQL flavors/forks here ...
 
 # What options does pquery accept?
 
-First, take a quick look at ``` *pquery* --help, *pquery* --config-help, *pquery* --cli-help ``` to see available modes and options.
+First, take a quick look at ``` pquery --help, pquery --config-help, pquery --cli-help ``` to see available modes and options.
+
+# v1.0 options example:
 
 Option | Function| Example
 --- | --- | ---
@@ -82,8 +84,10 @@ Option | Function| Example
 --log-query-statistics | Extended output of query result | --log-query-statistics
 --log-query-duration | Log query duration in milliseconds | --log-query-duration
 --test-connection | Test connection to server and exit | --test-connection
+--log-query-number | Write query # to logs | NO
+--log-client-output | Log query output to separate file | NO
 
-# Config file example:
+# v2.0 config file example:
 ```
 [node0.ci.percona.com]
 address = 192.168.10.1
