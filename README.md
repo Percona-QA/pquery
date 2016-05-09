@@ -1,6 +1,17 @@
 # What is pquery?
 pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuild pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
++ *PQuery v1.0* was designed for single-node MySQL setup and do accept CLI options. see ```*pquery* --cli-help```
++ *PQuery v2.0* was designed for multi-node MySQL setup (cluster) and do accept options from config file (INI format). see ```*pquery* --config-help```
+
+Please note that v2.0 accept the same CLI options (as v1.0 does) only for backward compatibility and can handle only single node setup in that mode. 
+The recommended way to pass all options and params to PQuery v2.0 is config file even for single-node setup.
+
+v2.0 is under active development, v1.0 will be supported by request.
+
+# What is pquery v2.0? What are the changes and features?
+pquery v2.0 is designed for multi-node cluster setup. it can load *different* SQL to the different cluster nodes. also it's possible to enable SQL randomizer only for some particular nodes. in general it supports the same features as v1.0.
+
 # What is the pquery framework?
 When the pquery binary is used in combination with the Bash scripted pquery framework and a medium spec QA server (Intel i7/16GB/SSD), a QA engineer can achieve 80+ mysqld crashes per hour. The pquery framework further offers automatic testcase creation, bug filtering, sporadic issue handling, true multi-threaded testcase reduction, near-100% bug reproducibility and much more. The pquery framework furthermore contains high quality SQL input files, and "already known bug" filter lists for Percona Server and MySQL Server. The pquery framework is also GPLv2 licensed, and available from GitHub here: https://github.com/Percona-QA/percona-qa
 
@@ -43,6 +54,9 @@ $ ... building other MySQL flavors/forks here ...
 ```
 
 # What options does pquery accept?
+
+First, take a quick look at ``` *pquery* --help, *pquery* --config-help, *pquery* --cli-help ``` to see available modes and options.
+
 Option | Function| Example
 --- | --- | ---
 --database | The database to connect | --database=test
