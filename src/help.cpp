@@ -1,8 +1,59 @@
 #include "pquery.hpp"
 #include <iostream>
 
-void show_help(void) {
+void
+print_version(void) {
   std::cout << " - PQuery version " << PQVERSION << std::endl;
+  }
+
+
+void
+show_help() {
+  print_version();
+  std::cout << " * Please see specific help:" << std::endl;
+  std::cout << " pquery --config-help for INI-config help, CLUSTER mode" << std::endl;
+  std::cout << " pquery --cli-help for commandline options, SINGLE mode" << std::endl;
+  std::cout << "=> pquery doesn't support multiple cluster nodes in CLI mode!" << std::endl;
+  }
+
+
+void
+show_cli_help(void) {
+  print_version();
+  std::cout << " - General usage: pquery --user=USER --password=PASSWORD --database=DATABASE" << std::endl;
+  std::cout << "=> pquery doesn't support multiple cluster nodes in CLI mode!" << std::endl;
+  std::cout <<
+    "-----------------------------------------------------------------------------------------\n" <<
+    "| OPTION               | EXPLANATION                                  | DEFAULT          |\n" <<
+    "-----------------------------------------------------------------------------------------\n" <<
+    "--database             | The database to connect to                   | test\n"           <<
+    "--address              | IP address to connect to                     | -\n"              <<
+    "--port                 | The port to connect to                       | 3306\n"           <<
+    "--infile               | The SQL input file                           | pquery.sql\n"     <<
+    "--logdir               | Log directory                                | /tmp\n"           <<
+    "--socket               | Socket file to use                           | /tmp/my.sock\n"   <<
+    "--user                 | The MySQL userID to be used                  | shell user\n"     <<
+    "--password             | The MySQL user's password                    | <empty>\n"        <<
+    "--threads              | The number of threads to use                 | 10\n"             <<
+    "--queries-per-thread   | The number of queries per thread             | 10000\n"          <<
+    "--verbose              | Duplicates the log to console when threads=1 | no\n"             <<
+    "--log-all-queries      | Log all queries                              | no\n"             <<
+    "--log-failed-queries   | Log failed queries                           | no\n"             <<
+    "--no-shuffle           | Execute SQL sequentially                     | randomly\n"       <<
+    "--log-query-statistics | Extended output of query result              | no\n"             <<
+    "--log-query-duration   | Log query duration in milliseconds           | no\n"             <<
+    "--test-connection      | Test connection to server and exit           | no\n"             <<
+    "--log-query-number     | Write query # to logs                        | no\n"             <<
+    "--log-client-output    | Log query output to separate file            | no\n"             <<
+    "-----------------------------------------------------------------------------------------"   << std::endl;
+  }
+
+
+void
+show_config_help(void) {
+
+  print_version();
+
   std::cout << " - Usage: pquery --config-file=pquery.cfg" << std::endl;
   std::cout << " - CLI params has been replaced by config file (INI format)" << std::endl;
   std::cout << " - You can redefine any global param=value pair in host-specific section" << std::endl;
@@ -52,4 +103,4 @@ void show_help(void) {
     "run = Yes\n\n" <<
     "[node2.domain.tld]\n" <<
     "address = 10.10.6.11\n" << std::endl;
-}
+  }
