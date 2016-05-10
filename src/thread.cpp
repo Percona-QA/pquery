@@ -23,9 +23,9 @@ Node::workerThread(int number) {
   std::ofstream thread_log;
   std::ofstream client_log;
 
-  if(log_client_output){
+  if(myParams.log_client_output){
     std::ostringstream cl;
-    cl << logdir << "/" << myName << "_thread-" << number << ".out";
+    cl << myParams.logdir << "/" << myParams.myName << "_thread-" << number << ".out";
     client_log.open(cl.str(), std::ios::out | std::ios::app);
     if(!client_log.is_open()) {
       general_log << "Unable to open logfile for client output " << cl.str() << ": " << std::strerror(errno) << std::endl;
@@ -33,15 +33,15 @@ Node::workerThread(int number) {
     }
   }
 
-  if ((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
+  if ((myParams.log_failed_queries) || (myParams.log_all_queries) || (myParams.log_query_statistics)) {
     std::ostringstream os;
-    os << logdir << "/" << myName << "_thread-" << number << ".sql";
+    os << myParams.logdir << "/" << myParams.myName << "_thread-" << number << ".sql";
     thread_log.open(os.str(), std::ios::out | std::ios::app);
     if(!thread_log.is_open()) {
       general_log << "Unable to open thread logfile " << os.str() << ": " << std::strerror(errno) << std::endl;
       return;
     }
-    if(log_query_duration) {
+    if(myParams.log_query_duration) {
       thread_log.precision(3);
       thread_log << std::fixed;
       std::cerr.precision(3);
@@ -63,8 +63,8 @@ Node::workerThread(int number) {
     general_log << ": Thread #" << number << " is exiting abnormally" << std::endl;
     return;
   }
-  if (mysql_real_connect(conn, address.c_str(), username.c_str(),
-  password.c_str(), database.c_str(), port, socket.c_str(), 0) == NULL) {
+  if (mysql_real_connect(conn, myParams.address.c_str(), myParams.username.c_str(),
+  myParams.password.c_str(), myParams.database.c_str(), myParams.port, myParams.socket.c_str(), 0) == NULL) {
     thread_log << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
     mysql_close(conn);
     if (thread_log.is_open()) {
@@ -75,11 +75,11 @@ Node::workerThread(int number) {
   }
 
   unsigned long i;
-  for (i=0; i<queries_per_thread; i++) {
+  for (i=0; i<myParams.queries_per_thread; i++) {
 
     unsigned long query_number;
 
-    if(!shuffle) {
+    if(!myParams.shuffle) {
       query_number = i;
     }
     else {
@@ -88,13 +88,13 @@ Node::workerThread(int number) {
 
 // perform the query and getting the result
 
-    if(log_query_duration) {
+    if(myParams.log_query_duration) {
       begin = std::chrono::steady_clock::now();
     }
 
     res = mysql_real_query(conn, (*querylist)[query_number].c_str(), (unsigned long)strlen((*querylist)[query_number].c_str()));
 
-    if(log_query_duration) {
+    if(myParams.log_query_duration) {
       end = std::chrono::steady_clock::now();
     }
 
@@ -117,7 +117,7 @@ Node::workerThread(int number) {
 
     total_queries++;
     MYSQL_RES * result = mysql_use_result(conn);
-    if(log_client_output){
+    if(myParams.log_client_output){
       if(result != NULL){
         MYSQL_ROW row;
         unsigned int i, num_fields;
@@ -125,7 +125,7 @@ Node::workerThread(int number) {
         num_fields = mysql_num_fields(result);
         while ((row = mysql_fetch_row(result))){
           for(i = 0; i < num_fields; i++){
-            if(log_query_numbers){
+            if(myParams.log_query_numbers){
               client_log << "|" << query_number+1;
             }
             if (row[i]){
@@ -142,30 +142,30 @@ Node::workerThread(int number) {
 //
     if(thread_log.is_open()) {
       if(res == 0) {
-        if((log_all_queries) || (log_query_statistics)) {
-          if(log_query_numbers){
+        if((myParams.log_all_queries) || (myParams.log_query_statistics)) {
+          if(myParams.log_query_numbers){
             thread_log << "|" << query_number+1;
           }
           thread_log << (*querylist)[query_number] << "|NOERROR";
-          if(log_query_statistics) {
+          if(myParams.log_query_statistics) {
             thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << getAffectedRows(conn);
           }
-          if(log_query_duration) {
+          if(myParams.log_query_duration) {
             thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           thread_log << "||||\n";
         }
       }
       else {
-        if((log_failed_queries) || (log_all_queries) || (log_query_statistics)) {
-          if(log_query_numbers){
+        if((myParams.log_failed_queries) || (myParams.log_all_queries) || (myParams.log_query_statistics)) {
+          if(myParams.log_query_numbers){
             thread_log << "|" << query_number+1;
           }
           thread_log << (*querylist)[query_number] << "|ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
-          if(log_query_statistics) {
+          if(myParams.log_query_statistics) {
             thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << getAffectedRows(conn);
           }
-          if(log_query_duration) {
+          if(myParams.log_query_duration) {
             thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
           thread_log << "||||\n";

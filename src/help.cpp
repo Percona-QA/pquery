@@ -1,5 +1,6 @@
 #include "pquery.hpp"
 #include <iostream>
+#include "common.hpp"
 
 void
 print_version(void) {

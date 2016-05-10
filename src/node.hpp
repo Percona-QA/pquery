@@ -12,36 +12,15 @@
 #include <my_global.h>
 #include <mysql.h>
 
-/*
-It represents standalone MySQL server or MySQL node in cluster (PXC) setup
-*/
-
-class Node {
-  public:
-    Node();
-   ~Node();
-    void setAllParams(struct workerParams&);
-    void startWork();
- private:
-  // declaration for worker thread function
-  void workerThread(int);
-  inline unsigned long long getAffectedRows(MYSQL*);
-  void tryConnect();
-  bool createGeneralLog();
-  void readSettings(std::string);
-
-
-  INIReader * reader;
-  std::vector<std::thread> workers;
-  std::vector<std::string> * querylist;
-
-  std::ofstream general_log;
-  std::string myName;
+/* struct for node setup */
+struct 
+workerParams {
+  std::string myName; // unique name for worker
+  std::string database;
   std::string address;
   std::string socket;
   std::string username;
   std::string password;
-  std::string database;
   std::string infile;
   std::string logdir;
   short port;
@@ -57,6 +36,32 @@ class Node {
   bool log_query_numbers;
   bool shuffle;
   bool test_connection;
+};
+
+/*
+It represents standalone MySQL server or MySQL node in cluster (PXC) setup
+*/
+
+class Node {
+  public:
+    Node();
+   ~Node();
+    void setAllParams(struct workerParams& Params) { myParams = Params; }
+    void startWork();
+ private:
+  // declaration for worker thread function
+  void workerThread(int);
+  inline unsigned long long getAffectedRows(MYSQL*);
+  void tryConnect();
+  bool createGeneralLog();
+  void readSettings(std::string);
+
+  INIReader * reader;
+  std::vector<std::thread> workers;
+  std::vector<std::string> * querylist;
+  struct workerParams myParams;
+  std::ofstream general_log;
+
 };
 
 
