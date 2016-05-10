@@ -1,7 +1,9 @@
-#include "node.hpp"
 #include <iostream>
 #include <cerrno>
 #include <cstring>
+#include "node.hpp"
+#include "common.hpp"
+
 
 Node::Node(){
   workers.clear();
@@ -22,39 +24,13 @@ Node::~Node(){
 bool
 Node::createGeneralLog(){
   std::string logName;
-  logName = logdir + "/" + myName + "_general" + ".log";
+  logName = myParams.logdir + "/" + myParams.myName + "_general" + ".log";
   general_log.open(logName, std::ios::out | std::ios::trunc);
   if (!general_log.is_open()){
     std::cout << "Unable to open log file " << logName << ": " << std::strerror(errno) << std::endl;
     return false;
   }
   return true;
-}
-
-void 
-Node::setAllParams(struct workerParams& myParams){
-  myName = myParams.myName;
-  address = myParams.address;
-  username = myParams.username;
-  password = myParams.password;
-  socket = myParams.socket;
-  database = myParams.database;
-  infile = myParams.infile;
-  logdir = myParams.logdir;
-
-  port = myParams.port;
-  threads = myParams.threads;
-  queries_per_thread = myParams.queries_per_thread;
-
-  verbose = myParams.verbose;
-  debug = myParams.debug;
-  log_all_queries = myParams.log_all_queries;
-  log_failed_queries = myParams.log_failed_queries;
-  log_query_statistics = myParams.log_query_statistics;
-  log_query_duration = myParams.log_query_duration;
-  log_client_output = myParams.log_client_output;
-  log_query_numbers = myParams.log_query_numbers;
-  shuffle = myParams.shuffle;
 }
 
 void
@@ -65,16 +41,16 @@ Node::startWork(){
     exit(2);
   }
 
-  std::cout << "- Connecting to " << myName << " [" << address << "]..." << std::endl;
-  general_log << "- Connecting to " << myName << " [" << address << "]..." << std::endl;
+  std::cout << "- Connecting to " << myParams.myName << " [" << myParams.address << "]..." << std::endl;
+  general_log << "- Connecting to " << myParams.myName << " [" << myParams.address << "]..." << std::endl;
   tryConnect();
 
   std::ifstream sqlfile_in;
-  sqlfile_in.open(infile);
+  sqlfile_in.open(myParams.infile);
 
   if (!sqlfile_in.is_open()) {
-    std::cerr << "Unable to open SQL file " << infile << ": " << strerror(errno) << std::endl;
-    general_log << "Unable to open SQL file " << infile << ": " << strerror(errno) << std::endl;
+    std::cerr << "Unable to open SQL file " << myParams.infile << ": " << strerror(errno) << std::endl;
+    general_log << "Unable to open SQL file " << myParams.infile << ": " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
   }
   querylist = new std::vector<std::string>;
@@ -87,21 +63,21 @@ Node::startWork(){
   }
 
   sqlfile_in.close();
-  general_log << "- Read " << querylist->size() << " lines from " << infile << std::endl;
+  general_log << "- Read " << querylist->size() << " lines from " << myParams.infile << std::endl;
 
   /* log replaying */
-  if(!shuffle) {
-    threads = 1;
-    queries_per_thread = querylist->size();
+  if(!myParams.shuffle) {
+    myParams.threads = 1;
+    myParams.queries_per_thread = querylist->size();
   }
 /* END log replaying */
-  workers.resize(threads);
+  workers.resize(myParams.threads);
 
-  for (int i=0; i<threads; i++) {
+  for (int i=0; i<myParams.threads; i++) {
     workers[i] = std::thread(&Node::workerThread, this, i);
   }
 
-  for (int i=0; i<threads; i++) {
+  for (int i=0; i<myParams.threads; i++) {
     workers[i].join();
   }
 }
@@ -119,8 +95,8 @@ Node::tryConnect() {
     mysql_library_end();
     exit(EXIT_FAILURE);
   }
-  if (mysql_real_connect(conn, address.c_str(), username.c_str(),
-  password.c_str(), database.c_str(), port, socket.c_str(), 0) == NULL) {
+  if (mysql_real_connect(conn, myParams.address.c_str(), myParams.username.c_str(),
+  myParams.password.c_str(), myParams.database.c_str(), myParams.port, myParams.socket.c_str(), 0) == NULL) {
     std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
     std::cerr << "* PQUERY: Unable to continue [2], exiting" << std::endl;
     general_log << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;
@@ -151,7 +127,7 @@ Node::tryConnect() {
     mysql_free_result(result);
   }
   mysql_close(conn);
-  if(test_connection){
+  if(myParams.test_connection){
     exit(EXIT_SUCCESS);
   }
 }
