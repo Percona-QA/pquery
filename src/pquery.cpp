@@ -24,10 +24,10 @@ set_defaults(struct workerParams& Params) {
 // initialize all fields with default values
   Params.myName = "default.node.tld";
   Params.database = "test";
-  Params.address = "127.0.0.1";
+  Params.address = "localhost";
   Params.socket = "/tmp/socket.sock";
   Params.username = "root";
-  Params.password = "pazsw0rd";
+  Params.password = "";
   Params.infile = "pquery.sql";
   Params.logdir = "/tmp";
   Params.port = 3306;
@@ -50,9 +50,9 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
   set_defaults(wParams);
   INIReader reader(confFile);
   wParams.myName = secName;
-  wParams.address = reader.Get(secName, "address", "");
+  wParams.address = reader.Get(secName, "address", "localhost");
   wParams.username = reader.Get(secName, "user", "test");
-  wParams.password = reader.Get(secName, "password", "test");
+  wParams.password = reader.Get(secName, "password", "");
   wParams.socket = reader.Get(secName, "socket", "/tmp/my.sock");
   wParams.database = reader.Get(secName, "database", "test");
   wParams.infile = reader.Get(secName, "infile", "pquery.sql");
@@ -238,7 +238,7 @@ main(int argc, char* argv[]) {
     }                                             //while
 
 
-  
+
   if(confFile.empty()) {
     create_worker(wParams);
     }
