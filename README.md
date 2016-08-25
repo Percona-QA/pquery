@@ -10,7 +10,7 @@ Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards c
 
 pquery v2.0 is under active development, and v1.0 will be supported by request. 
 
-# What is pquery v2.0? What are the changes and new features?
+# pquery v2.0 changes & new features?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features as v1.0.
 
 The configuration file was introduced in v2.0 as a replacement for the many CLI options. 
