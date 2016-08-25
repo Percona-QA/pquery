@@ -1,19 +1,19 @@
 # What is pquery?
 pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuild pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
-+ *pquery v1.0* was designed for single-node MySQL setup and do accept CLI options. 
++ *pquery v1.0* was designed for single-node MySQL setup and do accept CLI options.
 see ```pquery --cli-help```
-+ *pquery v2.0* was designed for multi-node MySQL setup, and accepts options from a configuration file (INI format). 
++ *pquery v2.0* was designed for multi-node MySQL setup, and accepts options from a configuration file (INI format).
 see ```pquery --config-help```
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
-pquery v2.0 is under active development, and v1.0 will be supported by request. 
+pquery v2.0 is under active development, and v1.0 will be supported by request.
 
 # pquery v2.0 changes & new features?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features as v1.0.
 
-The configuration file was introduced in v2.0 as a replacement for the many CLI options. 
+The configuration file was introduced in v2.0 as a replacement for the many CLI options.
 
 One can now also specify if a pquery worker should be started for a given node in the configuration file by setting ```run = YES | NO``` option for such a node.
 
@@ -38,8 +38,8 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *MARIADB* - **OFF** by default, build pquery with MariaDB support
   * *STATIC_LIB* - **ON** by default, compile pquery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
   * *DEBUG* - **OFF** by default, compile pquery with debug inforamation for GDB
-  * *STRICT* - **ON** by default, compile pquery with strict flags   
-  * *ASAN* - address sanitizer, available in GCC >= 4.8
+  * *STRICT* - **ON** by default, compile pquery with strict flags
+  * *ASAN* - **OFF** by default, address sanitizer, available in GCC >= 4.8
 4. If you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR, you can set *BASEDIR* variable if you have binary tarball extracted to some custom place for fully automatic library detection (recommended).
 5. The resulting binary will automatically receive an appropriate flavor suffix:
   * *pquery-ms* for MySQL
