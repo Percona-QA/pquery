@@ -64,7 +64,9 @@ $ ... building other MySQL flavors/forks here ...
 
 First, take a quick look at ``` pquery --help, pquery --config-help, pquery --cli-help ``` to see available modes and options.
 
-# v1.0 options example:
+# v1.0/2.0 options example:
+
+Note: v2.0 is backward compatible with these options
 
 Option | Function| Example
 --- | --- | ---
