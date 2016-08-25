@@ -64,9 +64,7 @@ $ ... building other MySQL flavors/forks here ...
 
 First, take a quick look at ``` pquery --help, pquery --config-help, pquery --cli-help ``` to see available modes and options.
 
-# v1.0/2.0 options example:
-
-Note: v2.0 is backward compatible with these options
+# v1.0 options example:
 
 Option | Function| Example
 --- | --- | ---
@@ -87,8 +85,8 @@ Option | Function| Example
 --log-query-statistics | Extended output of query result | --log-query-statistics
 --log-query-duration | Log query duration in milliseconds | --log-query-duration
 --test-connection | Test connection to server and exit | --test-connection
---log-query-numbers | Write query numbers to log | NO
---log-client-output | Log query output to separate file | NO
+--log-query-numbers | Write query numbers to log | --log-query-numbers
+--log-client-output | Log query output to separate file | --log-client-output
 
 # v2.0 config file example:
 ```
