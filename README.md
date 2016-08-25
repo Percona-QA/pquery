@@ -1,25 +1,27 @@
 # What is pquery?
 pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuild pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
-+ *PQuery v1.0* was designed for single-node MySQL setup and do accept CLI options. 
++ *pquery v1.0* was designed for single-node MySQL setup and do accept CLI options. 
 see ```pquery --cli-help```
-+ *PQuery v2.0* was designed for multi-node MySQL setup, and accepts options from configuration file (INI format). 
++ *pquery v2.0* was designed for multi-node MySQL setup, and accepts options from a configuration file (INI format). 
 see ```pquery --config-help```
 
-Please note that v2.0 accept the same CLI options (as v1.0 does) for backward compatibility, and it can handle single node setup in that mode. The recommended way to pass all options and params to PQuery v2.0 is using a configuration file.
+Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
-v2.0 is under active development, v1.0 will be supported by request. v2.0 can be used for cluster and replication testing.
+pquery v2.0 is under active development, and v1.0 will be supported by request. 
 
-# What is pquery v2.0? What are the changes and features?
-pquery v2.0 is designed for multi-node cluster setup. it can load *different* SQL to the different cluster nodes. also it's possible to enable SQL randomizer only for some particular nodes. in general it supports the same features as v1.0.
+# What is pquery v2.0? What are the changes and new features?
+pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features as v1.0.
 
-The configuration file was introduced as a replacement for the many CLI options. One can specify if a pquery worker should be started for a given node in the configuration file by setting ```run = YES | NO``` option for such node.
+The configuration file was introduced in v2.0 as a replacement for the many CLI options. 
+
+One can now also specify if a pquery worker should be started for a given node in the configuration file by setting ```run = YES | NO``` option for such a node.
 
 # What is the pquery framework?
 When the pquery binary is used in combination with the Bash scripted pquery framework and a medium spec QA server (Intel i7/16GB/SSD), a QA engineer can achieve 80+ mysqld crashes per hour. The pquery framework further offers automatic testcase creation, bug filtering, sporadic issue handling, true multi-threaded testcase reduction, near-100% bug reproducibility and much more. The pquery framework furthermore contains high quality SQL input files, and "already known bug" filter lists for Percona Server and MySQL Server. The pquery framework is also GPLv2 licensed, and available from GitHub here: https://github.com/Percona-QA/percona-qa
 
 # What is reducer.sh?
-Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (ref link in the previous pquery framework section above), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh It is developed and maintained by Roel Van de Paar.
+Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (https://github.com/Percona-QA/percona-qa), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh It is developed and maintained by Roel Van de Paar.
 
 # Any pquery success stories?
 + In the first ~2 months of it's life, over 200 bugs were logged with Oracle, Percona and TokuTek, most with high quality short testcases.
