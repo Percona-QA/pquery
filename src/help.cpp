@@ -12,9 +12,9 @@ void
 show_help() {
   print_version();
   std::cout << " * Please see specific help:" << std::endl;
-  std::cout << " pquery --config-help for INI-config help, CLUSTER mode" << std::endl;
-  std::cout << " pquery --cli-help for commandline options, SINGLE mode" << std::endl;
-  std::cout << "=> pquery doesn't support multiple cluster nodes in CLI mode!" << std::endl;
+  std::cout << " pquery --config-help for INI-config help, MULTIPLE nodes mode" << std::endl;
+  std::cout << " pquery --cli-help for commandline options, SINGLE node mode" << std::endl;
+  std::cout << "=> pquery doesn't support multiple nodes when using commandline options mode!" << std::endl;
   }
 
 
@@ -22,7 +22,7 @@ void
 show_cli_help(void) {
   print_version();
   std::cout << " - General usage: pquery --user=USER --password=PASSWORD --database=DATABASE" << std::endl;
-  std::cout << "=> pquery doesn't support multiple cluster nodes in CLI mode!" << std::endl;
+  std::cout << "=> pquery doesn't support multiple nodes when using commandline options mode!" << std::endl;
   std::cout <<
     "-----------------------------------------------------------------------------------------\n" <<
     "| OPTION               | EXPLANATION                                  | DEFAULT          |\n" <<
