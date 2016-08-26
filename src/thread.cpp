@@ -126,12 +126,12 @@ Node::workerThread(int number) {
         while ((row = mysql_fetch_row(result))){
           for(i = 0; i < num_fields; i++){
             if(myParams.log_query_numbers){
-              client_log << "|" << query_number+1;
+              client_log << "#" << query_number+1;
             }
             if (row[i]){
-              client_log << "|" << row[i] << "||||";
+              client_log << "#" << row[i] << "#";
             }else{
-              client_log << "|NULL" << "||||";
+              client_log << "#NULL" << "#";
             }
           }
           client_log << '\n';
@@ -144,31 +144,31 @@ Node::workerThread(int number) {
       if(res == 0) {
         if((myParams.log_all_queries) || (myParams.log_query_statistics)) {
           if(myParams.log_query_numbers){
-            thread_log << "|" << query_number+1;
+            thread_log << "#" << query_number+1;
           }
-          thread_log << (*querylist)[query_number] << "|NOERROR";
+          thread_log << (*querylist)[query_number] << "#NOERROR";
           if(myParams.log_query_statistics) {
-            thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << getAffectedRows(conn);
+            thread_log << "#WARNINGS: " << mysql_warning_count(conn) << "#CHANGED: "  << getAffectedRows(conn);
           }
           if(myParams.log_query_duration) {
-            thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            thread_log << "#Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
-          thread_log << "||||\n";
+          thread_log << "#\n";
         }
       }
       else {
         if((myParams.log_failed_queries) || (myParams.log_all_queries) || (myParams.log_query_statistics)) {
           if(myParams.log_query_numbers){
-            thread_log << "|" << query_number+1;
+            thread_log << "#" << query_number+1;
           }
-          thread_log << (*querylist)[query_number] << "|ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
+          thread_log << (*querylist)[query_number] << "#ERROR: " <<  mysql_errno(conn) << " - " << mysql_error(conn);
           if(myParams.log_query_statistics) {
-            thread_log << "|WARNINGS: " << mysql_warning_count(conn) << "|CHANGED: "  << getAffectedRows(conn);
+            thread_log << "#WARNINGS: " << mysql_warning_count(conn) << "#CHANGED: "  << getAffectedRows(conn);
           }
           if(myParams.log_query_duration) {
-            thread_log << "|Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
+            thread_log << "#Duration: " << std::chrono::duration<double>(end - begin).count() * 1000 << " ms";
           }
-          thread_log << "||||\n";
+          thread_log << "#\n";
         }
       }
     }
