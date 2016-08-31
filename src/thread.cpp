@@ -178,6 +178,10 @@ Node::workerThread(int number) {
     if (result != NULL) {
       mysql_free_result(result);
     }
+    if(mysql_next_result(conn) <= 0){
+      result = mysql_use_result(conn);
+      mysql_free_result(result);
+    }
   }                                               //for loop
 
   std::ostringstream exitmsg;
