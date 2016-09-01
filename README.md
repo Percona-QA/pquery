@@ -57,7 +57,7 @@ $ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.
 $ make
 $ sudo make install # If you want pquery to be installed on the system, otherwise the binary can be found in ./src
 $ ./clean-tree.sh  # Ref above
-$ ... building other MySQL flavors/forks here ...
+$ ... build your other MySQL flavors/forks here in the same way, modifying the basedir and the servertype (both -D options) ...
 ```
 
 # Any known issues?
