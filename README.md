@@ -46,7 +46,6 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *pquery-ps* for Percona Server
   * *pquery-ws* for WebScaleSQL
   * *pquery-md* for MariaDB
-  * 
 
 Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
@@ -70,7 +69,7 @@ make: *** [all] Error 2
 
 Then simply copy the my_stacktrace.h file from the include directory of your source code copy (i.e. WebScaleSQL's source code) to the basedirectory used, e.g.
 
-  cp /<source_code_dir>/include/my_stacktrace.h /<basedir>/include/
+  cp /source_code_dir/include/my_stacktrace.h /base_dir/include/
 
 # Can you give an easy build example using an extracted Percona Server tarball?
 ```
