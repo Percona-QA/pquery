@@ -1,21 +1,17 @@
 # What is pquery?
 pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuild pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
-+ *pquery v1.0* was designed for single-node MySQL setup and do accept CLI options.
-see ```pquery --cli-help```
-+ *pquery v2.0* was designed for multi-node MySQL setup, and accepts options from a configuration file (INI format).
-see ```pquery --config-help```
++ *pquery v1.0* was designed for single-node MySQL setup, and accepts command line options only. Ref ```pquery --cli-help```
++ *pquery v2.0* was designed for multi-node MySQL setups, and accepts command line options as well as options from a configuration file in INI format. Ref ```pquery --config-help```
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
 pquery v2.0 is under active development, and v1.0 will be supported by request.
 
 # What is new in pquery v2.0?
-pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features as v1.0.
+pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
 
-The configuration file was introduced in v2.0 as a replacement for the many CLI options.
-
-One can now also specify if a pquery worker should be started for a given node in the configuration file by setting ```run = YES | NO``` option for such a node.
+One can now also specify if a pquery worker should be started for a given node by setting ```run = YES | NO``` option for such a node in the configuration file.
 
 # What is the pquery framework?
 When the pquery binary is used in combination with the Bash scripted pquery framework and a medium spec QA server (Intel i7/16GB/SSD), a QA engineer can achieve 80+ mysqld crashes per hour. The pquery framework further offers automatic testcase creation, bug filtering, sporadic issue handling, true multi-threaded testcase reduction, near-100% bug reproducibility and much more. The pquery framework furthermore contains high quality SQL input files, and "already known bug" filter lists for Percona Server and MySQL Server. The pquery framework is also GPLv2 licensed, and available from GitHub here: https://github.com/Percona-QA/percona-qa
