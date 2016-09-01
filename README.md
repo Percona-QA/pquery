@@ -49,6 +49,17 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
 
 Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
+# Can you give an easy build example using an extracted Percona Server tarball?
+```
+$ cd pquery
+$ ./clean-tree.sh  # Important note: this removes any local updates you may have made
+$ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
+$ make
+$ sudo make install # If you want pquery to be installed on the system, otherwise the binary can be found in ./src
+$ ./clean-tree.sh  # Ref above
+$ ... building other MySQL flavors/forks here ...
+```
+
 # Any known issues?
 
 There is one known build issue, currently seen only when building using WebScaleSQL. If you see the following;
@@ -70,17 +81,6 @@ make: *** [all] Error 2
 Then simply copy the my_stacktrace.h file from the include directory of your source code copy (i.e. WebScaleSQL's source code) to the basedirectory used, e.g.
 
   cp /source_code_dir/include/my_stacktrace.h /base_dir/include/
-
-# Can you give an easy build example using an extracted Percona Server tarball?
-```
-$ cd pquery
-$ ./clean-tree.sh  # Important note: this removes any local updates you may have made
-$ cmake . -DPERCONASERVER=ON -DBASEDIR=/tmp/Percona-Server-5.6.26-rel73.2-Linux.x86_64
-$ make
-$ sudo make install # If you want pquery to be installed on the system, otherwise the binary can be found in ./src
-$ ./clean-tree.sh  # Ref above
-$ ... building other MySQL flavors/forks here ...
-```
 
 # What options does pquery accept?
 
