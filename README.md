@@ -10,7 +10,7 @@ Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards c
 
 pquery v2.0 is under active development, and v1.0 will be supported by request.
 
-# pquery v2.0 changes & new features?
+# What is new in pquery v2.0?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features as v1.0.
 
 The configuration file was introduced in v2.0 as a replacement for the many CLI options.
@@ -48,7 +48,11 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *pquery-md* for MariaDB
   * 
 
-There is one known build issue, currently seen only on WebScaleSQL. If you see the following;
+Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
+
+# Any known issues?
+
+There is one known build issue, currently seen only when building using WebScaleSQL. If you see the following;
 
 ```
 [ 50%] Building CXX object src/CMakeFiles/pquery-ws.dir/pquery.cpp.o
@@ -64,11 +68,9 @@ make[1]: *** [src/CMakeFiles/pquery-ws.dir/all] Error 2
 make: *** [all] Error 2
 ```
 
-Then simply copy the my_stacktrace.h file from the include directory of your source code copy to the basedirectory used, e.g.
+Then simply copy the my_stacktrace.h file from the include directory of your source code copy (i.e. WebScaleSQL's source code) to the basedirectory used, e.g.
 
   cp /<source_code_dir>/include/my_stacktrace.h /<basedir>/include/
-
-Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
 # Can you give an easy build example using an extracted Percona Server tarball?
 ```
