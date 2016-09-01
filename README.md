@@ -46,6 +46,27 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *pquery-ps* for Percona Server
   * *pquery-ws* for WebScaleSQL
   * *pquery-md* for MariaDB
+  * 
+
+There is one known build issue, currently seen only on WebScaleSQL. If you see the following;
+
+```
+[ 50%] Building CXX object src/CMakeFiles/pquery-ws.dir/pquery.cpp.o
+In file included from /home/roel/pquery/src/node.hpp:12:0,
+                 from /home/roel/pquery/src/pquery.hpp:6,
+                 from /home/roel/pquery/src/pquery.cpp:15:
+/<your_basedir>/include/my_global.h:1197:27: fatal error: my_stacktrace.h: No such file or directory
+ #include <my_stacktrace.h>
+                           ^
+compilation terminated.
+make[2]: *** [src/CMakeFiles/pquery-ws.dir/pquery.cpp.o] Error 1
+make[1]: *** [src/CMakeFiles/pquery-ws.dir/all] Error 2
+make: *** [all] Error 2
+```
+
+Then simply copy the my_stacktrace.h file from the include directory of your source code copy to the basedirectory used, e.g.
+
+  cp /<source_code_dir>/include/my_stacktrace.h /<basedir>/include/
 
 Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
