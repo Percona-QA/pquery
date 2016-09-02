@@ -31,7 +31,7 @@ set_defaults(struct workerParams& Params) {
   Params.infile = "pquery.sql";
   Params.logdir = "/tmp";
   Params.port = 3306;
-  Params.threads = 1;
+  Params.threads = 10;
   Params.queries_per_thread = 10000;
   Params.verbose = false;
   Params.debug = false;
