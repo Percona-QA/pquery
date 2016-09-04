@@ -116,6 +116,7 @@ Node::workerThread(int number) {
     }
 
     total_queries++;
+    while ((mysql_next_result(conn) <= 0)){
     MYSQL_RES * result = mysql_use_result(conn);
     if(myParams.log_client_output){
       if(result != NULL){
@@ -178,10 +179,7 @@ Node::workerThread(int number) {
     if (result != NULL) {
       mysql_free_result(result);
     }
-    if(mysql_next_result(conn) <= 0){
-      result = mysql_use_result(conn);
-      mysql_free_result(result);
-    }
+  }
   }                                               //for loop
 
   std::ostringstream exitmsg;
