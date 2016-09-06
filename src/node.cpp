@@ -26,6 +26,8 @@ Node::createGeneralLog(){
   std::string logName;
   logName = myParams.logdir + "/" + myParams.myName + "_general" + ".log";
   general_log.open(logName, std::ios::out | std::ios::trunc);
+  general_log << "- PQuery v" << PQVERSION << "-" << PQREVISION << " compiled with " << FORK << "-" << mysql_get_client_info() << std::endl;
+
   if (!general_log.is_open()){
     std::cout << "Unable to open log file " << logName << ": " << std::strerror(errno) << std::endl;
     return false;
@@ -35,7 +37,7 @@ Node::createGeneralLog(){
 
 void
 Node::startWork(){
-  
+
   if(!createGeneralLog()){
     std::cerr << "Exiting..." << std::endl;
     exit(2);
@@ -105,7 +107,6 @@ Node::tryConnect() {
     mysql_library_end();
     exit(EXIT_FAILURE);
   }
-  general_log << "- PQuery v" << PQVERSION << " compiled with " << FORK << "-" << mysql_get_client_info() << std::endl;
   general_log << "- Connected to " << mysql_get_host_info(conn) << "..." << std::endl;
 // getting the real server version
   MYSQL_RES *result = NULL;

@@ -9,4 +9,8 @@
 #define FORK "MySQL"
 #endif
 
+#ifndef PQREVISION
+#define PQREVISION "unknown"
+#endif
+
 #endif
