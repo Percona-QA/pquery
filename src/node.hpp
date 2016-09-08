@@ -68,13 +68,15 @@ class Node {
   void tryConnect();
   bool createGeneralLog();
   void readSettings(std::string);
+  void writeFinalReport();
 
   INIReader * reader;
   std::vector<std::thread> workers;
   std::vector<std::string> * querylist;
   struct workerParams myParams;
   std::ofstream general_log;
-
+  std::atomic <unsigned long long> performed_queries_total;
+  std::atomic <unsigned long long> failed_queries_total;
 };
 
 

@@ -132,10 +132,13 @@ Node::workerThread(int number) {
         while ((row = mysql_fetch_row(result))){
           for(i = 0; i < num_fields; i++){
             if (row[i]){
-             // client_log << "#" << row[i] << "#";
-              client_log << row[i] << "#";
+              if(strlen(row[i]) == 0){
+                client_log << "EMPTY" << "#";
+              }else{
+                client_log << row[i] << "#";
+              }
             }else{
-              client_log << "#NULL" << "#";
+              client_log << "#NO DATA" << "#";
             }
           }
           if(myParams.log_query_numbers){
@@ -186,24 +189,28 @@ Node::workerThread(int number) {
     }
     //} // while
   }                                               //for loop
-
+/*
   std::ostringstream exitmsg;
   exitmsg.precision(2);
   exitmsg << std::fixed;
   exitmsg << "* SUMMARY: " << failed_queries << "/" << total_queries << " queries failed (" <<
-    (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
-  // std::cout << exitmsg.str() << std::endl;
+  (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
+  */
 
   if (thread_log.is_open()) {
-    thread_log << exitmsg.str() << std::endl;
+ //   thread_log << exitmsg.str() << std::endl;
     thread_log.close();
   }
+
+
   if(client_log.is_open()) {
     client_log.close();
   }
 
   mysql_close(conn);
   mysql_thread_end();
+  performed_queries_total += total_queries;
+  failed_queries_total += failed_queries;
 }
 
 

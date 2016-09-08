@@ -7,9 +7,12 @@
 
 Node::Node(){
   workers.clear();
+  failed_queries_total = 0;
+  performed_queries_total = 0;
 }
 
 Node::~Node(){
+  writeFinalReport();
   if (reader){
     delete reader;
   }
@@ -36,6 +39,18 @@ Node::createGeneralLog(){
 }
 
 void
+Node::writeFinalReport(){
+  if(general_log.is_open()){
+  std::ostringstream exitmsg;
+  exitmsg.precision(2);
+  exitmsg << std::fixed;
+  exitmsg << "* NODE SUMMARY: " << failed_queries_total << "/" << performed_queries_total << " queries failed (" <<
+  (performed_queries_total - failed_queries_total)*100.0/performed_queries_total << "%) were successful)";
+  general_log <<  exitmsg.str() << std::endl;
+  }
+}
+
+void
 Node::startWork(){
 
   if(!createGeneralLog()){
@@ -59,7 +74,7 @@ Node::startWork(){
   std::string line;
 
   while (getline(sqlfile_in, line)) {
-    if(!line.empty()) {
+    if(!line.empty()){
       querylist->push_back(line);
     }
   }
