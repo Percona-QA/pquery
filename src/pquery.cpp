@@ -14,6 +14,7 @@
 #include <INIReader.h>
 #include "pquery.hpp"
 #include "node.hpp"
+#include <mysql.h>
 
 std::string confFile;
 pid_t childPID, wPID;
@@ -36,6 +37,7 @@ set_defaults(struct workerParams& Params) {
   Params.verbose = false;
   Params.debug = false;
   Params.log_all_queries = false;
+  Params.log_succeeded_queries = false,
   Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
@@ -55,8 +57,6 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
   wParams.password = reader.Get(secName, "password", "");
   wParams.socket = reader.Get(secName, "socket", "/tmp/my.sock");
   wParams.database = reader.Get(secName, "database", "test");
-  wParams.infile = reader.Get(secName, "infile", "pquery.sql");
-  wParams.logdir = reader.Get(secName, "logdir", "/tmp");
 
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);
@@ -64,14 +64,19 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
 
   wParams.verbose = reader.GetBoolean(secName, "verbose", false);
   wParams.debug = reader.GetBoolean(secName, "debug", false);
+  wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
+  wParams.infile = reader.Get(secName, "infile", "pquery.sql");
+  wParams.logdir = reader.Get(secName, "logdir", "/tmp");
+  wParams.test_connection = reader.GetBoolean(secName, "test-connection", false);
+
   wParams.log_all_queries = reader.GetBoolean(secName, "log-all-queries", false);
+  wParams.log_succeeded_queries = reader.GetBoolean(secName, "log-succeded-queries", false);
   wParams.log_failed_queries = reader.GetBoolean(secName, "log-failed-queries", false);
   wParams.log_query_statistics = reader.GetBoolean(secName, "log-query-statistics",  false);
   wParams.log_query_duration = reader.GetBoolean(secName, "log-query-duration", false);
   wParams.log_client_output = reader.GetBoolean(secName, "log-client-output", false);
   wParams.log_query_numbers = reader.GetBoolean(secName, "log-query-numbers", false);
-  wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
-  wParams.test_connection = reader.GetBoolean(secName, "test-connection", false);
+
 }
 
 void
@@ -123,6 +128,7 @@ main(int argc, char* argv[]) {
       {"queries-per-thread", required_argument, 0, 'q'},
       {"verbose", no_argument, 0, 'v'},
       {"log-all-queries", no_argument, 0, 'A'},
+      {"log-succeded-queries", no_argument, 0, 'S'},
       {"log-failed-queries", no_argument, 0, 'F'},
       {"no-shuffle", no_argument, 0, 'n'},
       {"log-query-statistics", no_argument, 0, 'L'},
@@ -136,7 +142,7 @@ main(int argc, char* argv[]) {
 
     int option_index = 0;
 
-    c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAFNLDTNO", long_options, &option_index);
+    c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAFNLDTNOS", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -203,6 +209,10 @@ main(int argc, char* argv[]) {
       case 'A':
         std::cout << "> Log all queries: ON" << std::endl;
         wParams.log_all_queries = true;
+        break;
+      case 'S':
+        std::cout << "> Log succeded queries: ON" << std::endl;
+        wParams.log_succeeded_queries = true;
         break;
       case 'F':
         std::cout << "> Log failed queries: ON" << std::endl;

@@ -9,11 +9,11 @@
 #include <thread>
 #include "pquery.hpp"
 #include <INIReader.h>
-#include <my_global.h>
 #include <mysql.h>
 
+
 /* struct for node setup */
-struct 
+struct
 workerParams {
   std::string myName; // unique name for worker
   std::string database;
@@ -34,8 +34,21 @@ workerParams {
   bool log_query_duration;
   bool log_client_output;
   bool log_query_numbers;
+  bool log_succeeded_queries;
   bool shuffle;
   bool test_connection;
+};
+
+enum LogLevel {
+  LOG_NOTHING          = 0,
+  LOG_QUERY_NUMBERS    = 1 << 0,
+  LOG_CLIENT_OUTPUT    = 1 << 1,
+  LOG_QUERY_DURATION   = 1 << 2,
+  LOG_QUERY_STATISTICS = 1 << 3,
+  LOG_FAILED_QUERIES   = 1 << 4,
+  LOG_SUCCEDED_QUERIES = 1 << 5,
+  LOG_ALL_QUERIES = LOG_FAILED_QUERIES | LOG_SUCCEDED_QUERIES,
+  LOG_CURRENT = LOG_NOTHING
 };
 
 /*

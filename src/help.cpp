@@ -25,27 +25,28 @@ show_cli_help(void) {
   std::cout << "=> pquery doesn't support multiple nodes when using commandline options mode!" << std::endl;
   std::cout <<
     "-----------------------------------------------------------------------------------------\n" <<
-    "| OPTION               | EXPLANATION                                  | DEFAULT          |\n" <<
+    "| OPTION               | EXPLANATION                                  | DEFAULT         |\n" <<
     "-----------------------------------------------------------------------------------------\n" <<
-    "--database             | The database to connect to                   | test\n"           <<
-    "--address              | IP address to connect to                     | -\n"              <<
-    "--port                 | The port to connect to                       | 3306\n"           <<
-    "--infile               | The SQL input file                           | pquery.sql\n"     <<
-    "--logdir               | Log directory                                | /tmp\n"           <<
-    "--socket               | Socket file to use                           | /tmp/my.sock\n"   <<
-    "--user                 | The MySQL userID to be used                  | shell user\n"     <<
-    "--password             | The MySQL user's password                    | <empty>\n"        <<
-    "--threads              | The number of threads to use                 | 10\n"             <<
-    "--queries-per-thread   | The number of queries per thread             | 10000\n"          <<
-    "--verbose              | Duplicates the log to console when threads=1 | no\n"             <<
-    "--log-all-queries      | Log all queries                              | no\n"             <<
-    "--log-failed-queries   | Log failed queries                           | no\n"             <<
-    "--no-shuffle           | Execute SQL sequentially                     | randomly\n"       <<
-    "--log-query-statistics | Extended output of query result              | no\n"             <<
-    "--log-query-duration   | Log query duration in milliseconds           | no\n"             <<
-    "--test-connection      | Test connection to server and exit           | no\n"             <<
-    "--log-query-number     | Write query # to logs                        | no\n"             <<
-    "--log-client-output    | Log query output to separate file            | no\n"             <<
+    "--database             | The database to connect to                   | test\n"              <<
+    "--address              | IP address to connect to                     | -\n"                 <<
+    "--port                 | The port to connect to                       | 3306\n"              <<
+    "--infile               | The SQL input file                           | pquery.sql\n"        <<
+    "--logdir               | Log directory                                | /tmp\n"              <<
+    "--socket               | Socket file to use                           | /tmp/my.sock\n"      <<
+    "--user                 | The MySQL userID to be used                  | shell user\n"        <<
+    "--password             | The MySQL user's password                    | <empty>\n"           <<
+    "--threads              | The number of threads to use                 | 1\n"                 <<
+    "--queries-per-thread   | The number of queries per thread             | 10000\n"             <<
+    "--verbose              | Duplicates the log to console when threads=1 | no\n"                <<
+    "--log-all-queries      | Log all queries (succeeded and failed)       | no\n"                <<
+    "--log-succeeded-queries| Log succeeded queries                        | no\n"                <<
+    "--log-failed-queries   | Log failed queries                           | no\n"                <<
+    "--no-shuffle           | Execute SQL sequentially                     | randomly\n"          <<
+    "--log-query-statistics | Extended output of query result              | no\n"                <<
+    "--log-query-duration   | Log query duration in milliseconds           | no\n"                <<
+    "--test-connection      | Test connection to server and exit           | no\n"                <<
+    "--log-query-number     | Write query # to logs                        | no\n"                <<
+    "--log-client-output    | Log query output to separate file            | no\n"                <<
     "-----------------------------------------------------------------------------------------"   << std::endl;
   }
 
@@ -79,13 +80,15 @@ show_config_help(void) {
     "# The MySQL user's password\n" <<
     "password = test\n"        <<
     "# The number of threads to use by worker\n" <<
-    "threads = 10\n"             <<
+    "threads = 1\n"             <<
     "# The number of queries per thread\n"
     "queries-per-thread = 10000\n"          <<
     "# Duplicates the log to console when threads=1 and workers=1\n"
     "verbose = No\n"             <<
     "# Log all queries\n" <<
     "log-all-queries = No\n"             <<
+    "# Log succeeded queries\n" <<
+    "log-succeeded-queries = No\n"             <<
     "# Log failed queries\n" <<
     "log-failed-queries = No\n"             <<
     "# Execute SQL randomly\n" <<

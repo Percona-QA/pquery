@@ -98,6 +98,7 @@ Option | Function| Example
 --queries-per-thread | The number of queries to randomly execute per thread | --queries-per-thread=100000
 --verbose | Duplicates log to console when threads=1 | --verbose
 --log-all-queries | Log all queries yes/no | --log-all-queries
+--log-succeeded-queries | Log successful queries yes/no | --log-succeeded-queries
 --log-failed-queries | Log failed queries yes/no | --log-failed-queries
 --no-shuffle | Replay SQL shuffled (randomly) or not (sequentially) | --no-shuffle
 --log-query-statistics | Extended output of query result | --log-query-statistics
@@ -121,6 +122,8 @@ queries-per-thread = 100
 run = Yes
 # Log all queries
 log-all-queries = Yes
+# Log successful queries
+log-succeeded-queries = No
 # Log failed queries
 log-failed-queries = Yes
 # Execute SQL randomly

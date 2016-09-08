@@ -6,7 +6,6 @@
 #include <cstring>
 
 
-
 void
 Node::workerThread(int number) {
 
@@ -26,7 +25,7 @@ Node::workerThread(int number) {
   if(myParams.log_client_output){
     std::ostringstream cl;
     cl << myParams.logdir << "/" << myParams.myName << "_thread-" << number << ".out";
-    client_log.open(cl.str(), std::ios::out | std::ios::app);
+    client_log.open(cl.str(), std::ios::out | std::ios::trunc);
     if(!client_log.is_open()) {
       general_log << "Unable to open logfile for client output " << cl.str() << ": " << std::strerror(errno) << std::endl;
     return;
@@ -36,7 +35,7 @@ Node::workerThread(int number) {
   if ((myParams.log_failed_queries) || (myParams.log_all_queries) || (myParams.log_query_statistics)) {
     std::ostringstream os;
     os << myParams.logdir << "/" << myParams.myName << "_thread-" << number << ".sql";
-    thread_log.open(os.str(), std::ios::out | std::ios::app);
+    thread_log.open(os.str(), std::ios::out | std::ios::trunc);
     if(!thread_log.is_open()) {
       general_log << "Unable to open thread logfile " << os.str() << ": " << std::strerror(errno) << std::endl;
       return;
@@ -116,7 +115,7 @@ Node::workerThread(int number) {
     }
 
     total_queries++;
-    while ((mysql_next_result(conn) <= 0)){
+   //while ((mysql_more_results(conn) > 0)){
     MYSQL_RES * result = mysql_use_result(conn);
     if(myParams.log_client_output){
       if(result != NULL){
@@ -179,7 +178,7 @@ Node::workerThread(int number) {
     if (result != NULL) {
       mysql_free_result(result);
     }
-  }
+    //} // while
   }                                               //for loop
 
   std::ostringstream exitmsg;
@@ -203,7 +202,7 @@ Node::workerThread(int number) {
 
 inline unsigned long long
 Node::getAffectedRows(MYSQL * connection) {
-  if (mysql_affected_rows(connection) == ~(ulonglong) 0) {
+  if (mysql_affected_rows(connection) == ~(unsigned long long) 0) {
     return 0LL;
   }
   return mysql_affected_rows(connection);

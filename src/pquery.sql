@@ -1,4 +1,3 @@
-SELECT 'put your various queries here';
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (ID int);
 INSERT INTO t1 VALUES (1);
@@ -13,3 +12,5 @@ DELETE FROM t1 LIMIT 3;
 ALTER TABLE t1 ENGINE=InnoDB;
 UPDATE t1 SET ID=2;
 CALL country_hos('Europe');
+SELECT 'test 1';
+SELECT * FROM t1;
