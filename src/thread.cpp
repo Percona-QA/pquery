@@ -133,7 +133,7 @@ Node::workerThread(int number) {
           for(i = 0; i < num_fields; i++){
             if (row[i]){
              // client_log << "#" << row[i] << "#";
-              client_log << row[i];
+              client_log << row[i] << "#";
             }else{
               client_log << "#NULL" << "#";
             }
@@ -161,7 +161,7 @@ Node::workerThread(int number) {
           if(myParams.log_query_numbers){
             thread_log << "#" << query_number+1;
           }
-          thread_log << "#\n";
+          thread_log << "\n";
         }
       }
       else {
@@ -177,7 +177,7 @@ Node::workerThread(int number) {
           if(myParams.log_query_numbers){
             thread_log << "#" << query_number+1;
           }
-          thread_log << "#\n";
+          thread_log << "\n";
         }
       }
     }

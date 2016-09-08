@@ -14,3 +14,11 @@ UPDATE t1 SET ID=2;
 CALL country_hos('Europe');
 SELECT 'test 1';
 SELECT * FROM t1;
+#
+DROP DATABASE test;
+CREATE DATABASE test DEFAULT CHARACTER SET="utf8" DEFAULT COLLATE="utf8_bin";
+USE test;
+CREATE TABLE t1 (a int, b int, c int);
+INSERT INTO t1 VALUES (1,2,3);
+SELECT * FROM t1;
+#
