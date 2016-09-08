@@ -45,7 +45,7 @@ Node::writeFinalReport(){
   exitmsg.precision(2);
   exitmsg << std::fixed;
   exitmsg << "* NODE SUMMARY: " << failed_queries_total << "/" << performed_queries_total << " queries failed (" <<
-  (performed_queries_total - failed_queries_total)*100.0/performed_queries_total << "%) were successful)";
+  (performed_queries_total - failed_queries_total)*100.0/performed_queries_total << "% were successful)";
   general_log <<  exitmsg.str() << std::endl;
   }
 }
