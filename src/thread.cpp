@@ -5,6 +5,13 @@
 #include <algorithm>
 #include <cstring>
 
+inline unsigned long long
+Node::getAffectedRows(MYSQL * connection) {
+  if (mysql_affected_rows(connection) == ~(unsigned long long) 0) {
+    return 0LL;
+  }
+  return mysql_affected_rows(connection);
+}
 
 void
 Node::workerThread(int number) {
@@ -32,7 +39,7 @@ Node::workerThread(int number) {
     }
   }
 
-  if ((myParams.log_failed_queries) || (myParams.log_all_queries) || (myParams.log_query_statistics)) {
+  if ((myParams.log_failed_queries) || (myParams.log_all_queries) || (myParams.log_query_statistics) || (myParams.log_succeeded_queries)) {
     std::ostringstream os;
     os << myParams.logdir << "/" << myParams.myName << "_thread-" << number << ".sql";
     thread_log.open(os.str(), std::ios::out | std::ios::trunc);
@@ -77,11 +84,10 @@ Node::workerThread(int number) {
   for (i=0; i<myParams.queries_per_thread; i++) {
 
     unsigned long query_number;
-
+// selecting query #, depends on random or sequential execution
     if(!myParams.shuffle) {
       query_number = i;
-    }
-    else {
+    } else {
       query_number = dis(gen);
     }
 
@@ -91,7 +97,8 @@ Node::workerThread(int number) {
       begin = std::chrono::steady_clock::now();
     }
 
-    res = mysql_real_query(conn, (*querylist)[query_number].c_str(), (unsigned long)strlen((*querylist)[query_number].c_str()));
+    res = mysql_real_query(conn, (*querylist)[query_number].c_str(),
+          (unsigned long)strlen((*querylist)[query_number].c_str()));
 
     if(myParams.log_query_duration) {
       end = std::chrono::steady_clock::now();
@@ -99,8 +106,7 @@ Node::workerThread(int number) {
 
     if (res == 0) {                               //success
       max_con_fail_count=0;
-    }
-    else {
+    } else {
       failed_queries++;
       max_con_fail_count++;
       if (max_con_fail_count >= max_con_failures) {
@@ -131,9 +137,9 @@ Node::workerThread(int number) {
             }else{
               client_log << "#NULL" << "#";
             }
-            if(myParams.log_query_numbers){
-              client_log << "#" << query_number+1;
-            }
+          }
+          if(myParams.log_query_numbers){
+            client_log << "#" << query_number+1;
           }
           client_log << '\n';
         }
@@ -200,10 +206,4 @@ Node::workerThread(int number) {
   mysql_thread_end();
 }
 
-inline unsigned long long
-Node::getAffectedRows(MYSQL * connection) {
-  if (mysql_affected_rows(connection) == ~(unsigned long long) 0) {
-    return 0LL;
-  }
-  return mysql_affected_rows(connection);
-}
+
