@@ -139,7 +139,7 @@ Node::workerThread(int number) {
             }
           }
           if(myParams.log_query_numbers){
-            client_log << "#" << query_number+1;
+            client_log << query_number+1;
           }
           client_log << '\n';
         }
