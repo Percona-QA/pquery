@@ -121,7 +121,7 @@ Node::workerThread(int number) {
     }
 
     total_queries++;
-   //while ((mysql_more_results(conn) > 0)){
+   //while (mysql_next_results(conn)){
     MYSQL_RES * result = mysql_use_result(conn);
     if(myParams.log_client_output){
       if(result != NULL){

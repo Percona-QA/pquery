@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <atomic>
 #include "pquery.hpp"
 #include <INIReader.h>
 #include <mysql.h>
