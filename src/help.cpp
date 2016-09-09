@@ -11,10 +11,9 @@ print_version(void) {
 void
 show_help() {
   print_version();
-  std::cout << " * Please see specific help:" << std::endl;
-  std::cout << " pquery --config-help for INI-config help, MULTIPLE nodes mode" << std::endl;
-  std::cout << " pquery --cli-help for commandline options, SINGLE node mode" << std::endl;
-  std::cout << "=> pquery doesn't support multiple nodes when using commandline options mode!" << std::endl;
+  std::cout << " * pquery supports two different use/configuration modes; commandline or INI-file. Please see specific help:" << std::endl;
+  std::cout << "   pquery --config-help for INI-config help, this mode supports SINGLE and MULTIPLE node(s)" << std::endl;
+  std::cout << "   pquery --cli-help for commandline options, this mode supports a SINGLE node only" << std::endl;
   }
 
 
