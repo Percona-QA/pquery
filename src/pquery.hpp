@@ -12,14 +12,12 @@ void show_config_help(void);
 void show_cli_help(void);
 
 // declaration for (re)setting defaults
-void 
+void
 set_defaults(struct workerParams&);
 
 void
 read_section_settings(struct workerParams&, std::string, std::string);
 
-void 
+void
 create_worker(struct workerParams&);
-
-
 #endif

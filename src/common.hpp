@@ -12,5 +12,4 @@
 #ifndef PQREVISION
 #define PQREVISION "unknown"
 #endif
-
 #endif

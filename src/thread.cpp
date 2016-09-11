@@ -192,15 +192,8 @@ Node::workerThread(int number) {
       if (result != NULL) {
         mysql_free_result(result);
         }
-      }  while (mysql_next_result(conn) == 0) ;                                         // while
+      }  while (mysql_next_result(conn) == 0) ;   // while
     }                                             //for loop
-/*
-  std::ostringstream exitmsg;
-  exitmsg.precision(2);
-  exitmsg << std::fixed;
-  exitmsg << "* SUMMARY: " << failed_queries << "/" << total_queries << " queries failed (" <<
-  (total_queries-failed_queries)*100.0/total_queries << "%) were successful)";
-  */
 
   if (thread_log.is_open()) {
     thread_log.close();

@@ -38,7 +38,7 @@ set_defaults(struct workerParams& Params) {
   Params.debug = false;
   Params.log_all_queries = false;
   Params.log_succeeded_queries = false,
-  Params.log_failed_queries = false;
+    Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
   Params.log_client_output = false;
@@ -47,8 +47,9 @@ set_defaults(struct workerParams& Params) {
   Params.test_connection = false;
   }
 
+
 void
-read_section_settings(struct workerParams& wParams, std::string secName, std::string confFile){
+read_section_settings(struct workerParams& wParams, std::string secName, std::string confFile) {
   set_defaults(wParams);
   INIReader reader(confFile);
   wParams.myName = secName;
@@ -77,25 +78,27 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
   wParams.log_client_output = reader.GetBoolean(secName, "log-client-output", false);
   wParams.log_query_numbers = reader.GetBoolean(secName, "log-query-numbers", false);
 
-}
+  }
+
 
 void
-create_worker(struct workerParams& Params){
+create_worker(struct workerParams& Params) {
   childPID = fork();
   if(childPID < 0) {
     std::cerr << "=> Cannot fork() child process: " << strerror(errno) << std::endl;
     exit(EXIT_FAILURE);
-  }
-  if(childPID > 0){
+    }
+  if(childPID > 0) {
     std::cerr << "* Waiting for created worker " << childPID << std::endl;
-  }
+    }
   if (childPID == 0) {
     std::shared_ptr<Node> newNode = std::make_shared<Node>();
     newNode->setAllParams(Params);
     newNode->startWork();
     return;
+    }
   }
-}
+
 
 int
 main(int argc, char* argv[]) {
@@ -247,8 +250,6 @@ main(int argc, char* argv[]) {
       }
     }                                             //while
 
-
-
   if(confFile.empty()) {
     create_worker(wParams);
     }
@@ -274,7 +275,7 @@ main(int argc, char* argv[]) {
     }
   while ((wPID = wait(&status)) > 0) {
     std::cerr << "* Exit status of child with PID " << wPID << ": " << status << std::endl;
-  }
+    }
   mysql_library_end();
 
   return EXIT_SUCCESS;
