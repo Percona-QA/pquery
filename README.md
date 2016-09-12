@@ -56,10 +56,12 @@ $ ./clean-tree.sh  # Ref above
 $ ... build your other MySQL flavors/forks here in the same way, modifying the basedir and the servertype (both -D options) ...
 ```
 
-# PQuery packages
+# pquery RPM/APT packages
 
-At the moment we don't have any packages GA and auto-generated packages are a bit poor.
-You can generate the simple package using CPack:
+There are currently no official RPM/APT packages. 
+
+RPM/APT packages creation is in alpha phase. You can generate a simple package using CPack:
+
 ```
 $ cpack -G RPM
 CPack: Create package using RPM
@@ -71,7 +73,8 @@ CPackRPM: Will use GENERATED spec file: /home/percona/pquery/_CPack_Packages/Lin
 CPack: - package: /home/percona/pquery/pquery-ms-2.0.0-Linux.rpm generated.
 $
 ```
-You can use *RPM*, *DEB*, *TGZ*, *STGZ* and other targets suitable for Linux and Unix
+
+You can use *RPM*, *DEB*, *TGZ*, *STGZ* and other suitable targets for Linux and Unix
 
 # Any known issues?
 
