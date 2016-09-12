@@ -56,6 +56,23 @@ $ ./clean-tree.sh  # Ref above
 $ ... build your other MySQL flavors/forks here in the same way, modifying the basedir and the servertype (both -D options) ...
 ```
 
+# PQuery packages
+
+At the moment we don't have any packages GA and auto-generated packages are a bit poor.
+You can generate the simple package using CPack:
+```
+$ cpack -G RPM
+CPack: Create package using RPM
+CPack: Install projects
+CPack: - Run preinstall target for: pquery
+CPack: - Install project: pquery
+CPack: Create package
+CPackRPM: Will use GENERATED spec file: /home/percona/pquery/_CPack_Packages/Linux/RPM/SPECS/pquery-ms.spec
+CPack: - package: /home/percona/pquery/pquery-ms-2.0.0-Linux.rpm generated.
+$
+```
+You can use *RPM*, *DEB*, *TGZ*, *STGZ* and other targets suitable for Linux and Unix
+
 # Any known issues?
 
 There is one known build issue, currently seen only when building using WebScaleSQL. If you see the following;
