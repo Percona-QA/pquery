@@ -56,11 +56,11 @@ $ ./clean-tree.sh  # Ref above
 $ ... build your other MySQL flavors/forks here in the same way, modifying the basedir and the servertype (both -D options) ...
 ```
 
-# pquery RPM/APT packages
+# pquery packages
 
-There are currently no official RPM/APT packages. 
+There are currently no official RPM/APT etc. packages. 
 
-RPM/APT packages creation is in alpha phase. You can generate a simple package using CPack:
+Automatic package creation is currently in alpha phase. You can generate a simple package using CPack:
 
 ```
 $ cpack -G RPM
