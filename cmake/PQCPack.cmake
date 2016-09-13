@@ -1,5 +1,5 @@
 INCLUDE(InstallRequiredSystemLibraries)
-
+#
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "PQuery is an open-source multi-threaded test program to stress test the MySQL server")
 SET(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING")
 SET(CPACK_PACKAGE_NAME pquery-${PQUERY_EXT})
@@ -25,7 +25,5 @@ IF(UNIX)
   ENDIF()
 ENDIF(UNIX)
 #
-
-
 INCLUDE(CPack)
 

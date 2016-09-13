@@ -1,13 +1,20 @@
-IF(CMAKE_SIZEOF_VOID_P EQUAL 8) 
-  SET(ARCH "x86_64") 
-ELSE() 
-  SET(ARCH "i386") 
-ENDIF() 
+IF((CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686|x86|AMD64") AND (CMAKE_SIZEOF_VOID_P EQUAL 4))
+  SET(ARCH "x86")
+ELSEIF((CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64") AND (CMAKE_SIZEOF_VOID_P EQUAL 8))
+  SET(ARCH "x86_64")
+ELSEIF((CMAKE_SYSTEM_PROCESSOR MATCHES "i386") AND (CMAKE_SIZEOF_VOID_P EQUAL 8) AND (APPLE))
+  # Mac is weird like that.
+  SET(ARCH "x86_64")
+ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "^arm*")
+  SET(ARCH "ARM")
+ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
+  SET(ARCH "sparc")
+ENDIF()
 #
 MESSAGE(STATUS "Architecture is ${ARCH}")
 # c++11 is needed to compile the source, so we're accepting GCC >= 4.7
 IF ((${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0"))
-    MESSAGE(FATAL_ERROR "Your compiler is too old, please install GCC C++ >= 4.7")
+  MESSAGE(FATAL_ERROR "Your compiler is too old, please install GCC C++ >= 4.7")
 ENDIF ()
 #
 IF (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
@@ -33,7 +40,7 @@ IF (STRICT)
 ENDIF ()
 #
 IF (ASAN)
-# doesn't work with GCC < 4.8
+  # doesn't work with GCC < 4.8
   ADD_DEFINITIONS(-fsanitize=address)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 ENDIF()
