@@ -1,3 +1,10 @@
+IF(CMAKE_SIZEOF_VOID_P EQUAL 8) 
+  SET(ARCH "x86_64") 
+ELSE() 
+  SET(ARCH "i386") 
+ENDIF() 
+#
+MESSAGE(STATUS "Architecture is ${ARCH}")
 # c++11 is needed to compile the source, so we're accepting GCC >= 4.7
 IF ((${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0"))
     MESSAGE(FATAL_ERROR "Your compiler is too old, please install GCC C++ >= 4.7")
