@@ -1,15 +1,15 @@
 # What is pquery?
-pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuild pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
+pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuilt pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
-+ *pquery v1.0* was designed for single-node MySQL setup, and accepts command line options only. Ref ```pquery --cli-help```
-+ *pquery v2.0* was designed for multi-node MySQL setups, and accepts command line options as well as options from a configuration file in INI format. Ref ```pquery --config-help```
++ *pquery v1.0* was designed for single-node MySQL setup, and accepts command line options only. Ref ```pquery -help``` (v1.0 only)
++ *pquery v2.0* was designed for multi-node MySQL setups, and accepts command line options as well as options from a configuration file in INI format. Ref ```pquery --config-help``` (v2.0 only)
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
 pquery v2.0 is under active development, and v1.0 will be supported by request.
 
 # What is new in pquery v2.0?
-pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can sent *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
+pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can send *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
 
 One can now also specify if a pquery worker should be started for a given node by setting ```run = YES | NO``` option for such a node in the configuration file.
 
@@ -17,7 +17,7 @@ One can now also specify if a pquery worker should be started for a given node b
 When the pquery binary is used in combination with the Bash scripted pquery framework and a medium spec QA server (Intel i7/16GB/SSD), a QA engineer can achieve 80+ mysqld crashes per hour. The pquery framework further offers automatic testcase creation, bug filtering, sporadic issue handling, true multi-threaded testcase reduction, near-100% bug reproducibility and much more. The pquery framework furthermore contains high quality SQL input files, and "already known bug" filter lists for Percona Server and MySQL Server. The pquery framework is also GPLv2 licensed, and available from GitHub here: https://github.com/Percona-QA/percona-qa
 
 # What is reducer.sh?
-Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (https://github.com/Percona-QA/percona-qa), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh It is developed and maintained by Roel Van de Paar.
+Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (https://github.com/Percona-QA/percona-qa), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh. It is developed and maintained by Roel Van de Paar.
 
 # Any pquery success stories?
 + In the first ~2 months of it's life, over 200 bugs were logged with Oracle, Percona and TokuTek, most with high quality short testcases.
@@ -33,6 +33,8 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
   * *MARIADB* - **OFF** by default, build pquery with MariaDB support
   * *STATIC_LIB* - **ON** by default, compile pquery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
+  * *OPTIMIZATION* - **ON** by default, compile pquery with -O3 and processor optimization
+  * *SIZE_OPTIMIZATION* - **OFF** by default, compile pquery with -Os and processor optimization. sometimes -Os produces the faster binaries, see compiler documentation.
   * *DEBUG* - **OFF** by default, compile pquery with debug inforamation for GDB
   * *STRICT* - **ON** by default, compile pquery with strict flags
   * *ASAN* - **OFF** by default, address sanitizer, available in GCC >= 4.8
@@ -58,7 +60,7 @@ $ ... build your other MySQL flavors/forks here in the same way, modifying the b
 
 # pquery packages
 
-There are currently no official RPM/APT etc. packages. 
+There are currently no official RPM/APT etc. packages.
 
 Automatic package creation is currently in alpha phase. You can generate a simple package using CPack:
 
@@ -82,9 +84,9 @@ There is one known build issue, currently seen only when building using WebScale
 
 ```
 [ 50%] Building CXX object src/CMakeFiles/pquery-ws.dir/pquery.cpp.o
-In file included from /home/roel/pquery/src/node.hpp:12:0,
-                 from /home/roel/pquery/src/pquery.hpp:6,
-                 from /home/roel/pquery/src/pquery.cpp:15:
+In file included from /home/percona/pquery/src/node.hpp:12:0,
+                 from /home/percona/pquery/src/pquery.hpp:6,
+                 from /home/percona/pquery/src/pquery.cpp:15:
 /<your_basedir>/include/my_global.h:1197:27: fatal error: my_stacktrace.h: No such file or directory
  #include <my_stacktrace.h>
                            ^
@@ -102,7 +104,7 @@ Then simply copy the my_stacktrace.h file from the include directory of your sou
 
 First, take a quick look at ``` pquery --help, pquery --config-help, pquery --cli-help ``` to see available modes and options.
 
-# v1.0/2.0 Command line options example:
+# v2.0 Command line options example:
 
 Option | Function| Example
 --- | --- | ---
@@ -174,7 +176,8 @@ infile = pquery2.sql
 run = No
 ```
 
-Note that logfiles (including SQL log files) are appended to, not overwritten. If SQL logs are appended to, it will reduce issue reproducibility. To avoid this, simply use a new log file for each pquery run. The [pquery framework](https://github.com/Percona-QA/percona-qa) (ref [pquery-run.sh](https://github.com/Percona-QA/percona-qa/blob/master/pquery-run.sh)) already takes care of this automatically.
+Note that logfiles (including SQL log files) are now overwritten.
+If SQL logs are appended to in old v2.0 versions, it will reduce issue reproducibility. To avoid this, simply use a new log file for each pquery run. The [pquery framework](https://github.com/Percona-QA/percona-qa) (ref [pquery-run.sh](https://github.com/Percona-QA/percona-qa/blob/master/pquery-run.sh)) already takes care of this automatically.
 
 # Where can I find more information on pquery?
 + [The future of MySQL quality assurance: Introducing pquery](https://www.percona.com/blog/2015/02/04/future-mysql-quality-assurance-introducing-pquery/)
