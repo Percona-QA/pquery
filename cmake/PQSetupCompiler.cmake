@@ -1,4 +1,4 @@
-include(CheckCXXCompilerFlag)
+INCLUDE(CheckCXXCompilerFlag)
 #
 CHECK_CXX_COMPILER_FLAG("-std=gnu++11" COMPILER_SUPPORTS_CXX11)
 IF(NOT COMPILER_SUPPORTS_CXX11)
@@ -20,34 +20,42 @@ ENDIF()
 #
 MESSAGE(STATUS "Architecture is ${ARCH}")
 #
-ADD_DEFINITIONS(-std=gnu++11)
+ADD_DEFINITIONS(-std=gnu++11 -pipe)
 #
 OPTION(STRICT "Turn on a lot of compiler warnings" ON)
+OPTION(ASAN "Turn ON Address sanitizer feature" OFF)
 OPTION(DEBUG "Add debug info for GDB" OFF)
 OPTION(STATIC_LIB "Statically compile MySQL library into PQuery" ON)
-OPTION(EXTRA_OPTIMIZATION "Turn on extra optimization flags for C++ code compilation" OFF)
+OPTION(OPTIMIZATION "Optimize binaries" ON)
+OPTION(SIZE_OPTIMIZATION "Optimize binaries for size (sometimes for speed also)" OFF)
 #
-IF (DEBUG)
-  ADD_DEFINITIONS(-O0 -pipe -g3 -ggdb3)
-ELSE()
-  ADD_DEFINITIONS(-O3 -march=native -mtune=generic -pipe)
-ENDIF ()
+IF(DEBUG)
+  SET(OPTIMIZATION OFF)
+  SET(SIZE_OPTIMIZATION OFF)
+  ADD_DEFINITIONS(-O0 -g3 -ggdb3)
+ENDIF()
 #
-IF (STRICT)
+IF(OPTIMIZATION)
+  ADD_DEFINITIONS(-O3)
+ENDIF()
+IF(SIZE_OPTIMIZATION)
+  ADD_DEFINITIONS(-Os)
+ENDIF()
+IF(OPTIMIZATION OR SIZE_OPTIMIZATION)
+  ADD_DEFINITIONS(-march=native -mtune=generic)
+ENDIF()
+#
+IF(STRICT)
   ADD_DEFINITIONS(-Wall -Werror -Wextra -pedantic-errors -Wmissing-declarations)
 ENDIF ()
 #
-IF (ASAN)
+IF(ASAN)
   # doesn't work with GCC < 4.8
   ADD_DEFINITIONS(-fsanitize=address)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 ENDIF()
 #
-#IF(EXTRA_OPTIMIZATION)
-
-#ENDIF()
-#
-IF (STATIC_LIB)
+IF(STATIC_LIB)
   # we will link shared libraries
   INCLUDE(FindOpenSSL REQUIRED)
   INCLUDE(FindThreads REQUIRED)
