@@ -1,3 +1,10 @@
+include(CheckCXXCompilerFlag)
+#
+CHECK_CXX_COMPILER_FLAG("-std=gnu++11" COMPILER_SUPPORTS_CXX11)
+IF(NOT COMPILER_SUPPORTS_CXX11)
+  MESSAGE(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
+ENDIF()
+#
 IF((CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686|x86|AMD64") AND (CMAKE_SIZEOF_VOID_P EQUAL 4))
   SET(ARCH "x86")
 ELSEIF((CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64") AND (CMAKE_SIZEOF_VOID_P EQUAL 8))
@@ -12,22 +19,13 @@ ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
 ENDIF()
 #
 MESSAGE(STATUS "Architecture is ${ARCH}")
-# c++11 is needed to compile the source, so we're accepting GCC >= 4.7
-IF ((${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.7.0"))
-  MESSAGE(FATAL_ERROR "Your compiler is too old, please install GCC C++ >= 4.7")
-ENDIF ()
-#
-IF (${CMAKE_SYSTEM_NAME} STREQUAL "Darwin")
-  IF ((${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang") AND (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "7.0.2"))
-    MESSAGE(FATAL_ERROR "Your compiler is too old, please install Clang >= 7.0.2")
-  ENDIF()
-ENDIF()
 #
 ADD_DEFINITIONS(-std=gnu++11)
 #
 OPTION(STRICT "Turn on a lot of compiler warnings" ON)
 OPTION(DEBUG "Add debug info for GDB" OFF)
 OPTION(STATIC_LIB "Statically compile MySQL library into PQuery" ON)
+OPTION(EXTRA_OPTIMIZATION "Turn on extra optimization flags for C++ code compilation" OFF)
 #
 IF (DEBUG)
   ADD_DEFINITIONS(-O0 -pipe -g3 -ggdb3)
@@ -44,6 +42,10 @@ IF (ASAN)
   ADD_DEFINITIONS(-fsanitize=address)
   SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
 ENDIF()
+#
+#IF(EXTRA_OPTIMIZATION)
+
+#ENDIF()
 #
 IF (STATIC_LIB)
   # we will link shared libraries
