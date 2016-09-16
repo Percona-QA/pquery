@@ -38,7 +38,7 @@ set_defaults(struct workerParams& Params) {
   Params.debug = false;
   Params.log_all_queries = false;
   Params.log_succeeded_queries = false,
-    Params.log_failed_queries = false;
+  Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
   Params.log_client_output = false;
@@ -130,6 +130,7 @@ main(int argc, char* argv[]) {
       {"threads", required_argument, 0, 't'},
       {"queries-per-thread", required_argument, 0, 'q'},
       {"verbose", no_argument, 0, 'v'},
+      {"debug", no_argument, 0, 'E'},
       {"log-all-queries", no_argument, 0, 'A'},
       {"log-succeded-queries", no_argument, 0, 'S'},
       {"log-failed-queries", no_argument, 0, 'F'},
@@ -145,7 +146,7 @@ main(int argc, char* argv[]) {
 
     int option_index = 0;
 
-    c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAFNLDTNOS", long_options, &option_index);
+    c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAEFNLDTNOS", long_options, &option_index);
 
     if (c == -1) {
       break;
@@ -221,6 +222,10 @@ main(int argc, char* argv[]) {
         std::cout << "> Log failed queries: ON" << std::endl;
         wParams.log_failed_queries = true;
         break;
+      case 'E':
+        std::cout << "> Debug mode: ON" << std::endl;
+        wParams.debug = true;
+        break;
       case 'n':
         std::cout << "> Shuffle mode: OFF" << std::endl;
         wParams.shuffle = false;
@@ -251,6 +256,9 @@ main(int argc, char* argv[]) {
     }                                             //while
 
   if(confFile.empty()) {
+    if(wParams.debug){
+      std::cerr << "> Config file is not specified, creating default worker" << std::endl;
+    }
     create_worker(wParams);
     }
   else {
@@ -267,6 +275,8 @@ main(int argc, char* argv[]) {
 
     for (it = sections.begin(); it != sections.end(); it++) {
       std::string secName = *it;
+      std::cerr << "=> Processing config file section " << secName << std::endl;
+
       if(reader.GetBoolean(secName, "run", false)) {
         read_section_settings(wParams, secName, confFile);
         create_worker(wParams);
