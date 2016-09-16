@@ -5,11 +5,11 @@
 #  MYSQL_FOUND       - True if MySQL found.                 #
 #############################################################
 #
-OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
-OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
+OPTION (MYSQL          "Build PQuery with MySQL support"                  OFF)
+OPTION (PERCONASERVER  "Build PQuery with Percona Server support"         OFF)
 OPTION (PERCONACLUSTER "Build PQuery with Percona XtraDB Cluster support" OFF)
-OPTION (WEBSCALESQL   "Build PQuery with WebScaleSQL support" OFF)
-OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
+OPTION (WEBSCALESQL    "Build PQuery with WebScaleSQL support"            OFF)
+OPTION (MARIADB        "Build PQuery with MariaDB support"                OFF)
 #
 # Also use MYSQL for MariaDB, as library names and all locations are the same
 #

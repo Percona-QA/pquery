@@ -97,7 +97,7 @@ create_worker(struct workerParams& Params) {
     std::shared_ptr<Node> newNode = std::make_shared<Node>();
     newNode->setAllParams(Params);
     newNode->startWork();
-    return;
+    exit(EXIT_SUCCESS);
     }
   }
 
