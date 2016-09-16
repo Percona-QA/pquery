@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <getopt.h>
 #include <sys/wait.h>
+#include <sys/types.h>
+
 #include <cstring>
 #include <cerrno>
 
@@ -275,7 +277,7 @@ main(int argc, char* argv[]) {
 
     for (it = sections.begin(); it != sections.end(); it++) {
       std::string secName = *it;
-      std::cerr << "=> Processing config file section " << secName << std::endl;
+      std::cerr << "=> " << getpid() << ": Processing config file for " << secName << std::endl;
 
       if(reader.GetBoolean(secName, "run", false)) {
         read_section_settings(wParams, secName, confFile);
@@ -284,7 +286,7 @@ main(int argc, char* argv[]) {
       }
     }
   while ((wPID = wait(&status)) > 0) {
-    std::cerr << "* Exit status of child with PID " << wPID << ": " << status << std::endl;
+    std::cerr << "! Exit status of child with PID " << wPID << ": " << status << std::endl;
     }
   mysql_library_end();
 
