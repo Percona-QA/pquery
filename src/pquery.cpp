@@ -286,7 +286,7 @@ main(int argc, char* argv[]) {
       }
     }
   while ((wPID = wait(&status)) > 0) {
-    std::cerr << "! Exit status of child with PID " << wPID << ": " << status << std::endl;
+    std::cerr << "=> Exit status of worker with PID " << wPID << ": " << status << std::endl;
     }
   mysql_library_end();
 
