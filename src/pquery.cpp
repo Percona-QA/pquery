@@ -277,7 +277,7 @@ main(int argc, char* argv[]) {
 
     for (it = sections.begin(); it != sections.end(); it++) {
       std::string secName = *it;
-      std::cerr << "=> " << getpid() << ": Processing config file for " << secName << std::endl;
+      std::cerr << "=> Master process with PID " << getpid() << ": Processing config file for " << secName << std::endl;
 
       if(reader.GetBoolean(secName, "run", false)) {
         read_section_settings(wParams, secName, confFile);

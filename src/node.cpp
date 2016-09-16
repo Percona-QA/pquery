@@ -100,6 +100,7 @@ Node::startWork() {
   for (int i=0; i<myParams.threads; i++) {
     workers[i].join();
     }
+    exit(EXIT_SUCCESS);
   }
 
 
