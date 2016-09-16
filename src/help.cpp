@@ -4,7 +4,7 @@
 
 void
 print_version(void) {
-  std::cout << " - PQuery version " << PQVERSION << std::endl;
+  std::cout << " - PQuery v" << PQVERSION << "-" << PQREVISION << " compiled with " << FORK << "-" << mysql_get_client_info() << std::endl;
   }
 
 
