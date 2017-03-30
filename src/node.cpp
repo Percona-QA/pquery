@@ -53,12 +53,12 @@ Node::writeFinalReport() {
   }
 
 
-void
+int
 Node::startWork() {
 
   if(!createGeneralLog()) {
     std::cerr << "Exiting..." << std::endl;
-    exit(2);
+    return 2;
     }
 
   std::cout << "- Connecting to " << myParams.myName << " [" << myParams.address << "]..." << std::endl;
@@ -71,7 +71,7 @@ Node::startWork() {
   if (!sqlfile_in.is_open()) {
     std::cerr << "Unable to open SQL file " << myParams.infile << ": " << strerror(errno) << std::endl;
     general_log << "Unable to open SQL file " << myParams.infile << ": " << strerror(errno) << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
     }
   querylist = new std::vector<std::string>;
   std::string line;
@@ -100,7 +100,7 @@ Node::startWork() {
   for (int i=0; i<myParams.threads; i++) {
     workers[i].join();
     }
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
   }
 
 

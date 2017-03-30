@@ -94,10 +94,13 @@ create_worker(struct workerParams& Params) {
     std::cerr << "* Waiting for created worker " << childPID << std::endl;
     }
   if (childPID == 0) {
-    std::shared_ptr<Node> newNode = std::make_shared<Node>();
-    newNode->setAllParams(Params);
-    newNode->startWork();
-    return;
+    int exitStatus;
+    {
+      Node newNode;
+      newNode.setAllParams(Params);
+      exitStatus = newNode.startWork();
+    }
+    exit(exitStatus);
     }
   }
 

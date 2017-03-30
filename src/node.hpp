@@ -63,7 +63,7 @@ class Node
     Node();
     ~Node();
     void setAllParams(struct workerParams& Params) { myParams = Params; }
-    void startWork();
+    int startWork();
   private:
 // declaration for worker thread function
     void workerThread(int);
