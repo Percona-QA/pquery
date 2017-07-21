@@ -100,7 +100,7 @@ Then simply copy the my_stacktrace.h file from the include directory of your sou
 
   cp /source_code_dir/include/my_stacktrace.h /base_dir/include/
 
-# Any (build-related) runtime issues I should be aware off?
+# Any (build-related) runtime issues?
 
 If pquery exits with exit code 4 (use `echo $?` at your command line to see the exit code directly after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
 
