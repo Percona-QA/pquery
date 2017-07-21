@@ -47,22 +47,6 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
 
 Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
-# Any build gotcha's?
-
-If pquery exits with exit code 4 (use echo $? to see the exit code after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
-
-```
-[16354204.300555] traps: pquery2-ps[24837] trap invalid opcode ip:42439f sp:7f90197fbe80 error:0 in pquery2-ps[400000+366000]
-[16354210.748753] traps: pquery2-ps[25207] trap invalid opcode ip:42439f sp:7fa7cd7fbe80 error:0 in pquery2-ps[400000+366000]
-```
-
-You have compiled binary with optimization on new hardware supporting new CPU instructions and then you’re trying to run it on older hardware without some particular CPU instructions support.
-
-By default pquery will be built with -march=native which means all the registers and capabilities from the currently installed CPU will be used. To fix this, you can chose form 2 options;
-
-1. Compile it locally on this machine, which will thus automatically have the best speed optimization for this CPU
-2. Compile without strict optimization and use everywhere. To do this, just pass -DOPTIMIZATION=OFF to cmake, or instead edit cmake/PQSetupCompiler.cmake and set OPTIMIZATION:BOOL=OFF instead of ON. As described this option may be somewhat slower.
-
 # Can you give an easy build example using an extracted Percona Server tarball?
 ```
 $ cd pquery
@@ -94,7 +78,7 @@ $
 
 You can use *RPM*, *DEB*, *TGZ*, *STGZ* and other suitable targets for Linux and Unix
 
-# Any known issues?
+# Any known build issues?
 
 There is one known build issue, currently seen only when building using WebScaleSQL. If you see the following;
 
@@ -115,6 +99,23 @@ make: *** [all] Error 2
 Then simply copy the my_stacktrace.h file from the include directory of your source code copy (i.e. WebScaleSQL's source code) to the basedirectory used, e.g.
 
   cp /source_code_dir/include/my_stacktrace.h /base_dir/include/
+
+# Any (build-related) runtime issues I should be aware off?
+
+If pquery exits with exit code 4 (use `echo $?` to see the exit code after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
+
+```
+[16354204.300555] traps: pquery2-ps[24837] trap invalid opcode ip:42439f sp:7f90197fbe80 error:0 in pquery2-ps[400000+366000]
+[16354210.748753] traps: pquery2-ps[25207] trap invalid opcode ip:42439f sp:7fa7cd7fbe80 error:0 in pquery2-ps[400000+366000]
+```
+
+You have compiled binary with optimization on new hardware supporting new CPU instructions and then you’re trying to run it on older hardware without some particular CPU instructions support.
+
+By default pquery will be built with -march=native which means all the registers and capabilities from the currently installed CPU will be used. To fix this, you can chose from 3 options;
+
+1. Compile it locally on this machine, which will thus automatically have the best speed optimization for this CPU
+2. Compile without strict optimization and use everywhere. To do this, just pass the option -DOPTIMIZATION=OFF to cmake. As described this option may be somewhat slower.
+3. If you want the absolute fastest pquery ever (untested), you can bind the binary to the exact CPU you are using. Take a look at https://github.com/tunabrain/tungsten/blob/master/cmake/OptimizeForArchitecture.cmake This optiomization is very strict, and will fail to start on older processors.
 
 # What options does pquery accept?
 
