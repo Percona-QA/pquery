@@ -102,7 +102,7 @@ Then simply copy the my_stacktrace.h file from the include directory of your sou
 
 # Any (build-related) runtime issues I should be aware off?
 
-If pquery exits with exit code 4 (use `echo $?` to see the exit code after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
+If pquery exits with exit code 4 (use `echo $?` at your command line to see the exit code directly after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
 
 ```
 [16354204.300555] traps: pquery2-ps[24837] trap invalid opcode ip:42439f sp:7f90197fbe80 error:0 in pquery2-ps[400000+366000]
@@ -111,11 +111,11 @@ If pquery exits with exit code 4 (use `echo $?` to see the exit code after pquer
 
 You have compiled binary with optimization on new hardware supporting new CPU instructions and then you’re trying to run it on older hardware without some particular CPU instructions support.
 
-By default pquery will be built with -march=native which means all the registers and capabilities from the currently installed CPU will be used. To fix this, you can chose from 3 options;
+By default pquery will be built with `-march=native` which means all the registers and capabilities from the currently installed CPU will be used. To fix this, you can chose from 3 options;
 
 1. Compile it locally on this machine, which will thus automatically have the best speed optimization for this CPU
-2. Compile without strict optimization and use everywhere. To do this, just pass the option -DOPTIMIZATION=OFF to cmake. As described this option may be somewhat slower.
-3. If you want the absolute fastest pquery ever (untested), you can bind the binary to the exact CPU you are using. Take a look at https://github.com/tunabrain/tungsten/blob/master/cmake/OptimizeForArchitecture.cmake This optiomization is very strict, and will fail to start on older processors.
+2. Compile without strict optimization and use everywhere. To do this, just pass the option `-DOPTIMIZATION=OFF` to cmake. As described this option may be somewhat slower.
+3. If you want the absolute fastest pquery ever (untested), you can bind the binary to the exact CPU you are using. Take a look at https://github.com/tunabrain/tungsten/blob/master/cmake/OptimizeForArchitecture.cmake - this optiomization is very strict, and will fail to start on older processors.
 
 # What options does pquery accept?
 
