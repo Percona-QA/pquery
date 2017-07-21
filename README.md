@@ -51,8 +51,10 @@ Please note that only the MySQL client library will be linked statically if STAT
 
 If pquery exits with exit code 4 (use echo $? to see the exit code after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
 
+```
 [16354204.300555] traps: pquery2-ps[24837] trap invalid opcode ip:42439f sp:7f90197fbe80 error:0 in pquery2-ps[400000+366000]
 [16354210.748753] traps: pquery2-ps[25207] trap invalid opcode ip:42439f sp:7fa7cd7fbe80 error:0 in pquery2-ps[400000+366000]
+```
 
 You have compiled binary with optimization on new hardware supporting new CPU instructions and then you’re trying to run it on older hardware without some particular CPU instructions support.
 
