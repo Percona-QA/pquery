@@ -9,7 +9,6 @@
 #include <thread>
 #include <atomic>
 #include "pquery.hpp"
-#include <INIReader.h>
 #include <mysql.h>
 
 /* struct for node setup */
@@ -73,7 +72,6 @@ class Node
     void readSettings(std::string);
     void writeFinalReport();
 
-    INIReader * reader;
     std::vector<std::thread> workers;
     std::vector<std::string> * querylist;
     struct workerParams myParams;
