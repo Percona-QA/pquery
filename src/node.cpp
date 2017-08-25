@@ -13,9 +13,6 @@ Node::Node() {
 
 Node::~Node() {
   writeFinalReport();
-  if (reader) {
-    delete reader;
-    }
   if(general_log) {
     general_log.close();
     }
