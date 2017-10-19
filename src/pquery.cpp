@@ -26,7 +26,7 @@ void
 set_defaults(struct workerParams& Params) {
 // initialize all fields with default values
   Params.myName = "default.node.tld";
-  Params.database = "test";
+  Params.database = "";
   Params.address = "localhost";
   Params.socket = "/tmp/socket.sock";
   Params.username = "root";
@@ -59,7 +59,7 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
   wParams.username = reader.Get(secName, "user", "test");
   wParams.password = reader.Get(secName, "password", "");
   wParams.socket = reader.Get(secName, "socket", "/tmp/my.sock");
-  wParams.database = reader.Get(secName, "database", "test");
+  wParams.database = reader.Get(secName, "database", "");
 
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);

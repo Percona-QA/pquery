@@ -26,8 +26,8 @@ show_cli_help(void) {
     "-----------------------------------------------------------------------------------------\n" <<
     "| OPTION               | EXPLANATION                                  | DEFAULT         |\n" <<
     "-----------------------------------------------------------------------------------------\n" <<
-    "--database             | The database to connect to                   | test\n"              <<
-    "--address              | IP address to connect to                     | -\n"                 <<
+    "--database             | The database to connect to                   | \n"                  <<
+    "--address              | IP address to connect to                     | \n"                  <<
     "--port                 | The port to connect to                       | 3306\n"              <<
     "--infile               | The SQL input file                           | pquery.sql\n"        <<
     "--logdir               | Log directory                                | /tmp\n"              <<
@@ -63,7 +63,7 @@ show_config_help(void) {
 
     "[node0.domain.tld]\n" <<
     "# The database to connect to\n" <<
-    "database = test\n" <<
+    "database = \n" <<
     "# IP address to connect to, default is AF_UNIX\n" <<
     "address = <empty>\n"    <<
     "# The port to connect to\n"          <<
