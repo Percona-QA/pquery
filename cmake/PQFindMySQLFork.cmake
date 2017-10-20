@@ -13,7 +13,7 @@ OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
 #
 # Also use MYSQL for MariaDB, as library names and all locations are the same
 #
-IF (MYSQL OR MARIADB OR PERCONACLUSTER)
+IF (MYSQL OR MARIADB)
   SET(MYSQL_NAMES mysqlclient mysqlclient_r)
 ENDIF(MYSQL OR MARIADB OR PERCONACLUSTER)
 #
@@ -37,6 +37,7 @@ IF (PERCONASERVER)
 ENDIF()
 #
 IF (PERCONACLUSTER)
+  SET(MYSQL_NAMES perconaserverclient perconaserverclient_r mysqlclient mysqlclient_r)
   SET(PQUERY_EXT "pxc")
   SET(FORK "Percona XtraDB Cluster")
   ADD_DEFINITIONS(-DFORK="Percona-XtraDB-Cluster")
