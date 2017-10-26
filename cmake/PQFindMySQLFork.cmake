@@ -37,7 +37,7 @@ IF (PERCONASERVER)
 ENDIF()
 #
 IF (PERCONACLUSTER)
-  SET(MYSQL_NAMES perconaserverclient perconaserverclient_r mysqlclient mysqlclient_r)
+  SET(MYSQL_NAMES perconaserverclient mysqlclient mysqlclient_r)
   SET(PQUERY_EXT "pxc")
   SET(FORK "Percona XtraDB Cluster")
   ADD_DEFINITIONS(-DFORK="Percona-XtraDB-Cluster")
@@ -73,7 +73,12 @@ FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
 #
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  PATHS ${BASEDIR}/lib ${BASEDIR}/lib64 /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 /usr/local/mysql/lib
+  IF(BASEDIR)
+    PATHS ${BASEDIR}/lib ${BASEDIR}/lib64
+    NO_CMAKE_SYSTEM_PATH
+  ELSE(BASEDIR)
+    PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 /usr/local/mysql/lib
+  ENDIF(BASEDIR)
   PATH_SUFFIXES mysql
   )
 #
