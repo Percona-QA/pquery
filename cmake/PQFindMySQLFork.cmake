@@ -60,6 +60,9 @@ IF (MYSQL_INCLUDE_DIR)
 ENDIF (MYSQL_INCLUDE_DIR)
 #
 IF (BASEDIR)
+  IF (NOT EXISTS ${BASEDIR})
+    MESSAGE(FATAL_ERROR "* Directory ${BASEDIR} doesn't exist. Check the path for typos!")
+  ENDIF(NOT EXISTS ${BASEDIR})
   MESSAGE(STATUS "* BASEDIR is set, looking for ${FORK} in ${BASEDIR}")
 ENDIF()
 #
