@@ -5,6 +5,12 @@
 #  MYSQL_FOUND       - True if MySQL found.                 #
 #############################################################
 #
+IF(STATIC_LIB)
+  # we will link shared libraries
+  # and link static MySQL client library
+  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+ENDIF(STATIC_LIB)
+#
 OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
 OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
 OPTION (PERCONACLUSTER "Build PQuery with Percona XtraDB Cluster support" OFF)
