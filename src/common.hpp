@@ -2,7 +2,7 @@
 #define __COMMON_HPP__
 
 #ifndef PQVERSION
-#define PQVERSION "2.0"
+#define PQVERSION "2.1"
 #endif
 
 #ifndef FORK

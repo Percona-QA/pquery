@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
+#include <sstream>
 
 #include <ini.h>
 #include <INIReader.h>
@@ -25,14 +26,35 @@ string INIReader::Get(string section, string name, string default_value)
     return _values.count(key) ? _values[key] : default_value;
 }
 
-long INIReader::GetInteger(string section, string name, long default_value)
-{
+long
+INIReader::GetInteger(string section, string name, long default_value) {
     string valstr = Get(section, name, "");
-    const char* value = valstr.c_str();
-    char* end;
-    // This parses "1234" (decimal) and also "0x4D2" (hex)
-    long n = strtol(value, &end, 0);
-    return end > value ? n : default_value;
+    std::istringstream vss;
+    vss.str(valstr);
+    long ipart = 0;
+    char cpart = 0; //can be K/M/G
+    vss >> ipart >> cpart;
+
+    if ((cpart == 0) && (ipart > 0)){
+        return ipart;
+    }
+    if ((cpart > 0) && (ipart > 0)){
+        switch (cpart) {
+            case 'k':
+            case 'K': return (ipart * 1024);
+                break;
+            case 'm':
+            case 'M': return (ipart * 1024 * 1024);
+                break;
+            case 'g':
+            case 'G': return (ipart * 1024 * 1024 * 1024);
+                break;
+            default:
+                return default_value;
+                break;
+        }
+    }
+    return default_value;
 }
 
 double INIReader::GetReal(string section, string name, double default_value)

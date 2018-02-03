@@ -54,16 +54,17 @@ void
 read_section_settings(struct workerParams& wParams, std::string secName, std::string confFile) {
   set_defaults(wParams);
   INIReader reader(confFile);
-  wParams.myName = secName;
-  wParams.address = reader.Get(secName, "address", "localhost");
-  wParams.username = reader.Get(secName, "user", "test");
-  wParams.password = reader.Get(secName, "password", "");
-  wParams.socket = reader.Get(secName, "socket", "/tmp/my.sock");
-  wParams.database = reader.Get(secName, "database", "");
+  wParams.myName    = secName;
+  wParams.address   = reader.Get(secName, "address", "localhost");
+  wParams.username  = reader.Get(secName, "user", "test");
+  wParams.password  = reader.Get(secName, "password", "");
+  wParams.socket    = reader.Get(secName, "socket", "/tmp/my.sock");
+  wParams.database  = reader.Get(secName, "database", "");
 
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);
   wParams.queries_per_thread = reader.GetInteger(secName, "queries-per-thread", 10000);
+  wParams.maxpacket = reader.GetInteger(secName, "max-packet-size", 4194304); //default
 
   wParams.verbose = reader.GetBoolean(secName, "verbose", false);
   wParams.debug = reader.GetBoolean(secName, "debug", false);

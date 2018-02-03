@@ -26,6 +26,7 @@ workerParams
   short port;
   short threads;
   unsigned long queries_per_thread;
+  unsigned long maxpacket;
   bool verbose;
   bool debug;
   bool log_all_queries;

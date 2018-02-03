@@ -158,6 +158,8 @@ infile = pquery.sql
 verbose = True
 threads = 10
 queries-per-thread = 100
+# (NEW*) packet size is available only for config-based runs. see https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet
+max-packet-size = 32M
 run = Yes
 # Log all queries
 log-all-queries = Yes
