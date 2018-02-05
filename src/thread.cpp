@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cstring>
 
-const int MAX_PACKET_DEFAULT = 4194304;
 
 inline unsigned long long
 Node::getAffectedRows(MYSQL * connection) {

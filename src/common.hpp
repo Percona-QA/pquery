@@ -5,6 +5,10 @@
 #define PQVERSION "2.1"
 #endif
 
+#ifndef MAX_PACKET_DEFAULT
+#define MAX_PACKET_DEFAULT 4194304
+#endif
+
 #ifndef FORK
 #define FORK "MySQL"
 #endif
