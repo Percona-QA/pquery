@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cstring>
 
-
 inline unsigned long long
 Node::getAffectedRows(MYSQL * connection) {
   if (mysql_affected_rows(connection) == ~(unsigned long long) 0) {
@@ -73,9 +72,9 @@ Node::workerThread(int number) {
     return;
     }
 
-  if (myParams.maxpacket != MAX_PACKET_DEFAULT){
+  if (myParams.maxpacket != MAX_PACKET_DEFAULT) {
     mysql_options(conn, MYSQL_OPT_MAX_ALLOWED_PACKET, &myParams.maxpacket);
-  }
+    }
 
   if (mysql_real_connect(conn, myParams.address.c_str(), myParams.username.c_str(),
   myParams.password.c_str(), myParams.database.c_str(), myParams.port, myParams.socket.c_str(), 0) == NULL) {

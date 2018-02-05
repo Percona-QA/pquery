@@ -97,7 +97,7 @@ Node::startWork() {
   for (int i=0; i<myParams.threads; i++) {
     workers[i].join();
     }
-    return EXIT_SUCCESS;
+  return EXIT_SUCCESS;
   }
 
 

@@ -13,7 +13,7 @@
 #include <cstring>
 #include <cerrno>
 
-#include <INIReader.h>
+#include <INIReader.hpp>
 #include "common.hpp"
 #include "pquery.hpp"
 #include "node.hpp"
@@ -65,7 +65,7 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);
   wParams.queries_per_thread = reader.GetInteger(secName, "queries-per-thread", 10000);
-  wParams.maxpacket = reader.GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT); //default
+  wParams.maxpacket = reader.GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
 
   wParams.verbose = reader.GetBoolean(secName, "verbose", false);
   wParams.debug = reader.GetBoolean(secName, "debug", false);
@@ -97,11 +97,11 @@ create_worker(struct workerParams& Params) {
     }
   if (childPID == 0) {
     int exitStatus;
-    {
+      {
       Node newNode;
       newNode.setAllParams(Params);
       exitStatus = newNode.startWork();
-    }
+      }
     exit(exitStatus);
     }
   }
@@ -263,9 +263,9 @@ main(int argc, char* argv[]) {
     }                                             //while
 
   if(confFile.empty()) {
-    if(wParams.debug){
+    if(wParams.debug) {
       std::cerr << "> Config file is not specified, creating default worker" << std::endl;
-    }
+      }
     create_worker(wParams);
     }
   else {
