@@ -5,6 +5,8 @@ IF(NOT COMPILER_SUPPORTS_CXX11)
   MESSAGE(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
 ENDIF()
 #
+ADD_DEFINITIONS(-std=gnu++11 -pipe)
+#
 IF((CMAKE_SYSTEM_PROCESSOR MATCHES "i386|i686|x86|AMD64") AND (CMAKE_SIZEOF_VOID_P EQUAL 4))
   SET(ARCH "x86")
 ELSEIF((CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64") AND (CMAKE_SIZEOF_VOID_P EQUAL 8))
@@ -20,36 +22,29 @@ ENDIF()
 #
 MESSAGE(STATUS "Architecture is ${ARCH}")
 #
-ADD_DEFINITIONS(-std=gnu++11 -pipe)
-#
-OPTION(STRICT "Turn on a lot of compiler warnings" ON)
+OPTION(STRICT-FLAGS "Turn on a lot of compiler warnings" ON)
 OPTION(ASAN "Turn ON Address sanitizer feature" OFF)
 OPTION(DEBUG "Add debug info for GDB" OFF)
 OPTION(STATIC_LIB "Statically compile MySQL library into PQuery" ON)
-OPTION(OPTIMIZATION "Optimize binaries" ON)
-OPTION(SIZE_OPTIMIZATION "Optimize binaries for size (sometimes for speed also)" OFF)
+OPTION(STRICT-CPU "Strictly bind the binary to current CPU" OFF)
 #
-IF(DEBUG)
-  SET(OPTIMIZATION OFF)
-  SET(SIZE_OPTIMIZATION OFF)
-  ADD_DEFINITIONS(-O0 -g3 -ggdb3 -UNDEBUG)
+# Debug Release RelWithDebInfo MinSizeRel
+IF(CMAKE_BUILD_TYPE STREQUAL "")
+  SET(CMAKE_BUILD_TYPE "Release")
 ENDIF()
 #
-IF(SIZE_OPTIMIZATION)
-  SET(OPTIMIZATION OFF)
-  ADD_DEFINITIONS(-Os -DNDEBUG)
+IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
+  ADD_DEFINITIONS(-ggdb3)
 ENDIF()
-IF(OPTIMIZATION)
-  ADD_DEFINITIONS(-O3 -DNDEBUG)
-ENDIF()
-IF(OPTIMIZATION OR SIZE_OPTIMIZATION)
+##
+IF(STRICT-CPU)
   ADD_DEFINITIONS(-march=native -mtune=generic)
 ENDIF()
 #
-IF(STRICT)
+IF(STRICT-FLAGS)
   ADD_DEFINITIONS(-Wall -Werror -Wextra -pedantic-errors -Wmissing-declarations)
 ENDIF ()
-#
+##
 IF(ASAN)
   # doesn't work with GCC < 4.8
   ADD_DEFINITIONS(-fsanitize=address)
