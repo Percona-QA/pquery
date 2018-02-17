@@ -2,11 +2,11 @@
 pquery is an open-source (GPLv2 licensed) multi-threaded test program created to stress test the MySQL server (in any flavor), either randomly or sequentially, for QA purposes. Given it's modern C++ core, it is able to maximise the physical server's queries per second (qps) rate. pquery is an acronym for 'parallel query'. Prebuilt pquery binaries (with statically linked client libraries) for Percona Server, MySQL Server, MariaDB, and WebScaleSQL are available as part of the pquery framework.
 
 + *pquery v1.0* was designed for single-node MySQL setup, and accepts command line options only. Ref ```pquery -help``` (v1.0 only)
-+ *pquery v2.0* was designed for multi-node MySQL setups, and accepts command line options as well as options from a configuration file in INI format. Ref ```pquery --config-help``` (v2.0 only)
++ *pquery v2.0* was designed for multi-node MySQL setups, and accepts command line options, as well as options from a configuration file in INI format. Ref ```pquery --config-help``` (v2.0 only)
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
-pquery v2.0 is under active development, and v1.0 will be supported by request.
+pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of v1.0 are 
 
 # What is new in pquery v2.0?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can send *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
@@ -33,8 +33,8 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
   * *MARIADB* - **OFF** by default, build pquery with MariaDB support
   * *STATIC_LIB* - **ON** by default, compile pquery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
-  * *OPTIMIZATION* - **ON** by default, compile pquery with -O3 and processor optimization
-  * *SIZE_OPTIMIZATION* - **OFF** by default, compile pquery with -Os and processor optimization. sometimes -Os produces the faster binaries, see compiler documentation.
+  * *STRICT-CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used. 
+  * *STRICT-FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
   * *DEBUG* - **OFF** by default, compile pquery with debug inforamation for GDB
   * *STRICT* - **ON** by default, compile pquery with strict flags
   * *ASAN* - **OFF** by default, address sanitizer, available in GCC >= 4.8
@@ -102,20 +102,20 @@ Then simply copy the my_stacktrace.h file from the include directory of your sou
 
 # Any (build-related) runtime issues?
 
-If pquery exits with exit code 4 (use `echo $?` at your command line to see the exit code directly after pquery terminates), or you see any other strange things when using pquery, please check dmesg log. If you see things like;
+If pquery exits with exit code 4 (use `echo $?` at your command line to see the exit code directly after pquery terminates), or you see any other odd occurences when using pquery, please check dmesg log. If you see things like;
 
 ```
 [16354204.300555] traps: pquery2-ps[24837] trap invalid opcode ip:42439f sp:7f90197fbe80 error:0 in pquery2-ps[400000+366000]
 [16354210.748753] traps: pquery2-ps[25207] trap invalid opcode ip:42439f sp:7fa7cd7fbe80 error:0 in pquery2-ps[400000+366000]
 ```
 
-You have compiled binary with optimization on new hardware supporting new CPU instructions and then you’re trying to run it on older hardware without some particular CPU instructions support.
+You are using a binary compiled binary with strict CPU binding/optimization (ref the `STRICT-CPU` build flag above) while using it on a (likely older) machine which has a CPU incompatbile with the original build CPU. 
 
-By default pquery will be built with `-march=native` which means all the registers and capabilities from the currently installed CPU will be used. To fix this, you can chose from 3 options;
+To fix this, you can chose from 3 options;
 
-1. Compile it locally on this machine, which will thus automatically have the best speed optimization for this CPU
-2. Compile without strict optimization and use everywhere. To do this, just pass the option `-DOPTIMIZATION=OFF` to cmake. As described this option may be somewhat slower.
-3. If you want the absolute fastest pquery ever (untested), you can bind the binary to the exact CPU you are using. Take a look at https://github.com/tunabrain/tungsten/blob/master/cmake/OptimizeForArchitecture.cmake - this optiomization is very strict, and will fail to start on older processors.
+1. Compile pquery locally on this machine with the `-DSTRICT-CPU` cmake flag, which will then automatically have the best speed optimization for this CPU on this machine
+2. Compile without the `-DSTRICT-CPU` cmake flag (the default) and use the resulting binary on any CPU. As described this option may be somewhat slower (perhaps in the area of 2% - unconfirmed)
+3. If you want the absolute fastest pquery ever (untested), and you are very experienced with cmake, you can build the binary and "bind" it to the exact CPU you are using. Have a look at https://github.com/tunabrain/tungsten/blob/master/cmake/OptimizeForArchitecture.cmake - this optimization is very strict, and will fail to start on older or other processors.
 
 # What options does pquery accept?
 
