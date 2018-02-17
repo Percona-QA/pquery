@@ -31,8 +31,8 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server and Percona XtraDB Cluster support
   * *WEBSCALESQL* - **OFF** by default, build pquery with WebScaleSQL support
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
-  * *MARIADB* - **OFF** by default, build pquery with MariaDB support
-  * *STATIC_LIB* - **ON** by default, compile pquery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
+  * *MARIADB* - **OFF** by default, build pquery with MariaDB support. You may want to add `-DSTATIC_LIB=OFF` as an option for MariaDB builds (no static client library is provided with the standard MariaDB optimized package)
+  * *STATIC_LIB* - **ON** by default, compile pquery using the MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
   * *STRICT-CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used. 
   * *STRICT-FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
   * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**. For more informaton see https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html
