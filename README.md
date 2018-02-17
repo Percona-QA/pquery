@@ -28,7 +28,7 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
 1. Install cmake >= 2.6 and C++ compiler >= 4.7 (gcc-c++ for RedHat-based, g++ for Debian-based), the development files for your MySQL version/fork, and potentially OpenSSL and AIO development files and/or other deps if needed.
 2. Change dir to pquery
 3. Run cmake with the required options, which are:
-  * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server support
+  * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server and Percona XtraDB Cluster support
   * *WEBSCALESQL* - **OFF** by default, build pquery with WebScaleSQL support
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
   * *MARIADB* - **OFF** by default, build pquery with MariaDB support
