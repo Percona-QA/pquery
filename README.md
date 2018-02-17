@@ -6,7 +6,7 @@ pquery is an open-source (GPLv2 licensed) multi-threaded test program created to
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
-pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of v1.0 are 
+pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of v1.0 are
 
 # What is new in pquery v2.0?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can send *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
@@ -31,10 +31,10 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server and Percona XtraDB Cluster support
   * *WEBSCALESQL* - **OFF** by default, build pquery with WebScaleSQL support
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
-  * *MARIADB* - **OFF** by default, build pquery with MariaDB support. You may want to add `-DSTATIC_LIB=OFF` as an option for MariaDB builds (no static client library is provided with the standard MariaDB optimized package)
+  * *MARIADB* - **OFF** by default, build pquery with MariaDB support. Often there is no static library, so PQuery will be automatically compiled with shared library (no static client library is provided with the standard MariaDB optimized package)
   * *STATIC_LIB* - **ON** by default, compile pquery using the MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
-  * *STRICT-CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used. 
-  * *STRICT-FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
+  * *STRICT_CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used.
+  * *STRICT_FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
   * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**. For more informaton see https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html
   * *ASAN* - **OFF** by default, enables address sanitizer (for debugging pquery itself), available in GCC >= 4.8
 4. If you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR, you can set *BASEDIR* variable if you have binary tarball extracted to some custom place for fully automatic library detection (recommended).
@@ -108,7 +108,7 @@ If pquery exits with exit code 4 (use `echo $?` at your command line to see the 
 [16354210.748753] traps: pquery2-ps[25207] trap invalid opcode ip:42439f sp:7fa7cd7fbe80 error:0 in pquery2-ps[400000+366000]
 ```
 
-You are using a binary compiled binary with strict CPU binding/optimization (ref the `STRICT-CPU` build flag above) while using it on a (likely older) machine which has a CPU incompatbile with the original build CPU. 
+You are using a binary compiled binary with strict CPU binding/optimization (ref the `STRICT-CPU` build flag above) while using it on a (likely older) machine which has a CPU incompatbile with the original build CPU.
 
 To fix this, you can chose from 3 options;
 
