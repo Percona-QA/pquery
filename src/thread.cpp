@@ -71,11 +71,11 @@ Node::workerThread(int number) {
     general_log << ": Thread #" << number << " is exiting abnormally" << std::endl;
     return;
     }
-
+#ifdef MAXPACKET
   if (myParams.maxpacket != MAX_PACKET_DEFAULT) {
     mysql_options(conn, MYSQL_OPT_MAX_ALLOWED_PACKET, &myParams.maxpacket);
     }
-
+#endif
   if (mysql_real_connect(conn, myParams.address.c_str(), myParams.username.c_str(),
   myParams.password.c_str(), myParams.database.c_str(), myParams.port, myParams.socket.c_str(), 0) == NULL) {
     thread_log << "Error " << mysql_errno(conn) << ": " << mysql_error(conn) << std::endl;

@@ -65,8 +65,9 @@ read_section_settings(struct workerParams& wParams, std::string secName, std::st
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);
   wParams.queries_per_thread = reader.GetInteger(secName, "queries-per-thread", 10000);
+#ifdef MAXPACKET
   wParams.maxpacket = reader.GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
-
+#endif
   wParams.verbose = reader.GetBoolean(secName, "verbose", false);
   wParams.debug = reader.GetBoolean(secName, "debug", false);
   wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
