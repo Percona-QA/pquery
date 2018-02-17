@@ -36,7 +36,7 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *STRICT-CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used. 
   * *STRICT-FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
   * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**. For more informaton see https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html
-  * *ASAN* - **OFF** by default, enables address sanitizer (for debugging pquery), available in GCC >= 4.8
+  * *ASAN* - **OFF** by default, enables address sanitizer (for debugging pquery itself), available in GCC >= 4.8
 4. If you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR, you can set *BASEDIR* variable if you have binary tarball extracted to some custom place for fully automatic library detection (recommended).
 5. The resulting binary will automatically receive an appropriate flavor suffix:
   * *pquery2-ms* for MySQL
