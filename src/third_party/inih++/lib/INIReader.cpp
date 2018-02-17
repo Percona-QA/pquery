@@ -4,7 +4,7 @@
 #include <cctype>
 #include <cstdlib>
 #include <sstream>
-#include <iostream>
+#include <stdexcept>
 #include <ini.h>
 #include <INIReader.hpp>
 
