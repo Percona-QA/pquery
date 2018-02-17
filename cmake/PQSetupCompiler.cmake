@@ -22,11 +22,11 @@ ENDIF()
 #
 MESSAGE(STATUS "Architecture is ${ARCH}")
 #
-OPTION(STRICT-FLAGS "Turn on a lot of compiler warnings" ON)
+OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" ON)
 OPTION(ASAN "Turn ON Address sanitizer feature" OFF)
 OPTION(DEBUG "Add debug info for GDB" OFF)
-OPTION(STATIC_LIB "Statically compile MySQL library into PQuery" ON)
-OPTION(STRICT-CPU "Strictly bind the binary to current CPU" OFF)
+OPTION(STATIC_LIBRARY "Statically compile MySQL library into PQuery" ON)
+OPTION(STRICT_CPU "Strictly bind the binary to current CPU" OFF)
 #
 # Debug Release RelWithDebInfo MinSizeRel
 IF(CMAKE_BUILD_TYPE STREQUAL "")
@@ -37,11 +37,11 @@ IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
   ADD_DEFINITIONS(-ggdb3)
 ENDIF()
 ##
-IF(STRICT-CPU)
+IF(STRICT_CPU)
   ADD_DEFINITIONS(-march=native -mtune=generic)
 ENDIF()
 #
-IF(STRICT-FLAGS)
+IF(STRICT_FLAGS)
   ADD_DEFINITIONS(-Wall -Werror -Wextra -pedantic-errors -Wmissing-declarations)
 ENDIF ()
 ##

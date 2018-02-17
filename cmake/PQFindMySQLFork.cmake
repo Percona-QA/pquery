@@ -5,12 +5,6 @@
 #  MYSQL_FOUND       - True if MySQL found.                 #
 #############################################################
 #
-IF(STATIC_LIB)
-  # we will link shared libraries
-  # and link static MySQL client library
-  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-ENDIF(STATIC_LIB)
-#
 OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
 OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
 OPTION (PERCONACLUSTER "Build PQuery with Percona XtraDB Cluster support" OFF)
@@ -32,6 +26,7 @@ ENDIF(MYSQL)
 IF(MARIADB)
   SET(PQUERY_EXT "md")
   SET(FORK "MariaDB")
+  SET(STATIC_LIBRARY OFF)
   ADD_DEFINITIONS(-DFORK="MariaDB")
 ENDIF(MARIADB)
 #
@@ -72,6 +67,12 @@ IF (BASEDIR)
   ENDIF(NOT EXISTS ${BASEDIR})
   MESSAGE(STATUS "* BASEDIR is set, looking for ${FORK} in ${BASEDIR}")
 ENDIF()
+#
+IF(STATIC_LIBRARY)
+  # we will link shared libraries
+  # and link static MySQL client library
+  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+ENDIF(STATIC_LIBRARY)
 #
 FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
   ${BASEDIR}/include
