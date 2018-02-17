@@ -35,15 +35,15 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *STATIC_LIB* - **ON** by default, compile pquery with MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
   * *STRICT-CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used. 
   * *STRICT-FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
-  * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**
+  * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**. For more informaton see https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html
   * *STRICT* - **ON** by default, compile pquery with strict flags
   * *ASAN* - **OFF** by default, address sanitizer, available in GCC >= 4.8
 4. If you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR, you can set *BASEDIR* variable if you have binary tarball extracted to some custom place for fully automatic library detection (recommended).
 5. The resulting binary will automatically receive an appropriate flavor suffix:
-  * *pquery-ms* for MySQL
-  * *pquery-ps* for Percona Server
-  * *pquery-ws* for WebScaleSQL
-  * *pquery-md* for MariaDB
+  * *pquery2-ms* for MySQL
+  * *pquery2-ps* for Percona Server
+  * *pquery2-ws* for WebScaleSQL
+  * *pquery2-md* for MariaDB
 
 Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
