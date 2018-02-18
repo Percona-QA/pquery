@@ -17,7 +17,7 @@ One can now also specify if a pquery worker should be started for a given node b
 When the pquery binary is used in combination with the Bash scripted pquery framework and a medium spec QA server (Intel i7/16GB/SSD), a QA engineer can achieve 80+ mysqld crashes per hour. The pquery framework further offers automatic testcase creation, bug filtering, sporadic issue handling, true multi-threaded testcase reduction, near-100% bug reproducibility and much more. The pquery framework furthermore contains high quality SQL input files, and "already known bug" filter lists for Percona Server and MySQL Server. The pquery framework is also GPLv2 licensed, and available from GitHub here: https://github.com/Percona-QA/percona-qa
 
 # What is reducer.sh?
-Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (https://github.com/Percona-QA/percona-qa), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh. It is developed and maintained by Roel Van de Paar.
+reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is included in the pquery Framework (https://github.com/Percona-QA/percona-qa), as https://github.com/Percona-QA/percona-qa/blob/master/reducer.sh. It is developed and maintained by Roel Van de Paar.
 
 # Any pquery success stories?
 + In the first ~2 months of it's life, over 200 bugs were logged with Oracle, Percona and TokuTek, most with high quality short testcases.
