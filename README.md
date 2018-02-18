@@ -6,7 +6,7 @@ pquery is an open-source (GPLv2 licensed) multi-threaded test program created to
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
-pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of v1.0 are included in v2.0.
+pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of pquery v1.0 are included in v2.0.
 
 # What is new in pquery v2.0?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can send *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
