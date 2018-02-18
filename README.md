@@ -6,7 +6,7 @@ pquery is an open-source (GPLv2 licensed) multi-threaded test program created to
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
 
-pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of v1.0 are
+pquery v2.0 is under active development. v1.0 is no longer in use. All capabilities of v1.0 are included in v2.0.
 
 # What is new in pquery v2.0?
 pquery v2.0 can be used for single and multi-node (cluster, replication etc.) testing. It can send *different* SQL to each tested node. It is also possible to enable the SQL randomizer only for particular nodes. It also supports the same features, and is largely backwards compatible with v1.0 (some output file names and locations have changed).
@@ -31,8 +31,8 @@ Reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *PERCONASERVER* - **OFF** by default, build pquery with Percona Server and Percona XtraDB Cluster support
   * *WEBSCALESQL* - **OFF** by default, build pquery with WebScaleSQL support
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
-  * *MARIADB* - **OFF** by default, build pquery with MariaDB support. Often there is no static library, so PQuery will be automatically compiled with shared library (no static client library is provided with the standard MariaDB optimized package)
-  * *STATIC_LIB* - **ON** by default, compile pquery using the MySQL | Percona Server | WebScaleSQL static client library instead of dynamic
+  * *MARIADB* - **OFF** by default, build pquery with MariaDB support.
+  * *STATIC_LIB* - **ON** by default, compile pquery using the MySQL | Percona Server | WebScaleSQL static client library instead of the dynamic one. For most distributions, the static library is included in standard downloads and definitely if you build MySQL/Percona Server yourself. Note however that for MariaDB, no static client library is provided with the standard MariaDB optimized package, so pquery will automatically compile MariaDB with a shared library (which has to be installed on the OS first, i.e. yum/apt-get install mariadb-devel). In other words, when using -DMARIADB=ON, this option is turned off by default.
   * *STRICT_CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used.
   * *STRICT_FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
   * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**. For more informaton see https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html
