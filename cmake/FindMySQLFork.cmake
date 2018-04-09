@@ -5,55 +5,46 @@
 #  MYSQL_FOUND       - True if MySQL found.                 #
 #############################################################
 #
-OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
-OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
-OPTION (PERCONACLUSTER "Build PQuery with Percona XtraDB Cluster support" OFF)
-OPTION (WEBSCALESQL   "Build PQuery with WebScaleSQL support" OFF)
-OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
-#
+IF (MYSQL_BASEDIR)
+  IF (NOT EXISTS ${MYSQL_BASEDIR})
+    MESSAGE(FATAL_ERROR "* Directory ${MYSQL_BASEDIR} doesn't exist. Check the path for typos!")
+  ENDIF(NOT EXISTS ${MYSQL_BASEDIR})
+  MESSAGE(STATUS "* MYSQL_BASEDIR is set, looking for ${MYSQL_FORK} in ${MYSQL_BASEDIR}")
+ENDIF()
 # Also use MYSQL for MariaDB, as library names and all locations are the same
 #
-IF (MYSQL OR MARIADB)
+IF (MYSQL_FORK STREQUAL "MYSQL" OR MYSQL_FORK STREQUAL "MARIADB")
   SET(MYSQL_NAMES mysqlclient mysqlclient_r)
-ENDIF(MYSQL OR MARIADB)
+ENDIF()
 #
-IF(MYSQL)
+IF(MYSQL_FORK STREQUAL "MYSQL")
   SET(PQUERY_EXT "ms")
-  SET(FORK "MySQL")
-  ADD_DEFINITIONS(-DFORK="MySQL")
+  ADD_DEFINITIONS(-DMYSQL_FORK="MySQL")
   ADD_DEFINITIONS(-DMAXPACKET)
-ENDIF(MYSQL)
+ENDIF()
 #
-IF(MARIADB)
+IF(MYSQL_FORK STREQUAL "MARIADB")
   SET(PQUERY_EXT "md")
-  SET(FORK "MariaDB")
-  ADD_DEFINITIONS(-DFORK="MariaDB")
-ENDIF(MARIADB)
+  ADD_DEFINITIONS(-DMYSQL_FORK="MariaDB")
+ENDIF()
 #
-IF (PERCONASERVER)
+IF (MYSQL_FORK STREQUAL "PERCONASERVER")
   SET(MYSQL_NAMES perconaserverclient perconaserverclient_r)
   SET(PQUERY_EXT "ps")
-  SET(FORK "Percona Server")
-  ADD_DEFINITIONS(-DFORK="Percona-Server")
+  ADD_DEFINITIONS(-DMYSQL_FORK="Percona Server")
   ADD_DEFINITIONS(-DMAXPACKET)
 ENDIF()
 #
-IF (PERCONACLUSTER)
+IF (MYSQL_FORK STREQUAL "PERCONACLUSTER")
   SET(MYSQL_NAMES perconaserverclient mysqlclient mysqlclient_r)
   SET(PQUERY_EXT "pxc")
-  SET(FORK "Percona XtraDB Cluster")
-  ADD_DEFINITIONS(-DFORK="Percona-XtraDB-Cluster")
+  ADD_DEFINITIONS(-DMYSQL_FORK="Percona XtraDB Cluster")
 ENDIF()
 #
-IF (WEBSCALESQL)
+IF (MYSQL_FORK STREQUAL "WEBSCALESQL")
   SET(MYSQL_NAMES webscalesqlclient webscalesqlclient_r)
   SET(PQUERY_EXT "ws")
-  SET(FORK "WebScaleSQL")
-  ADD_DEFINITIONS(-DFORK="WebScaleSQL")
-ENDIF()
-#
-IF("${FORK}" STREQUAL "")
-  MESSAGE(FATAL_ERROR "\n* Please set fork to compile with:\n* MYSQL | MARIADB | PERCONASERVER | PERCONACLUSTER| WEBSCALESQL\n")
+  ADD_DEFINITIONS(-DMYSQL_FORK="WebScaleSQL")
 ENDIF()
 #
 IF (MYSQL_INCLUDE_DIR)
@@ -61,18 +52,11 @@ IF (MYSQL_INCLUDE_DIR)
   SET(MYSQL_FIND_QUIETLY TRUE)
 ENDIF (MYSQL_INCLUDE_DIR)
 #
-IF (BASEDIR)
-  IF (NOT EXISTS ${BASEDIR})
-    MESSAGE(FATAL_ERROR "* Directory ${BASEDIR} doesn't exist. Check the path for typos!")
-  ENDIF(NOT EXISTS ${BASEDIR})
-  MESSAGE(STATUS "* BASEDIR is set, looking for ${FORK} in ${BASEDIR}")
-ENDIF()
-#
-IF(STATIC_LIBRARY)
+IF(STATIC_MYSQL)
   # we will link shared libraries
   # and link static MySQL client library
   SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-ENDIF(STATIC_LIBRARY)
+ENDIF(STATIC_MYSQL)
 #
 FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
   ${BASEDIR}/include
@@ -84,31 +68,31 @@ FIND_PATH(MYSQL_INCLUDE_DIR mysql.h
 #
 FIND_LIBRARY(MYSQL_LIBRARY
   NAMES ${MYSQL_NAMES}
-  IF(BASEDIR)
-    PATHS ${BASEDIR}/lib ${BASEDIR}/lib64
+  IF(MYSQL_BASEDIR)
+    PATHS ${MYSQL_BASEDIR}/lib ${MYSQL_BASEDIR}/lib64
     NO_CMAKE_SYSTEM_PATH
-  ELSE(BASEDIR)
+  ELSE(MYSQL_BASEDIR)
     PATHS /usr/lib /usr/local/lib /usr/lib/x86_64-linux-gnu /usr/lib/i386-linux-gnu /usr/lib64 /usr/local/mysql/lib
-  ENDIF(BASEDIR)
+  ENDIF(MYSQL_BASEDIR)
   PATH_SUFFIXES mysql
   )
 #
 IF (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
   SET(MYSQL_FOUND TRUE)
-  SET( MYSQL_LIBRARIES ${MYSQL_LIBRARY} )
+  SET(MYSQL_LIBRARIES ${MYSQL_LIBRARY} )
 ELSE (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
   SET(MYSQL_FOUND FALSE)
-  SET( MYSQL_LIBRARIES )
+  SET(MYSQL_LIBRARIES)
 ENDIF (MYSQL_INCLUDE_DIR AND MYSQL_LIBRARY)
 #
 IF (MYSQL_FOUND)
   IF (NOT MYSQL_FIND_QUIETLY)
-    MESSAGE(STATUS "* Found ${FORK} library: ${MYSQL_LIBRARY}")
-    MESSAGE(STATUS "* Found ${FORK} include directory: ${MYSQL_INCLUDE_DIR}")
+    MESSAGE(STATUS "Found ${MYSQL_FORK} library: ${MYSQL_LIBRARY}")
+    MESSAGE(STATUS "Found ${MYSQL_FORK} include directory: ${MYSQL_INCLUDE_DIR}")
   ENDIF (NOT MYSQL_FIND_QUIETLY)
 ELSE (MYSQL_FOUND)
-  MESSAGE(STATUS "* Looked for ${FORK} libraries named ${MYSQL_NAMES}.")
-  MESSAGE(FATAL_ERROR "* Could NOT find ${FORK} library")
+  MESSAGE(STATUS "Looked for ${MYSQL_FORK} libraries named ${MYSQL_NAMES}.")
+  MESSAGE(FATAL_ERROR "Could NOT find ${MYSQL_FORK} library")
 ENDIF (MYSQL_FOUND)
 #
 MARK_AS_ADVANCED(MYSQL_LIBRARY MYSQL_INCLUDE_DIR)

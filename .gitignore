@@ -1,7 +1,9 @@
 .DS_Store
 CMakeCache.txt
-*.cmake
 CMakeFiles
 Makefile
 *.a
 src/pquery2-*
+cmake_install.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
