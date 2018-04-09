@@ -1,9 +1,30 @@
+#
+OPTION(WITH_ASAN "Turn ON Address sanitizer feature" OFF)
+OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" ON)
+OPTION(DEBUG "Add debug info for GDB" OFF)
+OPTION(NATIVE_CPU "Strictly bind the binary to current CPU" OFF)
+#
+INCLUDE(CheckCCompilerFlag)
 INCLUDE(CheckCXXCompilerFlag)
+SET(CMAKE_INCLUDE_CURRENT_DIR ON)
 #
 CHECK_CXX_COMPILER_FLAG("-std=gnu++11" COMPILER_SUPPORTS_CXX11)
 IF(NOT COMPILER_SUPPORTS_CXX11)
   MESSAGE(FATAL_ERROR "Compiler ${CMAKE_CXX_COMPILER} has no C++11 support.")
 ENDIF()
+#
+IF(WITH_ASAN)
+  SET(ASAN_FLAGS "-fsanitize=address")
+  SET(CMAKE_REQUIRED_FLAGS ${ASAN_FLAGS})
+  CHECK_C_COMPILER_FLAG("" ASAN_C_OK)
+  CHECK_CXX_COMPILER_FLAG("" ASAN_CXX_OK)
+  IF(ASAN_C_OK AND ASAN_CXX_OK)
+    ADD_DEFINITIONS(-fsanitize=address)
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+  ELSE()
+    MESSAGE(FATAL_ERROR "ASAN is not supported by ${CMAKE_CXX_COMPILER}")
+  ENDIF()
+ENDIF(WITH_ASAN)
 #
 ADD_DEFINITIONS(-std=gnu++11 -pipe)
 #
@@ -20,13 +41,7 @@ ELSEIF(CMAKE_SYSTEM_PROCESSOR MATCHES "sparc")
   SET(ARCH "sparc")
 ENDIF()
 #
-MESSAGE(STATUS "Architecture is ${ARCH}")
-#
-OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" ON)
-OPTION(ASAN "Turn ON Address sanitizer feature" OFF)
-OPTION(DEBUG "Add debug info for GDB" OFF)
-OPTION(STATIC_LIBRARY "Statically compile MySQL library into PQuery" ON)
-OPTION(STRICT_CPU "Strictly bind the binary to current CPU" OFF)
+MESSAGE(STATUS "Host system is ${CMAKE_SYSTEM}-${ARCH}")
 #
 # Debug Release RelWithDebInfo MinSizeRel
 IF(CMAKE_BUILD_TYPE STREQUAL "")
@@ -34,34 +49,17 @@ IF(CMAKE_BUILD_TYPE STREQUAL "")
 ENDIF()
 #
 IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
-  ADD_DEFINITIONS(-ggdb3)
+  SET(CMAKE_CXX_FLAGS_DEBUG "-O0 -g3 -ggdb3")
 ENDIF()
 ##
-IF(STRICT_CPU)
-  ADD_DEFINITIONS(-march=native -mtune=generic)
+IF(NATIVE_CPU)
+  ADD_COMPILE_OPTIONS(-march=native -mtune=generic)
 ENDIF()
 #
 IF(STRICT_FLAGS)
   ADD_DEFINITIONS(-Wall -Werror -Wextra -pedantic-errors -Wmissing-declarations)
 ENDIF ()
 ##
-IF(ASAN)
-  # doesn't work with GCC < 4.8
-  ADD_DEFINITIONS(-fsanitize=address)
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
-ENDIF()
+
 #
-INCLUDE(FindOpenSSL REQUIRED)
-SET(OTHER_LIBS ${OTHER_LIBS} ssl crypto)
-#
-INCLUDE(FindThreads REQUIRED)
-SET (OTHER_LIBS ${OTHER_LIBS} pthread)
-#
-INCLUDE(FindZLIB REQUIRED)
-SET (OTHER_LIBS ${OTHER_LIBS} z)
-#
-#
-IF(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  SET (OTHER_LIBS ${OTHER_LIBS} dl rt)
-ENDIF()
 #
