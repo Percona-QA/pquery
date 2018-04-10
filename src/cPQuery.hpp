@@ -20,6 +20,7 @@ class PQuery
     void showVersion();
     void setConfigFilePath(std::string configPath) { configFilePath = configPath; }
     void setLogFilePath(std::string logPath) { logFilePath = logPath; }
+    bool logVersionInfo();
 
   private:
     std::string configFilePath;

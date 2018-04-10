@@ -2,14 +2,16 @@
 #include <iostream>
 #include <cassert>
 #include <getopt.h>
+#include <chrono>
+#include <ctime>
 
 #include <common.hpp>
 #include <cPQuery.hpp>
 
 PQuery::PQuery() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   configFilePath = "pquery.cfg";
   configReader = 0;
   pqLogger = 0;
@@ -17,9 +19,9 @@ PQuery::PQuery() {
 
 
 PQuery::~PQuery() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   if (configReader != 0) { delete configReader; configReader = 0;}
   if (pqLogger != 0) { delete pqLogger; pqLogger = 0; }
   }
@@ -27,31 +29,43 @@ PQuery::~PQuery() {
 
 bool
 PQuery::initLogger() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   if(pqLogger == 0) {
     pqLogger = new Logger();
     }
-  if(!pqLogger){
-    std::cerr << "Unable to init logger subsystem" << std::endl;
+  if(!pqLogger) {
+    std::cerr << "Unable to init logging subsystem" << std::endl;
     return false;
-  }
+    }
 
   assert(configReader != 0);
 
   std::string masterLogFile;
   masterLogFile = configReader->Get("master", "logfile", "/tmp/pquery3-master.log");
-  pqLogger->setLogFilePath(masterLogFile);
-
+  if(!pqLogger->initLogFile(masterLogFile)){ return false; }
   return true;
   }
 
+
+bool
+PQuery::logVersionInfo() {
+  auto now = std::chrono::system_clock::now();
+  std::time_t start_time = std::chrono::system_clock::to_time_t(now);
+  pqLogger->addRecordToLog("* PQuery version: " + asString(PQVERSION));
+  pqLogger->addRecordToLog("* PQuery revision: " + asString(PQREVISION));
+  pqLogger->addRecordToLog("* PQuery revision date: " + asString(PQRELDATE));
+  pqLogger->addRecordToLog("* Pquery started at " + asString(std::ctime(&start_time)));
+  return true;
+  }
+
+
 bool
 PQuery::initConfig() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   configReader = new INIReader(configFilePath);
   int parseerr = configReader->ParseError();
 
@@ -71,20 +85,22 @@ PQuery::initConfig() {
 
 bool
 PQuery::prepareToRun() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   if(!initConfig()) { return false; }
   if(!initLogger()) { return false; }
+  if(!logVersionInfo()) { return false; }
+
   return true;
   }
 
 
 int
 PQuery::run() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   showVersion();
   if(!prepareToRun()){ return EXIT_FAILURE; }
   return EXIT_SUCCESS;
@@ -93,9 +109,9 @@ PQuery::run() {
 
 void
 PQuery::showVersion() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   std::cout << "* PQuery version: "       << PQVERSION << std::endl;
   std::cout << "* PQuery revision: "      << PQREVISION << std::endl;
   std::cout << "* PQuery release date: "  << PQRELDATE << std::endl;
@@ -104,9 +120,9 @@ PQuery::showVersion() {
 
 void
 PQuery::showHelp() {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   std::cout << " - Usage: pquery --config-file=pquery.cfg" << std::endl;
   std::cout << " - CLI params has been replaced by config file (INI format)" << std::endl;
   std::cout << " - You can redefine any global param=value pair in host-specific section" << std::endl;
@@ -168,9 +184,9 @@ PQuery::showHelp() {
 
 bool
 PQuery::parseCliOptions(int argc, char* argv[]) {
-  #ifdef DEBUG
-    std::cerr << __PRETTY_FUNCTION__ << std::endl;
-  #endif
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   int c;
   while(true) {
     static struct option long_options[] = {

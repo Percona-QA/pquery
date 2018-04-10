@@ -26,11 +26,12 @@ class Logger
     logVerbosity getLogVerbosity();
     void setLogVerbosity(logVerbosity);
     void setLogFilePath(std::string);
-    bool initLogFile();
     bool initLogFile(std::string);
+    void addRecordToLog(std::string);
+    void addRecordToLog(std::string, logVerbosity);
+
   private:
     logVerbosity LogEvents;
-    std::string logFilePath;
     std::ofstream logFile;
 
   };

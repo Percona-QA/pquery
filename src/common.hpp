@@ -23,5 +23,8 @@
 #endif
 #endif
 
+template <typename anyType>
+std::string asString(anyType value) { return value; }
+
 // Error codes
 #endif
