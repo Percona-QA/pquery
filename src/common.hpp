@@ -23,8 +23,9 @@
 #endif
 #endif
 
+/* quick and dirty solution to return defines from above as string values */
 template <typename anyType>
-std::string asString(anyType value) { return value; }
+std::string asString(anyType value) { std::string tmpVal(value); return tmpVal; }
 
 // Error codes
 #endif
