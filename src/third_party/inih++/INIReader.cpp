@@ -50,19 +50,20 @@ INIReader::GetInteger(string section, string name, long default_value) {
   switch (cpart) {
     case 'k':
     case 'K': return (ipart * 1024);
-        break;
+    break;
     case 'm':
     case 'M': return (ipart * 1024 * 1024);
-        break;
+    break;
     case 'g':
     case 'G': return (ipart * 1024 * 1024 * 1024);
-        break;
+    break;
     default:
       throw std::logic_error("Invalid value for " + name + ": " + valstr);
       break;
     }
   return default_value;
   }
+
 
 double INIReader::GetReal(string section, string name, double default_value) {
   string valstr = Get(section, name, "");
@@ -71,6 +72,7 @@ double INIReader::GetReal(string section, string name, double default_value) {
   double n = strtod(value, &end);
   return end > value ? n : default_value;
   }
+
 
 bool INIReader::GetBoolean(string section, string name, bool default_value) {
   string valstr = Get(section, name, "");
@@ -84,11 +86,13 @@ bool INIReader::GetBoolean(string section, string name, bool default_value) {
     return default_value;
   }
 
+
 std::vector<std::string>
 INIReader::GetSections() const
   {
   return _sections;
   }
+
 
 string
 INIReader::MakeKey(string section, string name) {
@@ -97,6 +101,7 @@ INIReader::MakeKey(string section, string name) {
   std::transform(key.begin(), key.end(), key.begin(), ::tolower);
   return key;
   }
+
 
 int
 INIReader::ValueHandler(void* user, const char* section, const char* name,

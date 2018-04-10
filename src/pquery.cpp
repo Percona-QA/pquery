@@ -41,7 +41,7 @@ set_defaults(struct workerParams& Params) {
   Params.debug = false;
   Params.log_all_queries = false;
   Params.log_succeeded_queries = false,
-  Params.log_failed_queries = false;
+    Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
   Params.log_client_output = false;

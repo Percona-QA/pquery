@@ -18,20 +18,10 @@
 #endif
 
 #ifdef MAXPACKET
-  #ifndef MAX_PACKET_DEFAULT
-  #define MAX_PACKET_DEFAULT 4194304
-  #endif
+#ifndef MAX_PACKET_DEFAULT
+#define MAX_PACKET_DEFAULT 4194304
+#endif
 #endif
 
-
-
-
-
-
-
-
-
-
-
-
+// Error codes
 #endif

@@ -2,12 +2,46 @@
 #include <cstdlib>
 #include <iostream>
 #include <getopt.h>
-#include <INIReader.hpp>
 #include <common.hpp>
+
+PQuery::PQuery() {
+  configReader = 0;
+  configFilePath.clear();
+  }
+
+
+PQuery::~PQuery() {
+  if (configReader != 0) {
+    delete configReader;
+    }
+  }
+
+
+bool
+PQuery::initConfig() {
+  configReader = new INIReader(configFilePath);
+  int parseerr = configReader->ParseError();
+
+  if (parseerr < 0) {
+    std::cerr << "Can't load config from file \"" + configFilePath + "\"" << std::endl;
+    return false;
+    }
+  if (parseerr > 0) {
+    std::cerr << "Config parse error!" << std::endl;
+    std::cerr << "File: " << configFilePath << std::endl;
+    std::cerr << "Line: " << parseerr << std::endl;
+    return false;
+    }
+  return true;
+  }
+
 
 int
 PQuery::run() {
-  INIReader reader(configFilePath);
+  if(!initConfig()) {
+    return EXIT_FAILURE;
+    }
+
   return EXIT_SUCCESS;
   }
 
@@ -98,14 +132,13 @@ PQuery::parseCliOptions(int argc, char* argv[]) {
     switch (c) {
       case 'c':
         setConfigFilePath(optarg);
-        std::cout << "config file path is " << configFilePath << std::endl;
         break;
       case 'h':
         showHelp();
         return false;
       case 'v':
         showVersion();
-        return true;
+        return false;
       default:
         break;
       }
