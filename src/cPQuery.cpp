@@ -1,24 +1,57 @@
-#include <cPQuery.hpp>
 #include <cstdlib>
 #include <iostream>
+#include <cassert>
 #include <getopt.h>
+
 #include <common.hpp>
+#include <cPQuery.hpp>
 
 PQuery::PQuery() {
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
+  configFilePath = "pquery.cfg";
   configReader = 0;
-  configFilePath.clear();
+  pqLogger = 0;
   }
 
 
 PQuery::~PQuery() {
-  if (configReader != 0) {
-    delete configReader;
-    }
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
+  if (configReader != 0) { delete configReader; configReader = 0;}
+  if (pqLogger != 0) { delete pqLogger; pqLogger = 0; }
   }
 
 
 bool
+PQuery::initLogger() {
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
+  if(pqLogger == 0) {
+    pqLogger = new Logger();
+    }
+  if(!pqLogger){
+    std::cerr << "Unable to init logger subsystem" << std::endl;
+    return false;
+  }
+
+  assert(configReader != 0);
+
+  std::string masterLogFile;
+  masterLogFile = configReader->Get("master", "logfile", "/tmp/pquery3-master.log");
+  pqLogger->setLogFilePath(masterLogFile);
+
+  return true;
+  }
+
+bool
 PQuery::initConfig() {
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
   configReader = new INIReader(configFilePath);
   int parseerr = configReader->ParseError();
 
@@ -36,32 +69,53 @@ PQuery::initConfig() {
   }
 
 
+bool
+PQuery::prepareToRun() {
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
+  if(!initConfig()) { return false; }
+  if(!initLogger()) { return false; }
+  return true;
+  }
+
+
 int
 PQuery::run() {
-  if(!initConfig()) {
-    return EXIT_FAILURE;
-    }
-
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
+  showVersion();
+  if(!prepareToRun()){ return EXIT_FAILURE; }
   return EXIT_SUCCESS;
   }
 
 
 void
 PQuery::showVersion() {
-  std::cout << "* PQuery version is "       << PQVERSION << std::endl;
-  std::cout << "* PQuery revision is "      << PQREVISION << std::endl;
-  std::cout << "* PQuery release date is "  << PQRELDATE << std::endl;
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
+  std::cout << "* PQuery version: "       << PQVERSION << std::endl;
+  std::cout << "* PQuery revision: "      << PQREVISION << std::endl;
+  std::cout << "* PQuery release date: "  << PQRELDATE << std::endl;
   }
 
 
 void
 PQuery::showHelp() {
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
   std::cout << " - Usage: pquery --config-file=pquery.cfg" << std::endl;
   std::cout << " - CLI params has been replaced by config file (INI format)" << std::endl;
   std::cout << " - You can redefine any global param=value pair in host-specific section" << std::endl;
   std::cout << "\nConfig example:\n" << std::endl;
   std::cout <<
-
+    "# Section for master process\n" <<
+    "[master]\n" <<
+    "# Logfile for master process\n" <<
+    "logfile = /tmp/pquery3-master.log\n\n" <<
     "[node0.domain.tld]\n" <<
     "# The database to connect to\n" <<
     "database = \n" <<
@@ -114,24 +168,31 @@ PQuery::showHelp() {
 
 bool
 PQuery::parseCliOptions(int argc, char* argv[]) {
+  #ifdef DEBUG
+    std::cerr << __PRETTY_FUNCTION__ << std::endl;
+  #endif
   int c;
   while(true) {
     static struct option long_options[] = {
 // config file with all options
       {"config-file", required_argument, 0, 'c'},
+      {"master-logfile", required_argument, 0, 'L'},
       {"help", no_argument, 0, 'h'},
       {"version", no_argument, 0, 'v'},
 // finally
       {0, 0, 0, 0}
       };
     int option_index = 0;
-    c = getopt_long_only(argc, argv, "c:hv", long_options, &option_index);
+    c = getopt_long_only(argc, argv, "c:L:hv", long_options, &option_index);
     if (c == -1) {
       break;
       }
     switch (c) {
       case 'c':
         setConfigFilePath(optarg);
+        break;
+      case 'L':
+        setLogFilePath(optarg);
         break;
       case 'h':
         showHelp();
