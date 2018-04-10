@@ -1,7 +1,6 @@
 #
 OPTION(WITH_ASAN "Turn ON Address sanitizer feature" OFF)
 OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" ON)
-OPTION(DEBUG "Add debug info for GDB" OFF)
 OPTION(NATIVE_CPU "Strictly bind the binary to current CPU" OFF)
 #
 INCLUDE(CheckCCompilerFlag)

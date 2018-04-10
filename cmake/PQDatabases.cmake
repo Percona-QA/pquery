@@ -35,6 +35,7 @@ ENDIF(LINUX)
 # provides WITH_MYSQL, it may be ON, OFF, PATH_TO_MYSQL
 IF(WITH_MYSQL)
 #
+  SET(MYSQL_BASEDIR "" CACHE PATH "Custom MySQL location, usually from extracted tarball")
   SET(MYSQL_FORK "MYSQL" CACHE STRING "MySQL fork to build with. May be Oracle MySQL, MariaDB, WebScaleSQL, Percona Server or Percona XtraDB Cluster")
   SET_PROPERTY(CACHE MYSQL_FORK PROPERTY STRINGS MYSQL MARIADB WEBSCALESQL PERCONASERVER PERCONACLUSTER)
 #

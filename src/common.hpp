@@ -13,6 +13,10 @@
 #define PQRELDATE "UNKNOWN"
 #endif
 
+#ifndef MYSQL_FORK
+#define MYSQL_FORK "UNKNOWN"
+#endif
+
 #ifdef MAXPACKET
   #ifndef MAX_PACKET_DEFAULT
   #define MAX_PACKET_DEFAULT 4194304
@@ -21,20 +25,13 @@
 
 
 
-#ifndef MYSQL_FORK
-#define DMYSQL_FORK "UNKNOWN"
+
+
+
+
+
+
+
+
+
 #endif
-
-
-#endif
-
-
-
-
-
-
-
-
-
-
-
