@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <cerrno>
+#include <stdexcept>
 #include <common.hpp>
 #include <cLogger.hpp>
 
