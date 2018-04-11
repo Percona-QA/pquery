@@ -5,7 +5,7 @@ INCLUDE_DIRECTORIES(third_party/inih++)
 SET(LIBS_TO_LINK ${LIBS_TO_LINK} iniconf)
 SET(COMMON_SOURCES
     main.cpp cPQuery.cpp
-    cLogger.cpp
+    cLogger.cpp cWorker.cpp
     )
 #
 IF(MYSQL_FOUND)

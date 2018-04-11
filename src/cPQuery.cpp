@@ -43,7 +43,9 @@ PQuery::initLogger() {
   assert(configReader != 0);
 
   std::string masterLogFile;
-  masterLogFile = configReader->Get("master", "logfile", "/tmp/pquery3-master.log");
+  std::string master_logdir = configReader->Get("master", "logdir", "/tmp");
+  std::string master_logfile = configReader->Get("master", "logfile", "pquery3-master.log");
+  masterLogFile = master_logdir + FSSEP + master_logfile;
   if(!pqLogger->initLogFile(masterLogFile)){ return false; }
   return true;
   }
@@ -51,12 +53,15 @@ PQuery::initLogger() {
 
 bool
 PQuery::logVersionInfo() {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   auto now = std::chrono::system_clock::now();
   std::time_t start_time = std::chrono::system_clock::to_time_t(now);
-  pqLogger->addRecordToLog("* PQuery version: " + asString(PQVERSION));
-  pqLogger->addRecordToLog("* PQuery revision: " + asString(PQREVISION));
-  pqLogger->addRecordToLog("* PQuery revision date: " + asString(PQRELDATE));
-  pqLogger->addRecordToLog("* Pquery started at " + asString(std::ctime(&start_time)));
+  pqLogger->addRecordToLog("* PQuery version: " + std::string(PQVERSION));
+  pqLogger->addRecordToLog("* PQuery revision: " + std::string(PQREVISION));
+  pqLogger->addRecordToLog("* PQuery revision date: " + std::string(PQRELDATE));
+  pqLogger->addRecordToLog("* Pquery master with PID " + std::to_string(getpid()) + " started at " + std::string(std::ctime(&start_time)));
   return true;
   }
 
@@ -96,6 +101,116 @@ PQuery::prepareToRun() {
   }
 
 
+void
+PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  wParams.myName    = secName;
+  wParams.address   = configReader->Get(secName, "address", "localhost");
+  wParams.username  = configReader->Get(secName, "user", "test");
+  wParams.password  = configReader->Get(secName, "password", "");
+  wParams.socket    = configReader->Get(secName, "socket", "/tmp/my.sock");
+  wParams.database  = configReader->Get(secName, "database", "");
+  wParams.dbtype    = configReader->Get(secName, "dbtype", "");
+
+  wParams.port = configReader->GetInteger(secName, "port", 3306);
+  wParams.threads = configReader->GetInteger(secName, "threads", 10);
+  wParams.queries_per_thread = configReader->GetInteger(secName, "queries-per-thread", 10000);
+#ifdef MAXPACKET
+  wParams.maxpacket = configReader->GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
+#endif
+  wParams.verbose = configReader->GetBoolean(secName, "verbose", false);
+  wParams.debug = configReader->GetBoolean(secName, "debug", false);
+  wParams.shuffle = configReader->GetBoolean(secName, "shuffle", true);
+  wParams.infile = configReader->Get(secName, "infile", "pquery.sql");
+  wParams.logdir = configReader->Get(secName, "logdir", "/tmp");
+//
+  wParams.log_all_queries = configReader->GetBoolean(secName, "log-all-queries", false);
+  wParams.log_succeeded_queries = configReader->GetBoolean(secName, "log-succeded-queries", false);
+  wParams.log_failed_queries = configReader->GetBoolean(secName, "log-failed-queries", false);
+  wParams.log_query_statistics = configReader->GetBoolean(secName, "log-query-statistics",  false);
+  wParams.log_query_duration = configReader->GetBoolean(secName, "log-query-duration", false);
+  wParams.log_client_output = configReader->GetBoolean(secName, "log-client-output", false);
+  wParams.log_query_numbers = configReader->GetBoolean(secName, "log-query-numbers", false);
+  }
+
+
+wRETCODE
+PQuery::createWorkerProcess(struct workerParams& Params) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  pqLogger->flushLog();
+  pid_t childPID;
+  childPID = fork();
+  if(childPID < 0) {
+    pqLogger->addRecordToLog("=> Cannot fork() child process: " + std::string(strerror(errno)));
+    return wERROR;
+    }
+  if(childPID > 0) {
+    pqLogger->addRecordToLog("-> Waiting for created worker " + std::to_string(childPID));
+    return wMASTER;
+    }
+  if (childPID == 0) {
+    Worker newWorker(Params);
+    sleep(10);
+//    newWorker.startWork(Params);
+
+//    newNode.setAllParams(Params);
+//    exitStatus = newNode.startWork();
+//}
+//    return exitStatus;
+    return wCHILD;                            //fake
+    }
+  return wDEFAULT;
+  }
+
+
+wRETCODE
+PQuery::createWorkerWithParams(std::string secName) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  struct workerParams wParams;
+  setupWorkerParams(wParams, secName);
+  wRETCODE wrc = createWorkerProcess(wParams);
+  if( wrc == wERROR) {
+    pqLogger->addRecordToLog("=> Error creating worker for " + secName);
+    }
+  return wrc;
+  }
+
+
+bool
+PQuery::runWorkers() {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  std::vector<std::string> sections;
+  sections = configReader->GetSections();
+  std::vector<std::string>::iterator it;
+
+  for (it = sections.begin(); it != sections.end(); it++) {
+    std::string secName = *it;
+    if (toLowerCase(secName) == "master") { continue; }
+    pqLogger->addRecordToLog("-> Checking " + secName + " params...");
+    if(configReader->GetBoolean(secName, "run", false)) {
+      pqLogger->addRecordToLog("-> Running worker for " + secName);
+      if (!createWorkerWithParams(secName)) {
+        return false;
+        }
+      }
+    }
+  pid_t wPID;
+  int status;
+  while ((wPID = wait(&status)) > 0) {
+    pqLogger->addRecordToLog("=> Exit status of child with PID " + std::to_string(wPID) + ": " + std::to_string(status));
+    }
+  return true;
+  }
+
+
 int
 PQuery::run() {
 #ifdef DEBUG
@@ -103,6 +218,7 @@ PQuery::run() {
 #endif
   showVersion();
   if(!prepareToRun()){ return EXIT_FAILURE; }
+  if(!runWorkers()){ return EXIT_FAILURE; }
   return EXIT_SUCCESS;
   }
 
@@ -130,8 +246,10 @@ PQuery::showHelp() {
   std::cout <<
     "# Section for master process\n" <<
     "[master]\n" <<
+    "# Directory to store logs\n" <<
+    "logdir = /tmp\n" <<
     "# Logfile for master process\n" <<
-    "logfile = /tmp/pquery3-master.log\n\n" <<
+    "logfile = pquery3-master.log\n\n" <<
     "[node0.domain.tld]\n" <<
     "# The database to connect to\n" <<
     "database = \n" <<

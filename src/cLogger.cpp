@@ -1,8 +1,8 @@
-#ifdef DEBUG
+
 #include <iostream>
-#endif
 
 #include <cstring>
+#include <string>
 #include <cerrno>
 #include <stdexcept>
 #include <common.hpp>
@@ -53,17 +53,30 @@ Logger::initLogFile(std::string filePath) {
   if(logFile.is_open()) {
     logFile.close();
     if(logFile.is_open()) {
-      std::cerr << "Can't open log file: " << asString(strerror(errno)) << std::endl;
+      std::cerr << "Can't open log file: " << std::string(strerror(errno)) << std::endl;
       return false;
       }
     }
-  logFile.open (filePath, std::ios::out|std::ios::trunc);
+  logFile.open (filePath, std::ios::trunc);
   if(!logFile.is_open()) {
-    std::cerr << "Can't open log file: " << asString(strerror(errno)) << std::endl;
+    std::cerr << "Can't open log file: " << std::string(strerror(errno)) << std::endl;
     return false;
     }
 
   return true;
+  }
+
+
+void
+Logger::flushLog() {
+  if(!logFile.is_open()) {
+    std::cerr << "Log file is not open, can't flush()" << std::endl;
+    return;
+    }
+  logFile.flush();
+  if(logFile.fail()) {
+    throw std::runtime_error("Can't flush() log file: " + std::string(strerror(errno)));
+    }
   }
 
 
@@ -74,7 +87,7 @@ Logger::addRecordToLog(std::string message) {
 #endif
   logFile << message << "\n";
   if(logFile.fail()) {
-    throw std::runtime_error("Can't write to log file: " + asString(strerror(errno)));
+    throw std::runtime_error("Can't write to log file: " + std::string(strerror(errno)));
     }
   }
 

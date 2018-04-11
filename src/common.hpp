@@ -1,8 +1,10 @@
 #ifndef __COMMON_HPP__
 #define __COMMON_HPP__
 
+#include <string>
+
 #ifndef PQVERSION
-#define PQVERSION "UNKNOWN"
+#define PQVERSION = "UNKNOWN"
 #endif
 
 #ifndef PQREVISION
@@ -23,9 +25,9 @@
 #endif
 #endif
 
-/* quick and dirty solution to return defines from above as string values */
-template <typename anyType>
-std::string asString(anyType value) { std::string tmpVal(value); return tmpVal; }
-
-// Error codes
+#if defined(WIN32) || defined(_WIN32)
+const std::string FSSEP = "\\";
+#else
+const std::string FSSEP = "/";
+#endif
 #endif
