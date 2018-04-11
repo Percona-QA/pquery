@@ -197,17 +197,27 @@ PQuery::runWorkers() {
     pqLogger->addRecordToLog("-> Checking " + secName + " params...");
     if(configReader->GetBoolean(secName, "run", false)) {
       pqLogger->addRecordToLog("-> Running worker for " + secName);
-      if (!createWorkerWithParams(secName)) {
-        return false;
+      wRETCODE wrc = createWorkerWithParams(secName);
+      switch(wrc){
+        case wERROR:
+          return false;
+        case wCHILD:
+          return true;
+        default:
+          break;
         }
-      }
-    }
+       }
+      } // for()
+
   pid_t wPID;
   int status;
+  bool retvalue;
+
   while ((wPID = wait(&status)) > 0) {
+    if(status != 0) { retvalue = false; }
     pqLogger->addRecordToLog("=> Exit status of child with PID " + std::to_string(wPID) + ": " + std::to_string(status));
     }
-  return true;
+  return retvalue;
   }
 
 
