@@ -5,11 +5,21 @@
 #include <chrono>
 #include <ctime>
 #include <cstring>
+#include <cmath>
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
 #include <common.hpp>
 #include <cPQuery.hpp>
+
+#ifdef HAVE_MYSQL
+# include <mysql.h>
+#endif
+
+#ifdef HAVE_PGSQL
+# include <pg_config.h>
+#endif
+
 
 PQuery::PQuery() {
 #ifdef DEBUG
@@ -29,6 +39,23 @@ PQuery::~PQuery() {
   if (pqLogger != 0) { delete pqLogger; pqLogger = 0; }
   }
 
+#ifdef HAVE_MYSQL
+std::string
+PQuery::getMySqlClientInfo(){
+  std::string ret_str;
+  ret_str = "* PQuery MySQL client library: " + std::string(MYSQL_FORK) + " v." + mysql_get_client_info();
+  return ret_str;
+}
+#endif
+
+#ifdef HAVE_PGSQL
+std::string
+PQuery::getPgSqlClientInfo(){
+  std::string ret_str;
+  ret_str = "* PQuery PgSQL client library: PgSQL v." + std::string(PG_VERSION);
+  return ret_str;
+}
+#endif
 
 bool
 PQuery::initLogger() {
@@ -244,6 +271,12 @@ PQuery::showVersion() {
   std::cout << "* PQuery version: "       << PQVERSION << std::endl;
   std::cout << "* PQuery revision: "      << PQREVISION << std::endl;
   std::cout << "* PQuery release date: "  << PQRELDATE << std::endl;
+#ifdef HAVE_MYSQL
+  std::cout << getMySqlClientInfo() << std::endl;
+#endif
+#ifdef HAVE_PGSQL
+  std::cout << getPgSqlClientInfo() << std::endl;
+#endif
   }
 
 

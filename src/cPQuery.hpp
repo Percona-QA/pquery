@@ -44,6 +44,14 @@ class PQuery
       return lowercased;
       }
 
+#ifdef HAVE_MYSQL
+    std::string getMySqlClientInfo();
+#endif
+
+#ifdef HAVE_PGSQL
+    std::string getPgSqlClientInfo();
+#endif
+
     wRETCODE createWorkerWithParams(std::string);
     void setupWorkerParams(struct workerParams&, std::string);
     wRETCODE createWorkerProcess(struct workerParams&);
