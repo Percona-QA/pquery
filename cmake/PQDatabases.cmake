@@ -53,7 +53,7 @@ ENDIF(WITH_MYSQL)
 # PostgreSQL
 IF(WITH_PGSQL)
   #
-  SET(PGSQL_BASEDIR "" CACHE PATH "Custom PostgreSQL location, use use to point to extracted tarball")
+  SET(PGSQL_BASEDIR "" CACHE PATH "Custom PostgreSQL location, use to point to extracted tarball")
   #
   FIND_PACKAGE(PostgreSQL REQUIRED)
   IF(PostgreSQL_FOUND)

@@ -5,6 +5,8 @@
 #include <chrono>
 #include <ctime>
 
+#include <sys/types.h>
+#include <unistd.h>
 #include <common.hpp>
 #include <cPQuery.hpp>
 

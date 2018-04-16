@@ -37,7 +37,8 @@ class PQuery
     std::string configFilePath;
     std::string logFilePath;
 
-    inline std::string toLowerCase(std::string str) {
+    inline std::string
+    toLowerCase(std::string str) {
       auto lowercased = str;
       std::transform (lowercased.begin(), lowercased.end(), lowercased.begin(), ::tolower);
       return lowercased;
