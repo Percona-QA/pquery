@@ -4,9 +4,10 @@
 #include <getopt.h>
 #include <chrono>
 #include <ctime>
-
+#include <cstring>
 #include <sys/types.h>
 #include <unistd.h>
+#include <sys/wait.h>
 #include <common.hpp>
 #include <cPQuery.hpp>
 
@@ -147,7 +148,7 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
   pid_t childPID;
   childPID = fork();
   if(childPID < 0) {
-    pqLogger->addRecordToLog("=> Cannot fork() child process: " + std::string(strerror(errno)));
+    pqLogger->addRecordToLog("=> Cannot fork() child process: " + std::string(std::strerror(errno)));
     return wERROR;
     }
   if(childPID > 0) {
