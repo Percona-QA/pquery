@@ -1,5 +1,4 @@
-#
-SET(BINARY_NAME "pquery${vMajor}-${PQUERY_EXT}")
+SET(BINARY_NAME "pquery${vMajor}")
 ADD_SUBDIRECTORY(third_party)
 INCLUDE_DIRECTORIES(third_party/inih++)
 SET(LIBS_TO_LINK ${LIBS_TO_LINK} iniconf)

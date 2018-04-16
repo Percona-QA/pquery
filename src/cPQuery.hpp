@@ -2,6 +2,7 @@
 #define PQUERY_HPP
 
 #include <string>
+#include <algorithm>
 #include <INIReader.hpp>
 #include <cLogger.hpp>
 #include <cWorker.hpp>
