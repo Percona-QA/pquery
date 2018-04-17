@@ -381,7 +381,7 @@ PQuery::parseCliOptions(int argc, char* argv[]) {
         return false;
       case 'v':
         showVersion();
-        return true;
+        return false;
       default:
         break;
       }
