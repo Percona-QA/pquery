@@ -104,9 +104,11 @@ endforeach()
 find_path(PGSQL_INCLUDE_DIR
   NAMES libpq-fe.h
   PATHS
-  /usr/include
-  /usr/local/include
-   # Look in other places.
+  #/usr/include
+  #/usr/local/include
+  #/usr/local/opt/include
+
+  # Look in other places.
    ${PGSQL_ROOT_DIRECTORIES}
   PATH_SUFFIXES
     pgsql
@@ -174,10 +176,12 @@ endif()
 
 # Did we find anything?
 INCLUDE(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(PostgreSQL
-                                  REQUIRED_VARS PGSQL_LIBRARY PGSQL_INCLUDE_DIR PGSQL_TYPE_INCLUDE_DIR
-                                  VERSION_VAR PGSQL_VERSION_STRING)
-set(PGSQL_FOUND  ${PGSQL_FOUND})
+#find_package_handle_standard_args(PostgreSQL
+#                                  REQUIRED_VARS PGSQL_LIBRARY PGSQL_INCLUDE_DIR PGSQL_TYPE_INCLUDE_DIR
+#                                   VERSION_VAR PGSQL_VERSION_STRING)
+IF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
+  SET(PGSQL_FOUND TRUE)
+ENDIF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
 
 # Now try to get the include and library path.
 if(PGSQL_FOUND)

@@ -35,6 +35,7 @@ class Worker
   {
   public:
     Worker(struct workerParams);
+    bool tryConnect();
 
   };
 #endif
