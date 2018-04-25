@@ -33,7 +33,6 @@ class PQuery
     void setLogFilePath(std::string logPath) { logFilePath = logPath; }
     bool logVersionInfo();
 
-
   private:
     std::string configFilePath;
     std::string logFilePath;
@@ -45,6 +44,7 @@ class PQuery
       return lowercased;
       }
     void  doCleanup(std::string);
+    void logWorkerDetails(struct workerParams&);
 
 #ifdef HAVE_MYSQL
     std::string getMySqlClientInfo();

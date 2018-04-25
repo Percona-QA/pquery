@@ -20,7 +20,6 @@
 # include <pg_config.h>
 #endif
 
-
 PQuery::PQuery() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
@@ -39,18 +38,19 @@ PQuery::~PQuery() {
   if (pqLogger != 0) { delete pqLogger; pqLogger = 0; }
   }
 
+
 #ifdef HAVE_MYSQL
 std::string
-PQuery::getMySqlClientInfo(){
+PQuery::getMySqlClientInfo() {
   return mysql_get_client_info();
-}
+  }
 #endif
 
 #ifdef HAVE_PGSQL
 std::string
-PQuery::getPgSqlClientInfo(){
+PQuery::getPgSqlClientInfo() {
   return std::string(PG_VERSION);
-}
+  }
 #endif
 
 bool
@@ -132,12 +132,14 @@ PQuery::prepareToRun() {
   return true;
   }
 
+
 void
-PQuery::doCleanup(std::string name){
+PQuery::doCleanup(std::string name) {
   std::string logfile = configReader->Get("master", "logdir", "/tmp") + "/" + name + "_worker.log";
   pqLogger->initLogFile(logfile);
   if (configReader != 0){ delete configReader; configReader = 0; }
-}
+  }
+
 
 void
 PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
@@ -174,6 +176,35 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
   }
 
 
+void
+PQuery::logWorkerDetails(struct workerParams& Params) {
+  pqLogger->addRecordToLog("-> Config name: " + Params.myName);
+  pqLogger->addRecordToLog("-> DB type: " + Params.dbtype);
+  pqLogger->addRecordToLog("-> DB name: " + Params.database);
+  pqLogger->addRecordToLog("-> DB address: " + Params.address);
+  pqLogger->addRecordToLog("-> DB username: " + Params.username);
+  pqLogger->addRecordToLog("-> DB password: " + Params.password);
+  pqLogger->addRecordToLog("-> DB socket: " + Params.socket);
+  pqLogger->addRecordToLog("-> DB port: " + std::to_string(Params.port));
+#ifdef MAXPACKET
+  pqLogger->addRecordToLog("-> MySQL max packet size: " + std::to_string(Params.maxpacket));
+#endif
+  pqLogger->addRecordToLog("-> PQuery threads: " + std::to_string(Params.threads));
+  pqLogger->addRecordToLog("-> PQuery queries per thread: " + std::to_string(Params.queries_per_thread));
+  pqLogger->addRecordToLog("-> PQuery verbosity: " + std::to_string(Params.verbose));
+  pqLogger->addRecordToLog("-> PQuery debug: " + std::to_string(Params.debug));
+  pqLogger->addRecordToLog("-> PQuery shuffle: " + std::to_string(Params.shuffle));
+  pqLogger->addRecordToLog("-> PQuery infile: " + Params.infile);
+  pqLogger->addRecordToLog("-> PQuery log directory: " + Params.logdir);
+  pqLogger->addRecordToLog("-> PQuery log all queries: " + std::to_string(Params.log_all_queries));
+  pqLogger->addRecordToLog("-> PQuery log failed queries: " + std::to_string(Params.log_failed_queries));
+  pqLogger->addRecordToLog("-> PQuery log query statistics: " + std::to_string(Params.log_query_statistics));
+  pqLogger->addRecordToLog("-> PQuery log query duration: " + std::to_string(Params.log_query_duration));
+  pqLogger->addRecordToLog("-> PQuery log client output: " + std::to_string(Params.log_client_output));
+  pqLogger->addRecordToLog("-> PQuery log query numbers: " + std::to_string(Params.log_query_numbers));
+  }
+
+
 wRETCODE
 PQuery::createWorkerProcess(struct workerParams& Params) {
 #ifdef DEBUG
@@ -192,16 +223,19 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
     }
   if (childPID == 0) {
     doCleanup(Params.myName);
-
+    if(Params.verbose) {
+      logWorkerDetails(Params);
+      }
     Worker newWorker(Params);
+//TODO
     int retcode;
     retcode = newWorker.startWork(Params);
 
-    if(retcode != 0){
+    if(retcode != 0) {
       return wERROR;
-    }
+      }
 
-    return wCHILD;                            //fake
+    return wCHILD;                                //fake
     }
   return wDEFAULT;
   }
@@ -238,7 +272,7 @@ PQuery::runWorkers() {
     if(configReader->GetBoolean(secName, "run", false)) {
       pqLogger->addRecordToLog("-> Running worker for " + secName);
       wRETCODE wrc = createWorkerWithParams(secName);
-      switch(wrc){
+      switch(wrc) {
         case wERROR:
           return false;
         case wCHILD:
@@ -246,12 +280,12 @@ PQuery::runWorkers() {
         default:
           break;
         }
-       }
-      } // for()
+      }
+    }                                             // for()
 
   pid_t wPID;
   int status;
-  bool retvalue = true;
+  bool retvalue = true;                           //uninitialised is always false
 
   while ((wPID = wait(&status)) > 0) {
     if(status != 0) { retvalue = false; }

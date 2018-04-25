@@ -4,11 +4,7 @@
 #define PQMYSQL_HPP
 
 class cMySQL: public Worker
-{
+  {
 
-
-
-};
-
-
+  };
 #endif

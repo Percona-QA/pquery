@@ -4,7 +4,7 @@ PROJECT(PQuery)
 SET(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 OPTION(DEVELOPER_MODE "Enable developer mode" ON)
 OPTION(WITH_MYSQL "Build with MySQL support" ON)
-OPTION(WITH_PGSQL "Build with PostgreSQL support" ON)
+OPTION(WITH_PGSQL "Build with PostgreSQL support" OFF)
 #
 INCLUDE(PQSetupCompiler)
 INCLUDE(PQDatabases)

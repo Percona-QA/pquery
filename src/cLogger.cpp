@@ -16,6 +16,7 @@ Logger::Logger() {
   std::ios_base::sync_with_stdio(false);
   }
 
+
 Logger::~Logger() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;

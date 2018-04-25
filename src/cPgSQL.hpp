@@ -4,10 +4,7 @@
 #define PQPGSQL_HPP
 
 class PgSQL: public Worker
-{
+  {
 
-
-
-};
-
+  };
 #endif
