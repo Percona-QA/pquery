@@ -1,11 +1,11 @@
-#ifndef PQUERY_HPP
-#define PQUERY_HPP
-
 #include <string>
 #include <algorithm>
 #include <INIReader.hpp>
 #include <cLogger.hpp>
 #include <cWorker.hpp>
+
+#ifndef PQUERY_HPP
+#define PQUERY_HPP
 
 enum wRETCODE
   {
@@ -33,6 +33,7 @@ class PQuery
     void setLogFilePath(std::string logPath) { logFilePath = logPath; }
     bool logVersionInfo();
 
+
   private:
     std::string configFilePath;
     std::string logFilePath;
@@ -43,6 +44,7 @@ class PQuery
       std::transform (lowercased.begin(), lowercased.end(), lowercased.begin(), ::tolower);
       return lowercased;
       }
+    void  doCleanup(std::string);
 
 #ifdef HAVE_MYSQL
     std::string getMySqlClientInfo();

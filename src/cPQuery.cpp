@@ -132,6 +132,12 @@ PQuery::prepareToRun() {
   return true;
   }
 
+void
+PQuery::doCleanup(std::string name){
+  std::string logfile = configReader->Get("master", "logdir", "/tmp") + "/" + name + "_worker.log";
+  pqLogger->initLogFile(logfile);
+  if (configReader != 0){ delete configReader; configReader = 0; }
+}
 
 void
 PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
@@ -185,14 +191,16 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
     return wMASTER;
     }
   if (childPID == 0) {
-    Worker newWorker(Params);
-    sleep(10);
-//    newWorker.startWork(Params);
+    doCleanup(Params.myName);
 
-//    newNode.setAllParams(Params);
-//    exitStatus = newNode.startWork();
-//}
-//    return exitStatus;
+    Worker newWorker(Params);
+    int retcode;
+    retcode = newWorker.startWork(Params);
+
+    if(retcode != 0){
+      return wERROR;
+    }
+
     return wCHILD;                            //fake
     }
   return wDEFAULT;
@@ -243,7 +251,7 @@ PQuery::runWorkers() {
 
   pid_t wPID;
   int status;
-  bool retvalue;
+  bool retvalue = true;
 
   while ((wPID = wait(&status)) > 0) {
     if(status != 0) { retvalue = false; }
