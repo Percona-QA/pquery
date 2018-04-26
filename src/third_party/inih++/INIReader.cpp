@@ -15,14 +15,28 @@ INIReader::INIReader(string filename) {
   }
 
 
-int INIReader::ParseError() {
+int
+INIReader::ParseError() {
   return _error;
   }
 
 
-string INIReader::Get(string section, string name, string default_value) {
+string
+INIReader::Get(string section, string name, string default_value) {
   string key = MakeKey(section, name);
   return _values.count(key) ? _values[key] : default_value;
+  }
+
+
+eDBTYPE
+INIReader::getDbType(string section, string name, eDBTYPE default_value) {
+  string valstr = Get(section, name, "");
+  if(valstr.empty()) { return default_value; }
+  if(valstr == "mysql") { return eMYSQL; }
+  if((valstr == "pgsql") || (valstr == "postgres") || (valstr == "postgresql"))  { return ePGSQL; }
+  if((valstr == "mongo") || (valstr == "mongodb")) { return eMONGO; }
+//throw std::logic_error("Invalid value for DB TYPE: " + valstr);
+  return eNONE;
   }
 
 
@@ -77,13 +91,14 @@ double INIReader::GetReal(string section, string name, double default_value) {
 bool INIReader::GetBoolean(string section, string name, bool default_value) {
   string valstr = Get(section, name, "");
 // Convert to lower case to make string comparisons case-insensitive
-  std::transform(valstr.begin(), valstr.end(), valstr.begin(), ::tolower);
-  if (valstr == "true" || valstr == "yes" || valstr == "on" || valstr == "1")
+//std::transform(valstr.begin(), valstr.end(), valstr.begin(), ::tolower);
+  if (valstr == "true" || valstr == "yes" || valstr == "on" || valstr == "1") {
     return true;
-  else if (valstr == "false" || valstr == "no" || valstr == "off" || valstr == "0")
+    }
+  if (valstr == "false" || valstr == "no" || valstr == "off" || valstr == "0") {
     return false;
-  else
-    return default_value;
+    }
+  return default_value;
   }
 
 

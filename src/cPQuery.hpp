@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <INIReader.hpp>
 #include <cLogger.hpp>
-#include <cWorker.hpp>
+#include <cDbWorker.hpp>
 
 #ifndef PQUERY_HPP
 #define PQUERY_HPP
@@ -43,6 +43,19 @@ class PQuery
       std::transform (lowercased.begin(), lowercased.end(), lowercased.begin(), ::tolower);
       return lowercased;
       }
+    inline std::string
+    dbtype_str(eDBTYPE type) {
+      switch (type) {
+        case eMYSQL:
+          return "MySQL";
+        case ePGSQL:
+          return "PostgreSQL";
+        case eMONGO:
+          return "MongoDB";
+        default:
+          return "UNKNOWN";
+        }
+      }
     void  doCleanup(std::string);
     void logWorkerDetails(struct workerParams&);
 
@@ -60,6 +73,7 @@ class PQuery
 //
     INIReader* configReader;
     Logger* pqLogger;
+    DbWorker* dbWorker;
 
   };
 #endif

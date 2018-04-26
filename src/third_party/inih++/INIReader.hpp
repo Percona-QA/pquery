@@ -5,12 +5,13 @@
 //
 // http://code.google.com/p/inih/
 
-#ifndef __INIREADER_H__
-#define __INIREADER_H__
-
 #include <map>
 #include <string>
 #include <vector>
+#include <eDbTypes.hpp>
+
+#ifndef __INIREADER_H__
+#define __INIREADER_H__
 
 // Read an INI file into easy-to-access name/value pairs. (Note that I've gone
 // for simplicity here rather than speed, but it should be pretty decent.)
@@ -26,8 +27,7 @@ class INIReader
     int ParseError();
 
 // Get a string value from INI file, returning default_value if not found.
-    std::string Get(std::string section, std::string name,
-      std::string default_value);
+    std::string Get(std::string section, std::string name, std::string default_value);
 
 // Get an integer (long) value from INI file, returning default_value if
 // not found or not a valid integer (decimal "1234", "-1234", or hex "0x4d2").
@@ -42,6 +42,9 @@ class INIReader
 // not a valid true/false value. Valid true values are "true", "yes", "on", "1",
 // and valid false values are "false", "no", "off", "0" (not case sensitive).
     bool GetBoolean(std::string section, std::string name, bool default_value);
+
+// Get DB Type and return value instead of string
+    eDBTYPE getDbType(std::string section, std::string name, eDBTYPE default_value);
 
 // Returns all the sections (groups) from the associated INI file
     std::vector<std::string> GetSections() const;

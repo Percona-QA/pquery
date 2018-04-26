@@ -11,13 +11,19 @@
 #include <sys/wait.h>
 #include <common.hpp>
 #include <cPQuery.hpp>
-
+//
 #ifdef HAVE_MYSQL
+#include <cMysqlWorker.hpp>
 # include <mysql.h>
 #endif
 
 #ifdef HAVE_PGSQL
+#include <cPgsqlWorker.hpp>
 # include <pg_config.h>
+#endif
+
+#ifdef HAVE_MONGO
+#include <cMongoWorker.hpp>
 #endif
 
 PQuery::PQuery() {
@@ -25,8 +31,9 @@ PQuery::PQuery() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   configFilePath = "pquery.cfg";
-  configReader = 0;
-  pqLogger = 0;
+  configReader = NULL;
+  pqLogger = NULL;
+  dbWorker = NULL;
   }
 
 
@@ -34,8 +41,9 @@ PQuery::~PQuery() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  if (configReader != 0) { delete configReader; configReader = 0;}
-  if (pqLogger != 0) { delete pqLogger; pqLogger = 0; }
+  if (configReader != NULL) { delete configReader; configReader = NULL;}
+  if (pqLogger != NULL) { delete pqLogger; pqLogger = NULL; }
+  if (dbWorker != NULL) { delete dbWorker; dbWorker = NULL; }
   }
 
 
@@ -152,7 +160,8 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
   wParams.password  = configReader->Get(secName, "password", "");
   wParams.socket    = configReader->Get(secName, "socket", "/tmp/my.sock");
   wParams.database  = configReader->Get(secName, "database", "");
-  wParams.dbtype    = configReader->Get(secName, "dbtype", "");
+
+  wParams.dbtype    = configReader->getDbType(secName, "dbtype", eNONE);
 
   wParams.port = configReader->GetInteger(secName, "port", 3306);
   wParams.threads = configReader->GetInteger(secName, "threads", 10);
@@ -179,7 +188,7 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
 void
 PQuery::logWorkerDetails(struct workerParams& Params) {
   pqLogger->addRecordToLog("-> Config name: " + Params.myName);
-  pqLogger->addRecordToLog("-> DB type: " + Params.dbtype);
+  pqLogger->addRecordToLog("-> DB type: " + dbtype_str(Params.dbtype));
   pqLogger->addRecordToLog("-> DB name: " + Params.database);
   pqLogger->addRecordToLog("-> DB address: " + Params.address);
   pqLogger->addRecordToLog("-> DB username: " + Params.username);
@@ -213,23 +222,51 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
   pqLogger->flushLog();
   pid_t childPID;
   childPID = fork();
+
   if(childPID < 0) {
     pqLogger->addRecordToLog("=> Cannot fork() child process: " + std::string(std::strerror(errno)));
     return wERROR;
     }
+
   if(childPID > 0) {
     pqLogger->addRecordToLog("-> Waiting for created worker " + std::to_string(childPID));
     return wMASTER;
     }
+
   if (childPID == 0) {
     doCleanup(Params.myName);
+
     if(Params.verbose) {
       logWorkerDetails(Params);
       }
-    Worker newWorker(Params);
+
+    switch (Params.dbtype) {
+      case eMYSQL:
+#ifdef HAVE_MYSQL
+        dbWorker = new MysqlWorker();
+#endif
+      case ePGSQL:
+#ifdef HAVE_PGSQL
+        dbWorker = new PgsqlWorker();
+#endif
+      case eMONGO:
+#ifdef HAVE_MONGO
+        dbWorker = new MongoWorker();
+#endif
+      default:
+        std::cerr << "Unable to create worker of unknown type!" << std::endl;
+        return wERROR;
+      }
+
+      if(dbWorker == NULL){
+        pqLogger->addRecordToLog("=> Error creating worker of type  " + dbtype_str(Params.dbtype));
+        pqLogger->addRecordToLog("=> Something went really wrong, exiting...");
+        return wERROR;
+      }
+
 //TODO
     int retcode;
-    retcode = newWorker.startWork(Params);
+    retcode = dbWorker->executeTests(Params);
 
     if(retcode != 0) {
       return wERROR;

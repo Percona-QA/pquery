@@ -1,14 +1,15 @@
-#ifndef PQWORKER_HPP
-#define PQWORKER_HPP
-
 #include <string>
+#include <eDbTypes.hpp>
+
+#ifndef PQDBWORKER_HPP
+#define PQDBWORKER_HPP
 
 struct
 workerParams
   {
   std::string myName;                             // unique name for worker
   std::string database;
-  std::string dbtype;
+  eDBTYPE dbtype;
   std::string address;
   std::string socket;
   std::string username;
@@ -31,11 +32,11 @@ workerParams
   bool shuffle;
   };
 
-class Worker
+class DbWorker
   {
   public:
-    Worker(struct workerParams);
-    int startWork(struct workerParams);
+    DbWorker();
+    int executeTests(struct workerParams);
     bool tryConnect();
 
   };
