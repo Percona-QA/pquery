@@ -241,27 +241,32 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
       }
 
     switch (Params.dbtype) {
-      case eMYSQL:
+
 #ifdef HAVE_MYSQL
+      case eMYSQL:
         dbWorker = new MysqlWorker();
+        break;
 #endif
-      case ePGSQL:
 #ifdef HAVE_PGSQL
+      case ePGSQL:
         dbWorker = new PgsqlWorker();
+        break;
 #endif
-      case eMONGO:
 #ifdef HAVE_MONGO
+      case eMONGO:
         dbWorker = new MongoWorker();
+        break;
 #endif
       default:
-        std::cerr << "Unable to create worker of unknown type!" << std::endl;
+        std::cerr << "Unable to create worker of unsupported type " << dbtype_str(Params.dbtype) << std::endl;
+        pqLogger->addRecordToLog("=> PQuery is not compiled with " + dbtype_str(Params.dbtype));
         return wERROR;
       }
 
-      if(dbWorker == NULL){
-        pqLogger->addRecordToLog("=> Error creating worker of type  " + dbtype_str(Params.dbtype));
-        pqLogger->addRecordToLog("=> Something went really wrong, exiting...");
-        return wERROR;
+    if(dbWorker == NULL) {
+      pqLogger->addRecordToLog("=> Error creating worker of type  " + dbtype_str(Params.dbtype));
+      pqLogger->addRecordToLog("=> Something went really wrong, exiting...");
+      return wERROR;
       }
 
 //TODO

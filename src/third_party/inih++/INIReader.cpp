@@ -1,5 +1,6 @@
 // Read an INI file into easy-to-access name/value pairs.
 
+#include <iostream>
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -31,6 +32,7 @@ INIReader::Get(string section, string name, string default_value) {
 eDBTYPE
 INIReader::getDbType(string section, string name, eDBTYPE default_value) {
   string valstr = Get(section, name, "");
+  std::transform(valstr.begin(), valstr.end(), valstr.begin(), ::tolower);
   if(valstr.empty()) { return default_value; }
   if(valstr == "mysql") { return eMYSQL; }
   if((valstr == "pgsql") || (valstr == "postgres") || (valstr == "postgresql"))  { return ePGSQL; }
@@ -91,7 +93,7 @@ double INIReader::GetReal(string section, string name, double default_value) {
 bool INIReader::GetBoolean(string section, string name, bool default_value) {
   string valstr = Get(section, name, "");
 // Convert to lower case to make string comparisons case-insensitive
-//std::transform(valstr.begin(), valstr.end(), valstr.begin(), ::tolower);
+  std::transform(valstr.begin(), valstr.end(), valstr.begin(), ::tolower);
   if (valstr == "true" || valstr == "yes" || valstr == "on" || valstr == "1") {
     return true;
     }
