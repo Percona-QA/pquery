@@ -190,7 +190,7 @@ PQuery::logWorkerDetails(struct workerParams& Params) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  pqLogger->addRecordToLog("#########################################################################");
+  pqLogger->addSeparation('#', 40);
   pqLogger->addRecordToLog("## Config name: " + Params.myName);
   pqLogger->addRecordToLog("## DB type: " + dbtype_str(Params.dbtype));
   pqLogger->addRecordToLog("## DB name: " + Params.database);
@@ -216,7 +216,7 @@ PQuery::logWorkerDetails(struct workerParams& Params) {
   pqLogger->addRecordToLog("## PQuery log query duration: " + std::to_string(Params.log_query_duration));
   pqLogger->addRecordToLog("## PQuery log client output: " + std::to_string(Params.log_client_output));
   pqLogger->addRecordToLog("## PQuery log query numbers: " + std::to_string(Params.log_query_numbers));
-  pqLogger->addRecordToLog("#########################################################################");
+  pqLogger->addSeparation('#', 40);
   }
 
 
@@ -276,11 +276,11 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
       }
 
 //TODO
-    int retcode;
+    bool success;
     dbWorker->setupLogger(pqLogger);
-    retcode = dbWorker->executeTests(Params);
+    success = dbWorker->executeTests(Params);
 
-    if(retcode != 0) {
+    if(!success) {
       return wERROR;
       }
 

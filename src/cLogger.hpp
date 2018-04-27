@@ -29,6 +29,7 @@ class Logger
     bool initLogFile(std::string);
     void addRecordToLog(std::string);
     void addRecordToLog(std::string, logVerbosity);
+    void addSeparation(char, int);
     void flushLog();
 
   private:

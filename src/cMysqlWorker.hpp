@@ -9,7 +9,7 @@ class MysqlWorker: public DbWorker
   public:
     MysqlWorker();
     ~MysqlWorker();
-    int executeTests(struct workerParams&);
+    bool executeTests(struct workerParams&);
 
   private:
     std::string getServerVersion(MYSQL*);

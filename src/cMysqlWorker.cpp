@@ -67,13 +67,13 @@ MysqlWorker::testConnection() {
   }
 
 
-int
+bool
 MysqlWorker::executeTests(struct workerParams& params) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   if(!params.myName.empty()) {
-    return 0;
+    return true;
     }
-  return 0;
+  return true;
   }

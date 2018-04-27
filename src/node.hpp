@@ -68,3 +68,18 @@ class Node
     std::atomic <unsigned long long> failed_queries_total;
   };
 #endif
+
+int
+Node::startWork() {
+
+  workers.resize(myParams.threads);
+
+  for (int i=0; i<myParams.threads; i++) {
+    workers[i] = std::thread(&Node::workerThread, this, i);
+    }
+
+  for (int i=0; i<myParams.threads; i++) {
+    workers[i].join();
+    }
+  return EXIT_SUCCESS;
+  }

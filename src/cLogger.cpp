@@ -1,10 +1,9 @@
-
 #include <iostream>
-
 #include <cstring>
 #include <string>
 #include <cerrno>
 #include <stdexcept>
+#include <iomanip>
 #include <common.hpp>
 #include <cLogger.hpp>
 
@@ -33,6 +32,18 @@ Logger::setLogVerbosity(logVerbosity level) {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   LogEvents = level;
+  }
+
+
+void
+Logger::addSeparation(char what, int lenght) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  std::ios_base::fmtflags f(logFile.flags());
+  logFile << std::setfill(what) << std::setw (lenght) << "\n";
+  logFile.flags(f);
+
   }
 
 

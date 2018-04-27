@@ -1,5 +1,8 @@
 #include <string>
 #include <memory>
+#include <vector>
+#include <thread>
+#include <atomic>
 
 #include <cLogger.hpp>
 #include <eDbTypes.hpp>
@@ -41,14 +44,21 @@ class DbWorker
   public:
     DbWorker();
     virtual ~DbWorker();
-    int executeTests(struct workerParams);
+    bool executeTests(struct workerParams);
     void setupLogger(std::shared_ptr<Logger>);
+    bool loadQueryList();
 
   protected:
+    void adjustRuntimeParams();
+    std::vector<std::thread> workers;
     std::shared_ptr<Logger> wLogger;
+    std::shared_ptr<std::vector<std::string>> queryList;
     struct workerParams mParams;
+    std::atomic <unsigned long long> performed_queries_total;
+    std::atomic <unsigned long long> failed_queries_total;
 
   private:
+    void writeFinalReport();
     virtual bool testConnection();
     void storeParams(struct workerParams wParams);
 
