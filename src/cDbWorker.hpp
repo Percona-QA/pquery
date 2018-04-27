@@ -1,4 +1,6 @@
 #include <string>
+#include <memory>
+
 #include <cLogger.hpp>
 #include <eDbTypes.hpp>
 
