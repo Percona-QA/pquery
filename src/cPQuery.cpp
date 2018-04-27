@@ -190,31 +190,33 @@ PQuery::logWorkerDetails(struct workerParams& Params) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  pqLogger->addRecordToLog("-> Config name: " + Params.myName);
-  pqLogger->addRecordToLog("-> DB type: " + dbtype_str(Params.dbtype));
-  pqLogger->addRecordToLog("-> DB name: " + Params.database);
-  pqLogger->addRecordToLog("-> DB address: " + Params.address);
-  pqLogger->addRecordToLog("-> DB username: " + Params.username);
-  pqLogger->addRecordToLog("-> DB password: " + Params.password);
-  pqLogger->addRecordToLog("-> DB socket: " + Params.socket);
-  pqLogger->addRecordToLog("-> DB port: " + std::to_string(Params.port));
+  pqLogger->addRecordToLog("#########################################################################");
+  pqLogger->addRecordToLog("## Config name: " + Params.myName);
+  pqLogger->addRecordToLog("## DB type: " + dbtype_str(Params.dbtype));
+  pqLogger->addRecordToLog("## DB name: " + Params.database);
+  pqLogger->addRecordToLog("## DB address: " + Params.address);
+  pqLogger->addRecordToLog("## DB username: " + Params.username);
+  pqLogger->addRecordToLog("## DB password: " + Params.password);
+  pqLogger->addRecordToLog("## DB socket: " + Params.socket);
+  pqLogger->addRecordToLog("## DB port: " + std::to_string(Params.port));
 #ifdef HAVE_MYSQL
 #ifdef MAXPACKET
-  pqLogger->addRecordToLog("-> MySQL max packet size: " + std::to_string(Params.maxpacket));
+  pqLogger->addRecordToLog("## MySQL max packet size: " + std::to_string(Params.maxpacket));
 #endif
 #endif
-  pqLogger->addRecordToLog("-> PQuery threads: " + std::to_string(Params.threads));
-  pqLogger->addRecordToLog("-> PQuery queries per thread: " + std::to_string(Params.queries_per_thread));
-  pqLogger->addRecordToLog("-> PQuery verbosity: " + std::to_string(Params.verbose));
-  pqLogger->addRecordToLog("-> PQuery shuffle: " + std::to_string(Params.shuffle));
-  pqLogger->addRecordToLog("-> PQuery infile: " + Params.infile);
-  pqLogger->addRecordToLog("-> PQuery log directory: " + Params.logdir);
-  pqLogger->addRecordToLog("-> PQuery log all queries: " + std::to_string(Params.log_all_queries));
-  pqLogger->addRecordToLog("-> PQuery log failed queries: " + std::to_string(Params.log_failed_queries));
-  pqLogger->addRecordToLog("-> PQuery log query statistics: " + std::to_string(Params.log_query_statistics));
-  pqLogger->addRecordToLog("-> PQuery log query duration: " + std::to_string(Params.log_query_duration));
-  pqLogger->addRecordToLog("-> PQuery log client output: " + std::to_string(Params.log_client_output));
-  pqLogger->addRecordToLog("-> PQuery log query numbers: " + std::to_string(Params.log_query_numbers));
+  pqLogger->addRecordToLog("## PQuery threads: " + std::to_string(Params.threads));
+  pqLogger->addRecordToLog("## PQuery queries per thread: " + std::to_string(Params.queries_per_thread));
+  pqLogger->addRecordToLog("## PQuery verbosity: " + std::to_string(Params.verbose));
+  pqLogger->addRecordToLog("## PQuery shuffle: " + std::to_string(Params.shuffle));
+  pqLogger->addRecordToLog("## PQuery infile: " + Params.infile);
+  pqLogger->addRecordToLog("## PQuery log directory: " + Params.logdir);
+  pqLogger->addRecordToLog("## PQuery log all queries: " + std::to_string(Params.log_all_queries));
+  pqLogger->addRecordToLog("## PQuery log failed queries: " + std::to_string(Params.log_failed_queries));
+  pqLogger->addRecordToLog("## PQuery log query statistics: " + std::to_string(Params.log_query_statistics));
+  pqLogger->addRecordToLog("## PQuery log query duration: " + std::to_string(Params.log_query_duration));
+  pqLogger->addRecordToLog("## PQuery log client output: " + std::to_string(Params.log_client_output));
+  pqLogger->addRecordToLog("## PQuery log query numbers: " + std::to_string(Params.log_query_numbers));
+  pqLogger->addRecordToLog("#########################################################################");
   }
 
 
@@ -262,7 +264,7 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
         break;
 #endif
       default:
-        std::cerr << "Unable to create worker of unsupported type " << dbtype_str(Params.dbtype) << std::endl;
+        std::cerr << "=> Unable to create worker of unsupported type " << dbtype_str(Params.dbtype) << std::endl;
         pqLogger->addRecordToLog("=> PQuery is not compiled with " + dbtype_str(Params.dbtype));
         return wERROR;
       }
@@ -297,7 +299,7 @@ PQuery::createWorkerWithParams(std::string secName) {
   setupWorkerParams(wParams, secName);
   wRETCODE wrc = createWorkerProcess(wParams);
   if( wrc == wERROR) {
-    pqLogger->addRecordToLog("=> Error creating worker for " + secName);
+    pqLogger->addRecordToLog("=> Worker returned error for " + secName);
     }
   return wrc;
   }

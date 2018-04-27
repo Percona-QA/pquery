@@ -35,17 +35,20 @@ workerParams
 
 class DbWorker
   {
+
   public:
     DbWorker();
-    ~DbWorker();
+    virtual ~DbWorker();
     int executeTests(struct workerParams);
-    bool tryConnect();
     void setupLogger(std::shared_ptr<Logger>);
-  private:
-    bool testConnection();
-    void storeParams(struct workerParams wParams);
-    struct workerParams mParams;
+
+  protected:
     std::shared_ptr<Logger> wLogger;
+    struct workerParams mParams;
+
+  private:
+    virtual bool testConnection();
+    void storeParams(struct workerParams wParams);
 
   };
 #endif
