@@ -32,7 +32,6 @@ PQuery::PQuery() {
 #endif
   configFilePath = "pquery.cfg";
   configReader = NULL;
-  pqLogger = NULL;
   dbWorker = NULL;
   }
 
@@ -42,7 +41,6 @@ PQuery::~PQuery() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   if (configReader != NULL) { delete configReader; configReader = NULL;}
-  if (pqLogger != NULL) { delete pqLogger; pqLogger = NULL; }
   if (dbWorker != NULL) { delete dbWorker; dbWorker = NULL; }
   }
 
@@ -66,10 +64,8 @@ PQuery::initLogger() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  if(pqLogger == 0) {
-    pqLogger = new Logger();
-    }
-  if(!pqLogger) {
+  pqLogger = std::make_shared<Logger>();
+  if(pqLogger == NULL) {
     std::cerr << "Unable to init logging subsystem" << std::endl;
     return false;
     }
@@ -143,6 +139,9 @@ PQuery::prepareToRun() {
 
 void
 PQuery::doCleanup(std::string name) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   std::string logfile = configReader->Get("master", "logdir", "/tmp") + "/" + name + "_worker.log";
   pqLogger->initLogFile(logfile);
   if (configReader != 0){ delete configReader; configReader = 0; }
@@ -166,11 +165,12 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
   wParams.port = configReader->GetInteger(secName, "port", 3306);
   wParams.threads = configReader->GetInteger(secName, "threads", 10);
   wParams.queries_per_thread = configReader->GetInteger(secName, "queries-per-thread", 10000);
+#ifdef HAVE_MYSQL
 #ifdef MAXPACKET
   wParams.maxpacket = configReader->GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
 #endif
+#endif
   wParams.verbose = configReader->GetBoolean(secName, "verbose", false);
-  wParams.debug = configReader->GetBoolean(secName, "debug", false);
   wParams.shuffle = configReader->GetBoolean(secName, "shuffle", true);
   wParams.infile = configReader->Get(secName, "infile", "pquery.sql");
   wParams.logdir = configReader->Get(secName, "logdir", "/tmp");
@@ -187,6 +187,9 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
 
 void
 PQuery::logWorkerDetails(struct workerParams& Params) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   pqLogger->addRecordToLog("-> Config name: " + Params.myName);
   pqLogger->addRecordToLog("-> DB type: " + dbtype_str(Params.dbtype));
   pqLogger->addRecordToLog("-> DB name: " + Params.database);
@@ -195,13 +198,14 @@ PQuery::logWorkerDetails(struct workerParams& Params) {
   pqLogger->addRecordToLog("-> DB password: " + Params.password);
   pqLogger->addRecordToLog("-> DB socket: " + Params.socket);
   pqLogger->addRecordToLog("-> DB port: " + std::to_string(Params.port));
+#ifdef HAVE_MYSQL
 #ifdef MAXPACKET
   pqLogger->addRecordToLog("-> MySQL max packet size: " + std::to_string(Params.maxpacket));
+#endif
 #endif
   pqLogger->addRecordToLog("-> PQuery threads: " + std::to_string(Params.threads));
   pqLogger->addRecordToLog("-> PQuery queries per thread: " + std::to_string(Params.queries_per_thread));
   pqLogger->addRecordToLog("-> PQuery verbosity: " + std::to_string(Params.verbose));
-  pqLogger->addRecordToLog("-> PQuery debug: " + std::to_string(Params.debug));
   pqLogger->addRecordToLog("-> PQuery shuffle: " + std::to_string(Params.shuffle));
   pqLogger->addRecordToLog("-> PQuery infile: " + Params.infile);
   pqLogger->addRecordToLog("-> PQuery log directory: " + Params.logdir);
@@ -271,6 +275,7 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
 
 //TODO
     int retcode;
+    dbWorker->setupLogger(pqLogger);
     retcode = dbWorker->executeTests(Params);
 
     if(retcode != 0) {
@@ -362,6 +367,9 @@ PQuery::showVersion() {
 #endif
 #ifdef HAVE_PGSQL
   std::cout <<  "* PQuery PgSQL client library: PgSQL v." + getPgSqlClientInfo() << std::endl;
+#endif
+#ifdef HAVE_MONGO
+  std::cout <<  "* PQuery MongoDB client library: MongoDB v." + getMongoDBClientInfo() << std::endl;
 #endif
   }
 

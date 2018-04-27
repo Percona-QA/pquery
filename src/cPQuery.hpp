@@ -62,9 +62,11 @@ class PQuery
 #ifdef HAVE_MYSQL
     std::string getMySqlClientInfo();
 #endif
-
 #ifdef HAVE_PGSQL
     std::string getPgSqlClientInfo();
+#endif
+#ifdef HAVE_MONGO
+    std::string getMongoDBClientInfo();
 #endif
 
     wRETCODE createWorkerWithParams(std::string);
@@ -72,7 +74,7 @@ class PQuery
     wRETCODE createWorkerProcess(struct workerParams&);
 //
     INIReader* configReader;
-    Logger* pqLogger;
+    std::shared_ptr<Logger> pqLogger;
     DbWorker* dbWorker;
 
   };

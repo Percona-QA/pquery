@@ -1,4 +1,5 @@
 #include <string>
+#include <cLogger.hpp>
 #include <eDbTypes.hpp>
 
 #ifndef PQDBWORKER_HPP
@@ -36,8 +37,15 @@ class DbWorker
   {
   public:
     DbWorker();
+    ~DbWorker();
     int executeTests(struct workerParams);
     bool tryConnect();
+    void setupLogger(std::shared_ptr<Logger>);
+  private:
+    bool testConnection();
+    void storeParams(struct workerParams wParams);
+    struct workerParams mParams;
+    std::shared_ptr<Logger> wLogger;
 
   };
 #endif
