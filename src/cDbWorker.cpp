@@ -1,6 +1,7 @@
 #ifdef DEBUG
 #include <iostream>
 #endif
+#include <cstring>
 #include <fstream>
 #include <sstream>
 #include <cDbWorker.hpp>
