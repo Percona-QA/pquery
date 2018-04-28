@@ -9,7 +9,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <common.hpp>
+#include <hCommon.hpp>
 #include <cPQuery.hpp>
 //
 #ifdef HAVE_MYSQL

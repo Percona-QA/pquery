@@ -1,3 +1,10 @@
+# Multiline comments like /* */ are not allowed here due to shuffled SQL execution
+# No preprocessing will be made for this file to skip multiline comments
+# valid comments must be prefixed with '#', ';' or '//'
+# this is a comment
+; this is comment
+// this is a comment
+
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (ID int);
 INSERT INTO t1 VALUES (1);
@@ -19,5 +26,4 @@ USE test;
 CREATE TABLE t1 (a int, b int, c int);
 INSERT INTO t1 VALUES (1,2,3);
 SELECT * FROM t1;
-/**/
 #

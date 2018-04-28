@@ -15,6 +15,13 @@ MysqlWorker::~MysqlWorker() {
   mysql_library_end();
   }
 
+inline unsigned long long
+MysqlWorker::getAffectedRows(MYSQL * connection) {
+  if (mysql_affected_rows(connection) == ~(unsigned long long) 0) {
+    return 0LL;
+    }
+  return mysql_affected_rows(connection);
+  }
 
 std::string
 MysqlWorker::getServerVersion(MYSQL* conn) {

@@ -49,7 +49,9 @@ class DbWorker
     bool loadQueryList();
 
   protected:
+    void workerThread(int);
     void adjustRuntimeParams();
+    void spawnWorkerThreads();
     std::vector<std::thread> workers;
     std::shared_ptr<Logger> wLogger;
     std::shared_ptr<std::vector<std::string>> queryList;
@@ -60,7 +62,8 @@ class DbWorker
   private:
     void writeFinalReport();
     virtual bool testConnection();
-    void storeParams(struct workerParams wParams);
+    void storeParams(struct workerParams& wParams);
+    bool isComment(std::string&);
 
   };
 #endif

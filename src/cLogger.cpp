@@ -4,7 +4,7 @@
 #include <cerrno>
 #include <stdexcept>
 #include <iomanip>
-#include <common.hpp>
+#include <hCommon.hpp>
 #include <cLogger.hpp>
 
 Logger::Logger() {
@@ -73,7 +73,6 @@ Logger::initLogFile(std::string filePath) {
     std::cerr << "Can't open log file: " << std::string(strerror(errno)) << std::endl;
     return false;
     }
-
   return true;
   }
 
@@ -90,7 +89,6 @@ Logger::flushLog() {
     }
   }
 
-
 void
 Logger::addRecordToLog(std::string message) {
 #ifdef DEBUG
@@ -101,7 +99,6 @@ Logger::addRecordToLog(std::string message) {
     throw std::runtime_error("Can't write to log file: " + std::string(strerror(errno)));
     }
   }
-
 
 void
 Logger::addRecordToLog(std::string message, logVerbosity verbosity) {

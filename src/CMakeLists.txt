@@ -3,7 +3,7 @@ ADD_SUBDIRECTORY(third_party)
 INCLUDE_DIRECTORIES(third_party/inih++)
 SET(LIBS_TO_LINK ${LIBS_TO_LINK} iniconf)
 SET(COMMON_SOURCES
-    main.cpp cPQuery.cpp
+    main.cpp cPQuery.cpp cThread.cpp
     cLogger.cpp cDbWorker.cpp
     )
 #

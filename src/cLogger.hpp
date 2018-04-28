@@ -7,13 +7,12 @@
 enum logVerbosity
   {
   LOG_NOTHING           = 0,
-  LOG_MINIMUM           = 1 << 0,
-  LOG_QUERY_NUMBERS     = 1 << 1,
-  LOG_CLIENT_OUTPUT     = 1 << 2,
-  LOG_QUERY_DURATION    = 1 << 3,
-  LOG_QUERY_STATISTICS  = 1 << 4,
-  LOG_FAILED_QUERIES    = 1 << 5,
-  LOG_SUCCEDED_QUERIES  = 1 << 6,
+  LOG_QUERY_NUMBERS     = 1 << 0,
+  LOG_CLIENT_OUTPUT     = 1 << 1,
+  LOG_QUERY_DURATION    = 1 << 2,
+  LOG_QUERY_STATISTICS  = 1 << 3,
+  LOG_FAILED_QUERIES    = 1 << 4,
+  LOG_SUCCEDED_QUERIES  = 1 << 5,
   LOG_ALL_QUERIES       = LOG_FAILED_QUERIES | LOG_SUCCEDED_QUERIES,
   };
 

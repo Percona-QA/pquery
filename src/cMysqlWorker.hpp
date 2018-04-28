@@ -12,6 +12,7 @@ class MysqlWorker: public DbWorker
     bool executeTests(struct workerParams&);
 
   private:
+    inline unsigned long long getAffectedRows(MYSQL * connection);
     std::string getServerVersion(MYSQL*);
     bool testConnection();
   };

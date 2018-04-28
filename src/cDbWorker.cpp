@@ -43,14 +43,14 @@ DbWorker::writeFinalReport() {
   std::ostringstream exitmsg;
   exitmsg.precision(2);
   exitmsg << std::fixed;
-  exitmsg << "* WORKER SUMMARY: " << failed_queries_total << "/" << performed_queries_total << " queries failed, (" <<
+  exitmsg << "-> WORKER SUMMARY: " << failed_queries_total << "/" << performed_queries_total << " queries failed, (" <<
     (performed_queries_total - failed_queries_total)*100.0/performed_queries_total << "% were successful)";
   wLogger->addRecordToLog(exitmsg.str());
   }
 
 
 void
-DbWorker::storeParams(struct workerParams wParams) {
+DbWorker::storeParams(struct workerParams& wParams) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
@@ -66,6 +66,18 @@ DbWorker::setupLogger(std::shared_ptr<Logger> logger) {
   wLogger = logger;
   }
 
+bool
+DbWorker::isComment(std::string& line){
+  size_t first = line.find_first_not_of(' ');
+  if (std::string::npos == first){ return false; }
+  size_t last = line.find_last_not_of(' ');
+  auto qStr = line.substr(first, (last - first + 1));
+  return (
+  (qStr.rfind("#", 0) == 0) ||
+  (qStr.rfind(";", 0) == 0) ||
+  (qStr.rfind("//", 0) == 0)
+  );
+}
 
 bool
 DbWorker::loadQueryList() {
@@ -82,7 +94,8 @@ DbWorker::loadQueryList() {
     }
   std::string line;
   while (getline(sqlfile_in, line)) {
-    if(!line.empty()) {
+
+    if((!line.empty()) && (!isComment(line))){
       queryList->push_back(line);
       }
     }
@@ -91,6 +104,16 @@ DbWorker::loadQueryList() {
   return true;
   }
 
+void
+DbWorker::spawnWorkerThreads(){
+  workers.resize(mParams.threads);
+    for (int i=0; i<mParams.threads; i++) {
+    workers[i] = std::thread(&DbWorker::workerThread, this, i);
+    }
+      for (int i=0; i<mParams.threads; i++) {
+    workers[i].join();
+    }
+}
 
 bool
 DbWorker::testConnection() {
@@ -111,6 +134,7 @@ DbWorker::executeTests(struct workerParams wParams) {
   if(!testConnection()) { return false; }
   if(!loadQueryList()) { return false; }
   adjustRuntimeParams();
+  spawnWorkerThreads();
   writeFinalReport();
   return true;
   }
