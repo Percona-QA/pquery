@@ -62,51 +62,52 @@
 #    installed PostgreSQL, e.g. <Your Path>.
 #
 # ----------------------------------------------------------------------------
-
-set(PGSQL_INCLUDE_PATH_DESCRIPTION "top-level directory containing the PostgreSQL include directories. E.g /usr/local/include/PostgreSQL/8.4 or C:/Program Files/PostgreSQL/8.4/include")
-set(PGSQL_INCLUDE_DIR_MESSAGE "Set the PGSQL_INCLUDE_DIR cmake cache entry to the ${PGSQL_INCLUDE_PATH_DESCRIPTION}")
-set(PGSQL_LIBRARY_PATH_DESCRIPTION "top-level directory containing the PostgreSQL libraries.")
-set(PGSQL_LIBRARY_DIR_MESSAGE "Set the PGSQL_LIBRARY_DIR cmake cache entry to the ${PGSQL_LIBRARY_PATH_DESCRIPTION}")
-set(PGSQL_ROOT_DIR_MESSAGE "Set the PGSQL_ROOT system variable to where PostgreSQL is found on the machine E.g C:/Program Files/PostgreSQL/8.4")
-
-
-set(PGSQL_KNOWN_VERSIONS ${PGSQL_ADDITIONAL_VERSIONS}
+IF(PGSQL_BASEDIR)
+  IF (NOT EXISTS ${PGSQL_BASEDIR})
+    MESSAGE(FATAL_ERROR "Directory ${PGSQL_BASEDIR} doesn't exist. Check the path for typos!")
+  ENDIF(NOT EXISTS ${PGSQL_BASEDIR})
+  MESSAGE(STATUS "PGSQL_BASEDIR is set, looking for PostgreSQL in ${PGSQL_BASEDIR}")
+ENDIF()
+#
+IF(PGSQL_INCLUDE_DIR)
+  # Already in cache, be silent
+  SET(PGSQL_FIND_QUIETLY TRUE)
+ENDIF (PGSQL_INCLUDE_DIR)
+#
+IF(STATIC_PGSQL)
+  SET(_pgsql_ORIG_CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES})
+  SET(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+ENDIF(STATIC_PGSQL)
+#
+SET(PGSQL_KNOWN_VERSIONS ${PGSQL_ADDITIONAL_VERSIONS}
     "10" "9.6" "9.5" "9.4" "9.3" "9.2" "9.1" "9.0" "8.4" "8.3" "8.2" "8.1" "8.0")
-
+#
 # Define additional search paths for root directories.
-set( PGSQL_ROOT_DIRECTORIES
+SET( PGSQL_ROOT_DIRECTORIES
    ENV PGSQL_ROOT
    ${PGSQL_ROOT}
+   ${PGSQL_BASEDIR}
 )
-foreach(suffix ${PGSQL_KNOWN_VERSIONS})
-  if(WIN32)
-    list(APPEND PGSQL_LIBRARY_ADDITIONAL_SEARCH_SUFFIXES
-        "PostgreSQL/${suffix}/lib")
-    list(APPEND PGSQL_INCLUDE_ADDITIONAL_SEARCH_SUFFIXES
-        "PostgreSQL/${suffix}/include")
-    list(APPEND PGSQL_TYPE_ADDITIONAL_SEARCH_SUFFIXES
-        "PostgreSQL/${suffix}/include/server")
-  endif()
-  if(UNIX)
-    list(APPEND PGSQL_LIBRARY_ADDITIONAL_SEARCH_SUFFIXES
+
+FOREACH(SUFFIX ${PGSQL_KNOWN_VERSIONS})
+    LIST(APPEND PGSQL_LIBRARY_ADDITIONAL_SEARCH_SUFFIXES
         "pgsql-${suffix}/lib")
-    list(APPEND PGSQL_INCLUDE_ADDITIONAL_SEARCH_SUFFIXES
+    LIST(APPEND PGSQL_INCLUDE_ADDITIONAL_SEARCH_SUFFIXES
         "pgsql-${suffix}/include")
-    list(APPEND PGSQL_TYPE_ADDITIONAL_SEARCH_SUFFIXES
+    LIST(APPEND PGSQL_TYPE_ADDITIONAL_SEARCH_SUFFIXES
         "postgresql/${suffix}/server"
         "pgsql-${suffix}/include/server")
-  endif()
-endforeach()
+ENDFOREACH()
 
 #
 # Look for an installation.
 #
-find_path(PGSQL_INCLUDE_DIR
+FIND_PATH(PGSQL_INCLUDE_DIR
   NAMES libpq-fe.h
   PATHS
-  #/usr/include
-  #/usr/local/include
-  #/usr/local/opt/include
+  /usr/include
+  /usr/local/include
+  /usr/local/opt
 
   # Look in other places.
    ${PGSQL_ROOT_DIRECTORIES}
@@ -119,7 +120,7 @@ find_path(PGSQL_INCLUDE_DIR
   DOC "The ${PGSQL_INCLUDE_DIR_MESSAGE}"
 )
 
-find_path(PGSQL_TYPE_INCLUDE_DIR
+FIND_PATH(PGSQL_TYPE_INCLUDE_DIR
   NAMES catalog/pg_type.h
   PATHS
    # Look in other places.
@@ -135,15 +136,9 @@ find_path(PGSQL_TYPE_INCLUDE_DIR
 )
 
 # The PostgreSQL library.
-set (PGSQL_LIBRARY_TO_FIND pq)
-# Setting some more prefixes for the library
-set (PGSQL_LIB_PREFIX "")
-if ( WIN32 )
-  set (PGSQL_LIB_PREFIX ${PGSQL_LIB_PREFIX} "lib")
-  set (PGSQL_LIBRARY_TO_FIND ${PGSQL_LIB_PREFIX}${PGSQL_LIBRARY_TO_FIND})
-endif()
+SET (PGSQL_LIBRARY_TO_FIND pq)
 
-find_library(PGSQL_LIBRARY
+FIND_LIBRARY(PGSQL_LIBRARY
  NAMES ${PGSQL_LIBRARY_TO_FIND}
  PATHS
    ${PGSQL_ROOT_DIRECTORIES}
@@ -153,7 +148,8 @@ find_library(PGSQL_LIBRARY
  # Help the user find it if we cannot.
  DOC "The ${PGSQL_LIBRARY_DIR_MESSAGE}"
 )
-get_filename_component(PGSQL_LIBRARY_DIR ${PGSQL_LIBRARY} PATH)
+
+GET_FILENAME_COMPONENT(PGSQL_LIBRARY_DIR ${PGSQL_LIBRARY} PATH)
 
 if (PGSQL_INCLUDE_DIR)
   # Some platforms include multiple pg_config.hs for multi-lib configurations
@@ -175,12 +171,14 @@ if (PGSQL_INCLUDE_DIR)
 endif()
 
 # Did we find anything?
-INCLUDE(FindPackageHandleStandardArgs)
+#INCLUDE(FindPackageHandleStandardArgs)
 #find_package_handle_standard_args(PostgreSQL
 #                                  REQUIRED_VARS PGSQL_LIBRARY PGSQL_INCLUDE_DIR PGSQL_TYPE_INCLUDE_DIR
 #                                   VERSION_VAR PGSQL_VERSION_STRING)
 IF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
   SET(PGSQL_FOUND TRUE)
+  MESSAGE(STATUS "Found PostgreSQL: ${PGSQL_LIBRARY} (found version \"${PGSQL_VERSION_STRING}\")")
+  MESSAGE(STATUS "Found PostgreSQL include directory: ${PGSQL_INCLUDE_DIR}")
 ENDIF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
 
 # Now try to get the include and library path.
