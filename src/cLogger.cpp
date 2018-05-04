@@ -11,7 +11,6 @@ Logger::Logger() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  LogEvents = LOG_NOTHING;
   std::ios_base::sync_with_stdio(false);
   }
 
@@ -27,15 +26,6 @@ Logger::~Logger() {
 
 
 void
-Logger::setLogVerbosity(logVerbosity level) {
-#ifdef DEBUG
-  std::cerr << __PRETTY_FUNCTION__ << std::endl;
-#endif
-  LogEvents = level;
-  }
-
-
-void
 Logger::addSeparation(char what, int lenght) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
@@ -44,15 +34,6 @@ Logger::addSeparation(char what, int lenght) {
   logFile << std::setfill(what) << std::setw (lenght) << "\n";
   logFile.flags(f);
 
-  }
-
-
-logVerbosity
-Logger::getLogVerbosity() {
-#ifdef DEBUG
-  std::cerr << __PRETTY_FUNCTION__ << std::endl;
-#endif
-  return LogEvents;
   }
 
 
@@ -78,6 +59,13 @@ Logger::initLogFile(std::string filePath) {
 
 
 void
+Logger::setPrecision(int precision) {
+  logFile.precision(precision);
+  logFile << std::fixed;
+  }
+
+
+void
 Logger::flushLog() {
   if(!logFile.is_open()) {
     std::cerr << "Log file is not open, can't flush()" << std::endl;
@@ -88,6 +76,7 @@ Logger::flushLog() {
     throw std::runtime_error("Can't flush() log file: " + std::string(strerror(errno)));
     }
   }
+
 
 void
 Logger::addRecordToLog(std::string message) {
@@ -100,12 +89,14 @@ Logger::addRecordToLog(std::string message) {
     }
   }
 
+
 void
-Logger::addRecordToLog(std::string message, logVerbosity verbosity) {
+Logger::addPartialRecord(std::string message) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  if (LogEvents & verbosity) {
-    addRecordToLog(message);
+  logFile << message;
+  if(logFile.fail()) {
+    throw std::runtime_error("Can't write to log file: " + std::string(strerror(errno)));
     }
   }

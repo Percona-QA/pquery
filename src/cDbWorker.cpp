@@ -13,6 +13,7 @@ DbWorker::DbWorker() {
   workers.clear();
   failed_queries_total = 0;
   performed_queries_total = 0;
+
   }
 
 
@@ -66,21 +67,29 @@ DbWorker::setupLogger(std::shared_ptr<Logger> logger) {
   wLogger = logger;
   }
 
+
 bool
-DbWorker::isComment(std::string& line){
+DbWorker::isComment(std::string& line) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   size_t first = line.find_first_not_of(' ');
   if (std::string::npos == first){ return false; }
   size_t last = line.find_last_not_of(' ');
   auto qStr = line.substr(first, (last - first + 1));
   return (
-  (qStr.rfind("#", 0) == 0) ||
-  (qStr.rfind(";", 0) == 0) ||
-  (qStr.rfind("//", 0) == 0)
-  );
-}
+    (qStr.rfind("#", 0) == 0) ||
+    (qStr.rfind(";", 0) == 0) ||
+    (qStr.rfind("//", 0) == 0)
+    );
+  }
+
 
 bool
 DbWorker::loadQueryList() {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   queryList = std::make_shared<std::vector<std::string>>();
   if(queryList == NULL) {
     wLogger->addRecordToLog("=> Unable to create Query List, exiting...");
@@ -95,7 +104,7 @@ DbWorker::loadQueryList() {
   std::string line;
   while (getline(sqlfile_in, line)) {
 
-    if((!line.empty()) && (!isComment(line))){
+    if((!line.empty()) && (!isComment(line))) {
       queryList->push_back(line);
       }
     }
@@ -104,16 +113,21 @@ DbWorker::loadQueryList() {
   return true;
   }
 
+
 void
-DbWorker::spawnWorkerThreads(){
+DbWorker::spawnWorkerThreads() {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   workers.resize(mParams.threads);
-    for (int i=0; i<mParams.threads; i++) {
+  for (int i=0; i<mParams.threads; i++) {
     workers[i] = std::thread(&DbWorker::workerThread, this, i);
     }
-      for (int i=0; i<mParams.threads; i++) {
+  for (int i=0; i<mParams.threads; i++) {
     workers[i].join();
     }
-}
+  }
+
 
 bool
 DbWorker::testConnection() {

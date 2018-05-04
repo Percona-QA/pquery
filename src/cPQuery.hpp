@@ -73,9 +73,9 @@ class PQuery
     void setupWorkerParams(struct workerParams&, std::string);
     wRETCODE createWorkerProcess(struct workerParams&);
 //
-    INIReader* configReader;
+    std::shared_ptr<INIReader> configReader;
     std::shared_ptr<Logger> pqLogger;
-    DbWorker* dbWorker;
+    std::shared_ptr<DbWorker> dbWorker;
 
   };
 #endif

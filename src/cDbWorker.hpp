@@ -3,6 +3,8 @@
 #include <vector>
 #include <thread>
 #include <atomic>
+#include <chrono>
+#include <random>
 
 #include <cLogger.hpp>
 #include <eDbTypes.hpp>
@@ -49,7 +51,7 @@ class DbWorker
     bool loadQueryList();
 
   protected:
-    void workerThread(int);
+    virtual void workerThread(int) = 0;
     void adjustRuntimeParams();
     void spawnWorkerThreads();
     std::vector<std::thread> workers;
@@ -58,7 +60,9 @@ class DbWorker
     struct workerParams mParams;
     std::atomic <unsigned long long> performed_queries_total;
     std::atomic <unsigned long long> failed_queries_total;
-
+    std::chrono::steady_clock::time_point begin;
+    std::chrono::steady_clock::time_point end;
+    std::random_device rd;
   private:
     void writeFinalReport();
     virtual bool testConnection();

@@ -1,6 +1,5 @@
 #include <cstdlib>
 #include <iostream>
-#include <cassert>
 #include <getopt.h>
 #include <chrono>
 #include <ctime>
@@ -31,8 +30,6 @@ PQuery::PQuery() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   configFilePath = "pquery.cfg";
-  configReader = NULL;
-  dbWorker = NULL;
   }
 
 
@@ -40,8 +37,6 @@ PQuery::~PQuery() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  if (configReader != NULL) { delete configReader; configReader = NULL;}
-  if (dbWorker != NULL) { delete dbWorker; dbWorker = NULL; }
   }
 
 
@@ -69,8 +64,6 @@ PQuery::initLogger() {
     std::cerr << "Unable to init logging subsystem" << std::endl;
     return false;
     }
-
-  assert(configReader != 0);
 
   std::string masterLogFile;
   std::string master_logdir = configReader->Get("master", "logdir", "/tmp");
@@ -107,7 +100,7 @@ PQuery::initConfig() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-  configReader = new INIReader(configFilePath);
+  configReader = std::make_shared<INIReader>(configFilePath);
   int parseerr = configReader->ParseError();
 
   if (parseerr < 0) {
@@ -144,7 +137,6 @@ PQuery::doCleanup(std::string name) {
 #endif
   std::string logfile = configReader->Get("master", "logdir", "/tmp") + "/" + name + "_worker.log";
   pqLogger->initLogFile(logfile);
-  if (configReader != 0){ delete configReader; configReader = 0; }
   }
 
 
@@ -250,17 +242,17 @@ PQuery::createWorkerProcess(struct workerParams& Params) {
 
 #ifdef HAVE_MYSQL
       case eMYSQL:
-        dbWorker = new MysqlWorker();
+        dbWorker = std::make_shared<MysqlWorker>();
         break;
 #endif
 #ifdef HAVE_PGSQL
       case ePGSQL:
-        dbWorker = new PgsqlWorker();
+        dbWorker = std::make_shared<PgsqlWorker>();
         break;
 #endif
 #ifdef HAVE_MONGO
       case eMONGO:
-        dbWorker = new MongoWorker();
+        dbWorker = std::make_shared<MongoWorker>();
         break;
 #endif
       default:

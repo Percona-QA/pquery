@@ -15,5 +15,6 @@ class MysqlWorker: public DbWorker
     inline unsigned long long getAffectedRows(MYSQL * connection);
     std::string getServerVersion(MYSQL*);
     bool testConnection();
+    void workerThread(int number);
   };
 #endif

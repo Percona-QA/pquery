@@ -1,5 +1,5 @@
-#ifndef __COMMON_HPP__
-#define __COMMON_HPP__
+#ifndef __HCOMMON_HPP__
+#define __HCOMMON_HPP__
 
 #include <string>
 
