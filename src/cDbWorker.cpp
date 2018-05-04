@@ -70,9 +70,6 @@ DbWorker::setupLogger(std::shared_ptr<Logger> logger) {
 
 bool
 DbWorker::isComment(std::string& line) {
-#ifdef DEBUG
-  std::cerr << __PRETTY_FUNCTION__ << std::endl;
-#endif
   size_t first = line.find_first_not_of(' ');
   if (std::string::npos == first){ return false; }
   size_t last = line.find_last_not_of(' ');

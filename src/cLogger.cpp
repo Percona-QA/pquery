@@ -80,9 +80,6 @@ Logger::flushLog() {
 
 void
 Logger::addRecordToLog(std::string message) {
-#ifdef DEBUG
-  std::cerr << __PRETTY_FUNCTION__ << std::endl;
-#endif
   logFile << message << "\n";
   if(logFile.fail()) {
     throw std::runtime_error("Can't write to log file: " + std::string(strerror(errno)));

@@ -151,24 +151,24 @@ FIND_LIBRARY(PGSQL_LIBRARY
 
 GET_FILENAME_COMPONENT(PGSQL_LIBRARY_DIR ${PGSQL_LIBRARY} PATH)
 
-if (PGSQL_INCLUDE_DIR)
+IF (PGSQL_INCLUDE_DIR)
   # Some platforms include multiple pg_config.hs for multi-lib configurations
   # This is a temporary workaround.  A better solution would be to compile
   # a dummy c file and extract the value of the symbol.
-  file(GLOB _PG_CONFIG_HEADERS "${PGSQL_INCLUDE_DIR}/pg_config*.h")
-  foreach(_PG_CONFIG_HEADER ${_PG_CONFIG_HEADERS})
-    if(EXISTS "${_PG_CONFIG_HEADER}")
-      file(STRINGS "${_PG_CONFIG_HEADER}" PGSQL_version_str
+  FILE(GLOB _PG_CONFIG_HEADERS "${PGSQL_INCLUDE_DIR}/pg_config*.h")
+  FOREACH(_PG_CONFIG_HEADER ${_PG_CONFIG_HEADERS})
+    IF(EXISTS "${_PG_CONFIG_HEADER}")
+      FILE(STRINGS "${_PG_CONFIG_HEADER}" PGSQL_version_str
            REGEX "^#define[\t ]+PG_VERSION[\t ]+\".*\"")
-      if(PGSQL_version_str)
-        string(REGEX REPLACE "^#define[\t ]+PG_VERSION[\t ]+\"([^\"]*)\".*"
+      IF(PGSQL_version_str)
+        STRING(REGEX REPLACE "^#define[\t ]+PG_VERSION[\t ]+\"([^\"]*)\".*"
                "\\1" PGSQL_VERSION_STRING "${PGSQL_version_str}")
-        break()
-      endif()
-    endif()
-  endforeach()
-  unset(PGSQL_version_str)
-endif()
+        BREAK()
+      ENDIF()
+    ENDIF()
+  ENDFOREACH()
+  UNSET(PGSQL_version_str)
+ENDIF()
 
 # Did we find anything?
 #INCLUDE(FindPackageHandleStandardArgs)
@@ -182,10 +182,10 @@ IF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
 ENDIF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
 
 # Now try to get the include and library path.
-if(PGSQL_FOUND)
-  set(PGSQL_INCLUDE_DIRS ${PGSQL_INCLUDE_DIR} ${PGSQL_TYPE_INCLUDE_DIR} )
-  set(PGSQL_LIBRARY_DIRS ${PGSQL_LIBRARY_DIR} )
-  set(PGSQL_LIBRARIES ${PGSQL_LIBRARY})
-endif()
+IF(PGSQL_FOUND)
+  SET(PGSQL_INCLUDE_DIRS ${PGSQL_INCLUDE_DIR} ${PGSQL_TYPE_INCLUDE_DIR} )
+  SET(PGSQL_LIBRARY_DIRS ${PGSQL_LIBRARY_DIR} )
+  SET(PGSQL_LIBRARIES ${PGSQL_LIBRARY})
+ENDIF()
 
-mark_as_advanced(PGSQL_INCLUDE_DIR PGSQL_TYPE_INCLUDE_DIR PGSQL_LIBRARY )
+MARK_AS_ADVANCED(PGSQL_INCLUDE_DIR PGSQL_TYPE_INCLUDE_DIR PGSQL_LIBRARY )

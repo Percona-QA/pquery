@@ -7,6 +7,10 @@ class PgsqlWorker: public DbWorker
   {
   public:
     PgsqlWorker();
-    int executeTests(struct workerParams&);
+    ~PgsqlWorker();
+    bool executeTests(struct workerParams&);
+    bool testConnection();
+    void workerThread(int number);
+
   };
 #endif
