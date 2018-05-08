@@ -13,7 +13,7 @@ class MysqlDatabase : public Database
     std::string getServerVersion();
     std::string getHostInfo();
     std::string getErrorString();
-    bool connect(std::string, std::string, std::string, std::string, int, std::string);
+    bool connect(struct workerParams&);
     bool init();
     inline unsigned long long getAffectedRows();
 

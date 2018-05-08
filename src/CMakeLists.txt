@@ -1,6 +1,7 @@
 SET(BINARY_NAME "pquery${vMajor}")
-ADD_SUBDIRECTORY(third_party)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(third_party/inih++)
+ADD_SUBDIRECTORY(third_party)
 SET(LIBS_TO_LINK ${LIBS_TO_LINK} iniconf)
 SET(COMMON_SOURCES
     main.cpp cPQuery.cpp cLogger.cpp cDbWorker.cpp cDatabase.cpp

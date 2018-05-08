@@ -27,13 +27,13 @@ MysqlDatabase::init(){
 }
 
 bool
-MysqlDatabase::connect(std::string address, std::string username, std::string password, std::string database, int port, std::string socket) {
+MysqlDatabase::connect(struct workerParams& dbParams) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
 
-  if (mysql_real_connect(conn, address.c_str(), username.c_str(),
-    password.c_str(), database.c_str(), port, socket.c_str(), 0) == NULL){ return false; }
+  if (mysql_real_connect(conn, dbParams.address.c_str(), dbParams.username.c_str(),
+    dbParams.password.c_str(), dbParams.database.c_str(), dbParams.port, dbParams.socket.c_str(), 0) == NULL){ return false; }
     return true;
   }
 

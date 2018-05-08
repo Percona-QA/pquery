@@ -8,7 +8,7 @@ MysqlWorker::MysqlWorker() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   if (mysql_library_init(0, NULL, NULL)) {
-    throw std::runtime_error("Could not initialize MySQL client library");
+    throw std::runtime_error("=> Could not initialize MySQL client library");
     }
   }
 
@@ -32,7 +32,7 @@ MysqlWorker::testConnection() {
     return false;
     }
 
-  if(!mysqlDB->connect(mParams.address, mParams.username, mParams.password, mParams.database, mParams.port, mParams.socket)) {
+  if(!mysqlDB->connect(mParams)) {
     wLogger->addRecordToLog("=> Connection error " + mysqlDB->getErrorString());
     return false;
     }
@@ -52,13 +52,14 @@ MysqlWorker::createDbInstance(){
   return mysqlDB;
 }
 
-//   if (mysql_real_connect(conn, mParams.address.c_str(), mParams.username.c_str(),
-//   mParams.password.c_str(), mParams.database.c_str(), mParams.port, mParams.socket.c_str(), 0) == NULL) {
-//     threadLogger->addRecordToLog("Error " + std::to_string(mysql_errno(conn)) + ": " + mysql_error(conn));
-//     mysql_close(conn);
-//     mysql_thread_end();
-//     return;
-//     }
+void
+MysqlWorker::endThread(){
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  mysql_thread_end();
+}
+
 
 //   unsigned long i;
 //   for (i=0; i<mParams.queries_per_thread; i++) {
@@ -181,7 +182,7 @@ MysqlWorker::createDbInstance(){
 //     }                                             // for
 
 //   mysql_close(conn);
-//   mysql_thread_end();
+//
 //   performed_queries_total += total_queries;
 //   failed_queries_total += failed_queries;
 

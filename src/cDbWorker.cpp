@@ -143,7 +143,15 @@ DbWorker::workerThread(int number) {
      return;
      }
 
+   if (!Database->connect(mParams)){
+      threadLogger->addRecordToLog("Error " + Database->getErrorString());
+      return;
+   }
 
+
+
+
+  endThread();
   } //void DbWorker::workerThread(int number)
 
 

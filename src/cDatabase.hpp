@@ -1,5 +1,6 @@
 #include <memory>
 #include <chrono>
+#include <sWorkerParams.hpp>
 
 #ifndef _DATABASE_HPP_
 #define _DATABASE_HPP_
@@ -12,6 +13,7 @@ class Database
     virtual std::string getHostInfo() = 0;
     virtual std::string getErrorString() = 0;
     virtual bool init() = 0;
+    virtual bool connect(struct workerParams&) = 0;
     virtual unsigned long long getAffectedRows() = 0;
     std::chrono::duration<double> getQueryDuration();
 
