@@ -9,11 +9,9 @@ class MysqlWorker: public DbWorker
   public:
     MysqlWorker();
     ~MysqlWorker();
-    bool executeTests(struct workerParams&);
 
   private:
     inline unsigned long long getAffectedRows(MYSQL * connection);
-    std::string getServerVersion(MYSQL*);
     bool testConnection();
     void workerThread(int number);
   };

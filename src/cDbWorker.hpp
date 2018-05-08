@@ -51,7 +51,7 @@ class DbWorker
     bool loadQueryList();
 
   protected:
-    virtual void workerThread(int) = 0;
+    void workerThread(int);
     void adjustRuntimeParams();
     void spawnWorkerThreads();
     std::vector<std::thread> workers;
@@ -65,7 +65,7 @@ class DbWorker
     std::random_device rd;
   private:
     void writeFinalReport();
-    virtual bool testConnection();
+    virtual bool testConnection() = 0;
     void storeParams(struct workerParams& wParams);
     bool isComment(std::string&);
 

@@ -3,15 +3,21 @@ ADD_SUBDIRECTORY(third_party)
 INCLUDE_DIRECTORIES(third_party/inih++)
 SET(LIBS_TO_LINK ${LIBS_TO_LINK} iniconf)
 SET(COMMON_SOURCES
-    main.cpp cPQuery.cpp cLogger.cpp cDbWorker.cpp
+    main.cpp cPQuery.cpp cLogger.cpp cDbWorker.cpp cDatabase.cpp
     )
 #
 IF(MYSQL_FOUND)
-  SET(MYSQL_SOURCES cMysqlWorker.cpp)
+  SET(MYSQL_SOURCES
+      cMysqlWorker.cpp
+      cMysqlDatabase.cpp
+      )
 ENDIF(MYSQL_FOUND)
 #
 IF(PGSQL_FOUND)
-  SET(PGSQL_SOURCES cPgsqlWorker.cpp)
+  SET(PGSQL_SOURCES
+      cPgsqlWorker.cpp
+      cPgsqlDatabase.cpp
+      )
 ENDIF(PGSQL_FOUND)
 #
 IF(MONGO_FOUND)

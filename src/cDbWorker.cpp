@@ -41,6 +41,9 @@ DbWorker::adjustRuntimeParams() {
 
 void
 DbWorker::writeFinalReport() {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
   std::ostringstream exitmsg;
   exitmsg.precision(2);
   exitmsg << std::fixed;
@@ -112,6 +115,23 @@ DbWorker::loadQueryList() {
 
 
 void
+DbWorker::workerThread(int number) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << " " << number << std::endl;
+#endif
+  std::shared_ptr<Logger> outputLogger;
+  std::shared_ptr<Logger> threadLogger;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<int> dis(0, queryList->size() - 1);
+
+  if(mParams.log_client_output) {
+     outputLogger = std::make_shared<Logger>();
+     outputLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".out");
+  }
+  }
+
+
+void
 DbWorker::spawnWorkerThreads() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
@@ -123,15 +143,6 @@ DbWorker::spawnWorkerThreads() {
   for (int i=0; i<mParams.threads; i++) {
     workers[i].join();
     }
-  }
-
-
-bool
-DbWorker::testConnection() {
-#ifdef DEBUG
-  std::cerr << __PRETTY_FUNCTION__ << std::endl;
-#endif
-  return true;
   }
 
 
