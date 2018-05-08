@@ -8,21 +8,29 @@
 class Database
   {
   public:
+    Database();
     virtual ~Database();
     virtual std::string getServerVersion() = 0;
     virtual std::string getHostInfo() = 0;
     virtual std::string getErrorString() = 0;
     virtual bool init() = 0;
     virtual bool connect(struct workerParams&) = 0;
-    virtual unsigned long long getAffectedRows() = 0;
-    std::chrono::duration<double> getQueryDuration();
+    virtual uint64_t getAffectedRows() = 0;
+    double getQueryDurationMs();
+    uint64_t getPerformedQueries() { return performed_queries; }
+    uint64_t getFailedQueries() { return failed_queries; }
+    uint16_t getConsecutiveFailures() { return max_con_fail_count; }
+    bool performQuery(std::string);
+    virtual bool performRealQuery(std::string) = 0;
+    virtual std::string getQueryOutput() = 0;
+    virtual uint32_t getWarningsCount() = 0;
 
-  protected:
+  private:
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;
-    int failed_queries = 0;
-    int total_queries = 0;
-    int max_con_fail_count = 0;
+    uint64_t failed_queries;
+    uint64_t performed_queries;
+    uint16_t max_con_fail_count;
 
   };
 #endif

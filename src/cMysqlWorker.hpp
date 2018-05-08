@@ -10,9 +10,9 @@ class MysqlWorker: public DbWorker
     MysqlWorker();
     ~MysqlWorker();
     std::shared_ptr<Database> createDbInstance();
-    void endThread();
+    void endDbThread();
+
   private:
-    inline unsigned long long getAffectedRows(MYSQL * connection);
     bool testConnection();
     void workerThread(int number);
   };

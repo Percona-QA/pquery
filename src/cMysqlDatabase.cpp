@@ -11,7 +11,8 @@ MysqlDatabase::MysqlDatabase() {
   conn = NULL;
   }
 
-inline unsigned long long
+
+inline uint64_t
 MysqlDatabase::getAffectedRows() {
   if (mysql_affected_rows(conn) == ~(unsigned long long) 0) {
     return 0LL;
@@ -19,12 +20,14 @@ MysqlDatabase::getAffectedRows() {
   return mysql_affected_rows(conn);
   }
 
+
 bool
-MysqlDatabase::init(){
+MysqlDatabase::init() {
   conn = mysql_init(NULL);
   if (conn == NULL) { return false; }
   return true;
-}
+  }
+
 
 bool
 MysqlDatabase::connect(struct workerParams& dbParams) {
@@ -46,6 +49,32 @@ MysqlDatabase::~MysqlDatabase() {
   }
 
 
+bool
+MysqlDatabase::performRealQuery(std::string query) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  int res;
+  res = mysql_real_query(conn, query.c_str(), (unsigned long)query.length());
+  return (res == 0);
+  }
+
+uint32_t
+MysqlDatabase::getWarningsCount(){
+  return mysql_warning_count(conn);
+}
+
+std::string
+MysqlDatabase::getQueryOutput() {
+  std::string out;
+// do {
+//   MYSQL_RES * result = mysql_use_result(conn);
+//   }  while (mysql_next_result(conn) == 0) ;     // while
+
+  return out;
+  }
+
+
 std::string
 MysqlDatabase::getHostInfo() {
 #ifdef DEBUG
@@ -59,6 +88,7 @@ std::string
 MysqlDatabase::getErrorString() {
   return (std::to_string(mysql_errno(conn)) + ": " + mysql_error(conn));
   }
+
 
 std::string
 MysqlDatabase::getServerVersion() {

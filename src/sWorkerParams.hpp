@@ -15,18 +15,17 @@ workerParams
   std::string password;
   std::string infile;
   std::string logdir;
-  short port;
-  short threads;
-  unsigned long queries_per_thread;
+  uint16_t port;
+  uint16_t threads;
+  uint64_t queries_per_thread;
   bool verbose;
   bool log_all_queries;
   bool log_failed_queries;
+  bool log_succeeded_queries;
   bool log_query_statistics;
   bool log_query_duration;
   bool log_client_output;
   bool log_query_numbers;
-  bool log_succeeded_queries;
   bool shuffle;
   };
-
 #endif

@@ -19,8 +19,6 @@
 #define MYSQL_FORK "UNKNOWN"
 #endif
 
-const uint16_t MAX_CON_FAILURES = 250;
-
 #if defined(WIN32) || defined(_WIN32)
 const std::string FSSEP = "\\";
 #else

@@ -12,12 +12,14 @@ MysqlWorker::MysqlWorker() {
     }
   }
 
+
 MysqlWorker::~MysqlWorker() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   mysql_library_end();
   }
+
 
 bool
 MysqlWorker::testConnection() {
@@ -43,62 +45,25 @@ MysqlWorker::testConnection() {
 
   }
 
+
 std::shared_ptr<Database>
-MysqlWorker::createDbInstance(){
-  #ifdef DEBUG
+MysqlWorker::createDbInstance() {
+#ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   std::shared_ptr<Database> mysqlDB = std::make_shared<MysqlDatabase>();
   return mysqlDB;
-}
+  }
+
 
 void
-MysqlWorker::endThread(){
+MysqlWorker::endDbThread() {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   mysql_thread_end();
-}
+  }
 
-
-//   unsigned long i;
-//   for (i=0; i<mParams.queries_per_thread; i++) {
-
-//     unsigned long query_number;
-// // selecting query #, depends on random or sequential execution
-
-//     if(!mParams.shuffle) {
-//       query_number = i;
-//       }
-//     else {
-//       query_number = dis(gen);
-//       }
-
-//     if(mParams.log_query_duration) {
-//       begin = std::chrono::steady_clock::now();
-//       }
-
-//     res = mysql_real_query(conn, (*queryList)[query_number].c_str(),
-//       (unsigned long)strlen((*queryList)[query_number].c_str()));
-
-//     if(mParams.log_query_duration) {
-//       end = std::chrono::steady_clock::now();
-//       }
-
-//     total_queries++;
-
-//     if (res == 0) {                               //success
-//       max_con_fail_count=0;
-//       }
-//     else {
-//       failed_queries++;
-//       max_con_fail_count++;
-//       if (max_con_fail_count >= MAX_CON_FAILURES) {
-//         threadLogger->addRecordToLog("* Last " + std::to_string(max_con_fail_count) +
-//           " consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.");
-//         return;
-//         }
-//       }
 
 //     do {
 //       MYSQL_RES * result = mysql_use_result(conn);
@@ -178,12 +143,3 @@ MysqlWorker::endThread(){
 //         mysql_free_result(result);
 //         }
 //       }  while (mysql_next_result(conn) == 0) ;   // while
-
-//     }                                             // for
-
-//   mysql_close(conn);
-//
-//   performed_queries_total += total_queries;
-//   failed_queries_total += failed_queries;
-
-//   }                                               // thread

@@ -29,10 +29,10 @@ void
 DbWorker::adjustRuntimeParams() {
 /* log replaying */
   if(!mParams.shuffle) {
-    wLogger->addRecordToLog("=> Setting # of threads to 1 for log replaying due to \"shuffle = False\"");
+    wLogger->addRecordToLog("-> Setting # of threads to 1 for log replaying due to \"shuffle = False\"");
     mParams.threads = 1;
 //
-    wLogger->addRecordToLog("=> Setting queries per thread to " + std::to_string(queryList->size()) + " due to \"shuffle = False\" (size of infile)");
+    wLogger->addRecordToLog("-> Setting queries per thread to " + std::to_string(queryList->size()) + " due to \"shuffle = False\" (size of infile)");
     mParams.queries_per_thread = queryList->size();
     }
 /* END log replaying */
@@ -119,40 +119,85 @@ DbWorker::workerThread(int number) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << " " << number << std::endl;
 #endif
-  std::shared_ptr<Logger> outputLogger;
-  std::shared_ptr<Logger> threadLogger;
+  std::shared_ptr<Logger> outputLogger = NULL;
+  std::shared_ptr<Logger> threadLogger = NULL;
   std::mt19937 gen(rd());
   std::uniform_int_distribution<int> dis(0, queryList->size() - 1);
 
   if(mParams.log_client_output) {
-     outputLogger = std::make_shared<Logger>();
-     outputLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".out");
-  }
+    outputLogger = std::make_shared<Logger>();
+    outputLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".out");
+    }
 
-  if ((mParams.log_failed_queries) || (mParams.log_all_queries) || (mParams.log_query_statistics) || (mParams.log_succeeded_queries)) {
-     threadLogger = std::make_shared<Logger>();
-     threadLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".sql");
-     if(mParams.log_query_duration) { threadLogger->setPrecision(3); }
-     }
+  if ((mParams.log_failed_queries) || (mParams.log_all_queries) || (mParams.log_succeeded_queries) || (mParams.log_query_duration) || (mParams.log_query_statistics) || (mParams.log_query_numbers)) {
+    threadLogger = std::make_shared<Logger>();
+    threadLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".sql");
+    }
 
   std::shared_ptr<Database> Database = createDbInstance();
 
-   if (!Database->init()) {
-     threadLogger->addRecordToLog("=> Unable to init, MySQL error " + Database->getErrorString());
-     wLogger->addRecordToLog("==> Thread #" + std::to_string(number) + " is exiting abnormally, unable to init database");
-     return;
-     }
+  if (!Database->init()) {
+    threadLogger->addRecordToLog("=> Unable to init, MySQL error " + Database->getErrorString());
+    wLogger->addRecordToLog("==> Thread #" + std::to_string(number) + " is exiting abnormally, unable to init database");
+    return;
+    }
 
-   if (!Database->connect(mParams)){
-      threadLogger->addRecordToLog("Error " + Database->getErrorString());
+  if (!Database->connect(mParams)) {
+    threadLogger->addRecordToLog("Error " + Database->getErrorString());
+    return;
+    }
+
+  uint32_t i, query_number;
+  for (i=0; i<mParams.queries_per_thread; i++) {
+
+    if(mParams.shuffle) {
+      query_number = dis(gen);
+      }
+    else {
+      query_number = i;
+      }
+    bool success = Database->performQuery((*queryList)[query_number]);
+    uint16_t max_con_fail_count = Database->getConsecutiveFailures();
+    if (max_con_fail_count >= MAX_CON_FAILURES) {
+      threadLogger->addRecordToLog("=> Last " + std::to_string(max_con_fail_count) +
+        " consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.");
       return;
-   }
+      }
 
+/*
+thread logging according to config
+*/
+    if(threadLogger != NULL) {
+      if( (mParams.log_all_queries) || (mParams.log_succeeded_queries && success) || (mParams.log_failed_queries && !success) ) {
+        threadLogger->addPartialRecord((*queryList)[query_number]);
+        } // if we should log queries
 
+      if(mParams.log_query_statistics) {
+        if(success) {
+          threadLogger->addPartialRecord("#NOERROR");
+          }
+        else {
+          threadLogger->addPartialRecord("#ERROR ");
+          threadLogger->addPartialRecord(Database->getErrorString());
+          }
+        threadLogger->addPartialRecord("#WARNINGS: " + std::to_string(Database->getWarningsCount()));
+        threadLogger->addPartialRecord("#CHANGED: "  + std::to_string(Database->getAffectedRows()));
+        } //log_query_statistics
+        if(mParams.log_query_duration) {
+        threadLogger->addPartialRecord("#Duration: " + std::to_string(Database->getQueryDurationMs()) + " ms");
+        }
+        if(mParams.log_query_numbers) {
+        threadLogger->addPartialRecord("#" + std::to_string(query_number+1));
+        }
+      threadLogger->addPartialRecord("\n");
+      }
 
+    }                                             //for (i=0; i<mParams.queries_per_thread; i++){}
 
-  endThread();
-  } //void DbWorker::workerThread(int number)
+  performed_queries_total += Database->getPerformedQueries();
+  failed_queries_total += Database->getFailedQueries();
+  endDbThread();
+  }                                               //void DbWorker::workerThread(int number)
 
 
 void
