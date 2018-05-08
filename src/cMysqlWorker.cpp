@@ -26,6 +26,7 @@ MysqlWorker::testConnection() {
 #endif
 
   std::shared_ptr<MysqlDatabase> mysqlDB = std::make_shared<MysqlDatabase>();
+
   if (!mysqlDB->init()) {
     wLogger->addRecordToLog("=> Unable to init, MySQL error " + mysqlDB->getErrorString());
     return false;
@@ -42,46 +43,14 @@ MysqlWorker::testConnection() {
 
   }
 
-
-// void
-// MysqlWorker::workerThread(int number) {
-// //TODO
-// #ifdef DEBUG
-//   std::cerr << __PRETTY_FUNCTION__ << number << std::endl;
-// #endif
-// // TODO
-//   int failed_queries = 0;
-//   int total_queries = 0;
-//   int max_con_fail_count = 0;
-
-//   std::mt19937 gen(rd());
-//   std::uniform_int_distribution<int> dis(0, queryList->size() - 1);
-//   int res;
-//   MYSQL * conn;
-
-//   if(mParams.log_client_output) {
-//     outputLogger = std::make_shared<Logger>();
-//     outputLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".out");
-//     }
-
-//   if ((mParams.log_failed_queries) || (mParams.log_all_queries) || (mParams.log_query_statistics) || (mParams.log_succeeded_queries)) {
-//     threadLogger = std::make_shared<Logger>();
-//     threadLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".sql");
-//     }
-//   if(mParams.log_query_duration) { threadLogger->setPrecision(3); }
-
-//   conn = mysql_init(NULL);
-//   if (conn == NULL) {
-//     threadLogger->addRecordToLog("Error " + std::to_string(mysql_errno(conn)) + ": " + mysql_error(conn) );
-//     wLogger->addRecordToLog("==> Thread #" + std::to_string(number) + " is exiting abnormally, unable to init MySQL connection");
-//     return;
-//     }
-
-// #ifdef MAXPACKET
-//   if (mParams.maxpacket != MAX_PACKET_DEFAULT) {
-//     mysql_options(conn, MYSQL_OPT_MAX_ALLOWED_PACKET, &mParams.maxpacket);
-//     }
-// #endif
+std::shared_ptr<Database>
+MysqlWorker::createDbInstance(){
+  #ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  std::shared_ptr<Database> mysqlDB = std::make_shared<MysqlDatabase>();
+  return mysqlDB;
+}
 
 //   if (mysql_real_connect(conn, mParams.address.c_str(), mParams.username.c_str(),
 //   mParams.password.c_str(), mParams.database.c_str(), mParams.port, mParams.socket.c_str(), 0) == NULL) {

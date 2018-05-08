@@ -14,6 +14,7 @@ class Database
     virtual bool init() = 0;
     virtual unsigned long long getAffectedRows() = 0;
     std::chrono::duration<double> getQueryDuration();
+
   protected:
     std::chrono::steady_clock::time_point begin;
     std::chrono::steady_clock::time_point end;

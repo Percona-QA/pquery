@@ -8,6 +8,7 @@
 
 #include <cLogger.hpp>
 #include <eDbTypes.hpp>
+#include <cDatabase.hpp>
 
 #ifndef PQDBWORKER_HPP
 #define PQDBWORKER_HPP
@@ -27,7 +28,6 @@ workerParams
   short port;
   short threads;
   unsigned long queries_per_thread;
-  unsigned long maxpacket;
   bool verbose;
   bool debug;
   bool log_all_queries;
@@ -49,6 +49,7 @@ class DbWorker
     bool executeTests(struct workerParams);
     void setupLogger(std::shared_ptr<Logger>);
     bool loadQueryList();
+    virtual std::shared_ptr<Database> createDbInstance() = 0;
 
   protected:
     void workerThread(int);

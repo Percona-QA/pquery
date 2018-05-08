@@ -128,7 +128,23 @@ DbWorker::workerThread(int number) {
      outputLogger = std::make_shared<Logger>();
      outputLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".out");
   }
-  }
+
+  if ((mParams.log_failed_queries) || (mParams.log_all_queries) || (mParams.log_query_statistics) || (mParams.log_succeeded_queries)) {
+     threadLogger = std::make_shared<Logger>();
+     threadLogger->initLogFile(mParams.logdir + "/" + mParams.myName + "_thread-" + std::to_string(number) + ".sql");
+     if(mParams.log_query_duration) { threadLogger->setPrecision(3); }
+     }
+
+  std::shared_ptr<Database> Database = createDbInstance();
+
+   if (!Database->init()) {
+     threadLogger->addRecordToLog("=> Unable to init, MySQL error " + Database->getErrorString());
+     wLogger->addRecordToLog("==> Thread #" + std::to_string(number) + " is exiting abnormally, unable to init database");
+     return;
+     }
+
+
+  } //void DbWorker::workerThread(int number)
 
 
 void

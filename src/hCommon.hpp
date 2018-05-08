@@ -19,12 +19,6 @@
 #define MYSQL_FORK "UNKNOWN"
 #endif
 
-#ifdef MAXPACKET
-#ifndef MAX_PACKET_DEFAULT
-#define MAX_PACKET_DEFAULT 4194304
-#endif
-#endif
-
 const uint16_t MAX_CON_FAILURES = 250;
 
 #if defined(WIN32) || defined(_WIN32)

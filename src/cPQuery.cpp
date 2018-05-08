@@ -157,11 +157,7 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
   wParams.port = configReader->GetInteger(secName, "port", 3306);
   wParams.threads = configReader->GetInteger(secName, "threads", 10);
   wParams.queries_per_thread = configReader->GetInteger(secName, "queries-per-thread", 10000);
-#ifdef HAVE_MYSQL
-#ifdef MAXPACKET
-  wParams.maxpacket = configReader->GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
-#endif
-#endif
+
   wParams.verbose = configReader->GetBoolean(secName, "verbose", false);
   wParams.shuffle = configReader->GetBoolean(secName, "shuffle", true);
   wParams.infile = configReader->Get(secName, "infile", "pquery.sql");
@@ -191,11 +187,6 @@ PQuery::logWorkerDetails(struct workerParams& Params) {
   pqLogger->addRecordToLog("## DB password: " + Params.password);
   pqLogger->addRecordToLog("## DB socket: " + Params.socket);
   pqLogger->addRecordToLog("## DB port: " + std::to_string(Params.port));
-#ifdef HAVE_MYSQL
-#ifdef MAXPACKET
-  pqLogger->addRecordToLog("## MySQL max packet size: " + std::to_string(Params.maxpacket));
-#endif
-#endif
   pqLogger->addRecordToLog("## PQuery threads: " + std::to_string(Params.threads));
   pqLogger->addRecordToLog("## PQuery queries per thread: " + std::to_string(Params.queries_per_thread));
   pqLogger->addRecordToLog("## PQuery verbosity: " + std::to_string(Params.verbose));

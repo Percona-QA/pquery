@@ -60,7 +60,6 @@ MysqlDatabase::getErrorString() {
   return (std::to_string(mysql_errno(conn)) + ": " + mysql_error(conn));
   }
 
-
 std::string
 MysqlDatabase::getServerVersion() {
   MYSQL_RES* result = NULL;
