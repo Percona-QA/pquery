@@ -177,8 +177,8 @@ ENDIF()
 #                                   VERSION_VAR PGSQL_VERSION_STRING)
 IF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
   SET(PGSQL_FOUND TRUE)
-  MESSAGE(STATUS "Found PostgreSQL: ${PGSQL_LIBRARY} (found version \"${PGSQL_VERSION_STRING}\")")
-  MESSAGE(STATUS "Found PostgreSQL include directory: ${PGSQL_INCLUDE_DIR}")
+  MESSAGE(STATUS "Found PostgreSQL library: ${PGSQL_LIBRARY} (found version \"${PGSQL_VERSION_STRING}\")")
+  MESSAGE(STATUS "Found PostgreSQL includes: ${PGSQL_INCLUDE_DIR}")
 ENDIF(PGSQL_LIBRARY AND PGSQL_INCLUDE_DIR)
 
 # Now try to get the include and library path.
