@@ -1,6 +1,4 @@
-#ifdef DEBUG
 #include <iostream>
-#endif
 #include <cstring>
 #include <fstream>
 #include <sstream>
@@ -108,7 +106,7 @@ DbWorker::loadQueryList() {
       queryList->push_back(line);
       }
     }
-  *wLogger << "-> Loaded " << queryList->size() << " lines from infile: " << mParams.infile << "\n";
+  *wLogger << "-> Loaded " << queryList->size() << " lines from " << mParams.infile << "\n";
   if (sqlfile_in.is_open()) { sqlfile_in.close(); }
   return true;
   }
@@ -136,14 +134,9 @@ DbWorker::workerThread(int number) {
 
   std::shared_ptr<Database> Database = createDbInstance();
 
-  if (!Database->init()) {
-    threadLogger->addRecordToLog("=> Unable to init, MySQL error " + Database->getErrorString());
-    *wLogger << "==> Thread #" << number << " is exiting abnormally, unable to init database" << "\n";
-    return;
-    }
-
   if (!Database->connect(mParams)) {
-    threadLogger->addRecordToLog("Error " + Database->getErrorString());
+    threadLogger->addRecordToLog("=> Unable to connect! Database error " + Database->getErrorString());
+    *wLogger << "==> Thread #" << number << " is exiting abnormally, unable to init database" << "\n";
     return;
     }
 
@@ -223,12 +216,11 @@ DbWorker::spawnWorkerThreads() {
 
 
 bool
-DbWorker::executeTests(struct workerParams wParams) {
+DbWorker::executeTests(struct workerParams& wParams) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   storeParams(wParams);
-
   if(!testConnection()) { return false; }
   if(!loadQueryList()) { return false; }
   adjustRuntimeParams();

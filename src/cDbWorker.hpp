@@ -20,7 +20,7 @@ class DbWorker
   public:
     DbWorker();
     virtual ~DbWorker();
-    bool executeTests(struct workerParams);
+    bool executeTests(struct workerParams&);
     void setupLogger(std::shared_ptr<Logger>);
     bool loadQueryList();
     virtual std::shared_ptr<Database> createDbInstance() = 0;

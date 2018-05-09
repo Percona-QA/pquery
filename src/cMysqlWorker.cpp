@@ -27,15 +27,10 @@ MysqlWorker::testConnection() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
 
-  std::shared_ptr<MysqlDatabase> mysqlDB = createDbInstance();
-
-  if (!mysqlDB->init()) {
-    wLogger->addRecordToLog("=> Unable to init, MySQL error " + mysqlDB->getErrorString());
-    return false;
-    }
+  std::shared_ptr<Database> mysqlDB = createDbInstance();
 
   if(!mysqlDB->connect(mParams)) {
-    wLogger->addRecordToLog("=> Connection error " + mysqlDB->getErrorString());
+    wLogger->addRecordToLog("=> Unable to connect! MySQL error " + mysqlDB->getErrorString());
     return false;
     }
 

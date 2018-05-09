@@ -14,7 +14,6 @@ class Database
     virtual std::string getServerVersion() = 0;
     virtual std::string getHostInfo() = 0;
     virtual std::string getErrorString() = 0;
-    virtual bool init() = 0;
     virtual bool connect(struct workerParams&) = 0;
     virtual std::uint64_t getAffectedRows() = 0;
     double getQueryDurationMs();

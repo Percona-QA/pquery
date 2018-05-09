@@ -1,3 +1,5 @@
+#include <iostream>
+#include <sstream>
 #include <cPgsqlDatabase.hpp>
 
 PgsqlDatabase::PgsqlDatabase() {
@@ -23,20 +25,23 @@ PgsqlDatabase::processQueryOutput() {
 
 
 bool
-PgsqlDatabase::init() {
-  return true;
-  }
-
-
-bool
-PgsqlDatabase::connect(workerParams& mParams) {
+PgsqlDatabase::connect(workerParams& dbParams) {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  std::ostringstream conninfo;
+  conninfo << "host=" << dbParams.address << " user=" << dbParams.username << " password=" << dbParams.password
+    << " dbname=" << dbParams.database << " port=" << dbParams.port;
+  conn = PQconnectdb(conninfo.str().c_str());
+  if (PQstatus(conn) != CONNECTION_OK) { return false; }
   return true;
   }
 
 
 bool
 PgsqlDatabase::performRealQuery(std::string query) {
-  return true;
+  PGresult *res = PQexec(conn, query.c_str());
+  return (PQresultStatus(res) == PGRES_TUPLES_OK);
   }
 
 
@@ -49,21 +54,31 @@ PgsqlDatabase::getWarningsCount() {
 std::string
 PgsqlDatabase::getServerVersion() {
   std::string server_version;
+  PGresult *res = PQexec(conn, "SELECT VERSION()");
+  if (PQresultStatus(res) == PGRES_TUPLES_OK) {
+    server_version = PQgetvalue(res, 0, 0);
+    }
+  else {
+    server_version = "PostgreSQL Server (Unknown)";
+    }
+  if (res != NULL) {
+    PQclear(res);
+    }
   return server_version;
-
   }
 
 
 std::string
 PgsqlDatabase::getErrorString() {
-  std::string error_string;
-  return error_string;
+  return PQerrorMessage(conn);
   }
 
 
 std::string
 PgsqlDatabase::getHostInfo() {
-  std::string host_info;
+  std::string host_info = PQhost(conn);
+  host_info += " port ";
+  host_info += PQport(conn);
   return host_info;
   }
 

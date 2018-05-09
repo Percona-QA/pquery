@@ -31,19 +31,12 @@ MysqlDatabase::getAffectedRows() {
 
 
 bool
-MysqlDatabase::init() {
-  conn = mysql_init(NULL);
-  if (conn == NULL) { return false; }
-  return true;
-  }
-
-
-bool
 MysqlDatabase::connect(struct workerParams& dbParams) {
 #ifdef DEBUG
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
-
+  conn = mysql_init(NULL);
+  if (conn == NULL) { return false; }
   if (mysql_real_connect(conn, dbParams.address.c_str(), dbParams.username.c_str(),
     dbParams.password.c_str(), dbParams.database.c_str(), dbParams.port, dbParams.socket.c_str(), 0) == NULL){ return false; }
     return true;

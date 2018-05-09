@@ -153,13 +153,24 @@ PQuery::setupWorkerParams(struct workerParams& wParams, std::string secName) {
   wParams.database  = configReader->Get(secName, "database", "");
 
   wParams.dbtype    = configReader->getDbType(secName, "dbtype", eNONE);
+  switch(wParams.dbtype) {
+    case eMYSQL:
+      wParams.port = configReader->GetInteger(secName, "port", 3306);
+      break;
+    case ePGSQL:
+      wParams.port = configReader->GetInteger(secName, "port", 5432);
+      break;
+    default:
+      wParams.port = 0;
+      break;
+    }
 
-  wParams.port = configReader->GetInteger(secName, "port", 3306);
   wParams.threads = configReader->GetInteger(secName, "threads", 10);
   wParams.queries_per_thread = configReader->GetInteger(secName, "queries-per-thread", 10000);
 
   wParams.verbose = configReader->GetBoolean(secName, "verbose", false);
   wParams.shuffle = configReader->GetBoolean(secName, "shuffle", true);
+
   wParams.infile = configReader->Get(secName, "infile", "pquery.sql");
   wParams.logdir = configReader->Get(secName, "logdir", "/tmp");
 //

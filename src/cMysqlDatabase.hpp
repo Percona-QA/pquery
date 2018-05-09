@@ -14,7 +14,6 @@ class MysqlDatabase : public Database
     std::string getHostInfo();
     std::string getErrorString();
     bool connect(struct workerParams&);
-    bool init();
     inline std::uint64_t getAffectedRows();
     bool performRealQuery(std::string);
     void processQueryOutput();
