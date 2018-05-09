@@ -15,10 +15,11 @@ class MysqlDatabase : public Database
     std::string getErrorString();
     bool connect(struct workerParams&);
     bool init();
-    inline uint64_t getAffectedRows();
+    inline std::uint64_t getAffectedRows();
     bool performRealQuery(std::string);
-    std::string getQueryOutput();
-    uint32_t getWarningsCount();
+    void processQueryOutput();
+    std::uint32_t getWarningsCount();
+
   private:
     MYSQL* conn;
 

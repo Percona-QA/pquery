@@ -16,6 +16,7 @@ Database::~Database() {
 #endif
   }
 
+
 double
 Database::getQueryDurationMs() {
   std::chrono::duration<double, std::milli> duration = end - begin;

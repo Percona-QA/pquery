@@ -12,7 +12,7 @@ MysqlDatabase::MysqlDatabase() {
   }
 
 
-inline uint64_t
+inline std::uint64_t
 MysqlDatabase::getAffectedRows() {
   if (mysql_affected_rows(conn) == ~(unsigned long long) 0) {
     return 0LL;
@@ -59,19 +59,39 @@ MysqlDatabase::performRealQuery(std::string query) {
   return (res == 0);
   }
 
-uint32_t
-MysqlDatabase::getWarningsCount(){
+
+std::uint32_t
+MysqlDatabase::getWarningsCount() {
   return mysql_warning_count(conn);
-}
+  }
 
-std::string
-MysqlDatabase::getQueryOutput() {
-  std::string out;
-// do {
-//   MYSQL_RES * result = mysql_use_result(conn);
-//   }  while (mysql_next_result(conn) == 0) ;     // while
 
-  return out;
+void
+MysqlDatabase::processQueryOutput() {
+  queryResult.clear();
+  do {
+    MYSQL_RES * result = mysql_use_result(conn);
+    if(result == NULL) { return; }
+    MYSQL_ROW row;
+    std::uint32_t i, num_fields;
+    num_fields = mysql_num_fields(result);
+    while ((row = mysql_fetch_row(result))) {
+      for(i = 0; i < num_fields; i++) {
+        if (row[i]) {
+          if(strlen(row[i]) == 0) {
+            queryResult = "EMPTY";
+            }
+          else {
+            queryResult = (row[i]);
+            }
+          }
+        else {
+          queryResult = "NO DATA";
+          }
+        }
+      }
+    mysql_free_result(result);
+    }  while (mysql_next_result(conn) == 0) ;     // do-while
   }
 
 

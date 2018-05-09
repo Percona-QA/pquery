@@ -1,9 +1,10 @@
 # Multiline comments like /* */ are not allowed here due to shuffled SQL execution
+# No BEGIN COMMIT blocks allowed here due to shuffled SQL execution
 # No preprocessing will be made for this file to skip multiline comments
 # valid comments must be prefixed with '#', ';' or '//'
 #  this is a comment
-;  this is a comment
-// this is a comment
+;  this is a comment too
+// this is a comment too
 
 SELECT VERSION()
 CREATE TABLE ABSTIME_TBL (f1 abstime);

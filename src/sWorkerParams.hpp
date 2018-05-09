@@ -1,3 +1,4 @@
+#include <string>
 #include <eDbTypes.hpp>
 
 #ifndef _SWORKER_PARAMS_
