@@ -27,7 +27,7 @@ MysqlWorker::testConnection() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
 
-  std::shared_ptr<MysqlDatabase> mysqlDB = std::make_shared<MysqlDatabase>();
+  std::shared_ptr<MysqlDatabase> mysqlDB = createDbInstance();
 
   if (!mysqlDB->init()) {
     wLogger->addRecordToLog("=> Unable to init, MySQL error " + mysqlDB->getErrorString());

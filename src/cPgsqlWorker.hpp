@@ -9,8 +9,10 @@ class PgsqlWorker: public DbWorker
     PgsqlWorker();
     ~PgsqlWorker();
     bool executeTests(struct workerParams&);
+    std::shared_ptr<Database> createDbInstance();
+    void endDbThread();
+  private:
     bool testConnection();
     void workerThread(int number);
-
   };
 #endif

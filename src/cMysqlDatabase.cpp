@@ -13,6 +13,14 @@ MysqlDatabase::MysqlDatabase() {
   }
 
 
+MysqlDatabase::~MysqlDatabase() {
+#ifdef DEBUG
+  std::cerr << __PRETTY_FUNCTION__ << std::endl;
+#endif
+  if(conn != NULL) { mysql_close(conn); }
+  }
+
+
 inline std::uint64_t
 MysqlDatabase::getAffectedRows() {
   if (mysql_affected_rows(conn) == ~(unsigned long long) 0) {
@@ -39,14 +47,6 @@ MysqlDatabase::connect(struct workerParams& dbParams) {
   if (mysql_real_connect(conn, dbParams.address.c_str(), dbParams.username.c_str(),
     dbParams.password.c_str(), dbParams.database.c_str(), dbParams.port, dbParams.socket.c_str(), 0) == NULL){ return false; }
     return true;
-  }
-
-
-MysqlDatabase::~MysqlDatabase() {
-#ifdef DEBUG
-  std::cerr << __PRETTY_FUNCTION__ << std::endl;
-#endif
-  if(conn != NULL) { mysql_close(conn); }
   }
 
 
