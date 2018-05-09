@@ -2,6 +2,7 @@
 #include <iostream>
 #endif
 
+#include <cstring>
 #include <cMysqlDatabase.hpp>
 
 MysqlDatabase::MysqlDatabase() {

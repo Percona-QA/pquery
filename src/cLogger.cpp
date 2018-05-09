@@ -1,7 +1,5 @@
 #include <iostream>
-#include <cstring>
 #include <string>
-#include <cerrno>
 #include <stdexcept>
 #include <iomanip>
 #include <hCommon.hpp>

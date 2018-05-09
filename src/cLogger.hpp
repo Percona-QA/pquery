@@ -1,6 +1,7 @@
 #include <string>
 #include <fstream>
-#include <bitset>
+#include <cstring>
+#include <cerrno>
 
 #ifndef LOGGER_HPP
 #define LOGGER_HPP
