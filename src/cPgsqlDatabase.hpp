@@ -20,5 +20,7 @@ class PgsqlDatabase : public Database
 
   private:
     PGconn* conn;
+    PGresult* res;
+    std::uint64_t changed_rows;
   };
 #endif

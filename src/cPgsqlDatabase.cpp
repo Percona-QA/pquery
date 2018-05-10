@@ -7,6 +7,7 @@ PgsqlDatabase::PgsqlDatabase() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   conn = NULL;
+  changed_rows = 0;
   }
 
 
@@ -40,13 +41,21 @@ PgsqlDatabase::connect(workerParams& dbParams) {
 
 bool
 PgsqlDatabase::performRealQuery(std::string query) {
-  PGresult *res = PQexec(conn, query.c_str());
-  return (PQresultStatus(res) == PGRES_TUPLES_OK);
+  res = PQexec(conn, query.c_str());
+  ExecStatusType pgstatus = PQresultStatus(res);
+  std::string affected_rows = PQcmdTuples(res);
+  if(affected_rows.empty()){ changed_rows = 0; }
+  else { changed_rows = std::stoll(affected_rows); }
+
+  PQclear(res);
+  return (pgstatus == PGRES_TUPLES_OK) ||
+         (pgstatus == PGRES_COMMAND_OK);
   }
 
 
 std::uint32_t
 PgsqlDatabase::getWarningsCount() {
+
   return 0;
   }
 
@@ -54,12 +63,12 @@ PgsqlDatabase::getWarningsCount() {
 std::string
 PgsqlDatabase::getServerVersion() {
   std::string server_version;
-  PGresult *res = PQexec(conn, "SELECT VERSION()");
+  res = PQexec(conn, "SELECT VERSION()");
   if (PQresultStatus(res) == PGRES_TUPLES_OK) {
     server_version = PQgetvalue(res, 0, 0);
     }
   else {
-    server_version = "PostgreSQL Server (Unknown)";
+    server_version = "PostgreSQL Server " + std::to_string(PQserverVersion(conn));
     }
   if (res != NULL) {
     PQclear(res);
@@ -90,5 +99,5 @@ PgsqlDatabase::getHostInfo() {
 
 inline std::uint64_t
 PgsqlDatabase::getAffectedRows() {
-  return 0;
+  return changed_rows;
   }
