@@ -18,6 +18,7 @@ class MysqlDatabase : public Database
     bool performRealQuery(std::string);
     void processQueryOutput();
     std::uint32_t getWarningsCount();
+    void cleanupResult();
 
   private:
     MYSQL* conn;

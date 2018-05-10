@@ -192,6 +192,7 @@ thread logging according to config
         }
       outputLogger->addPartialRecord("\n");
       }
+    Database->cleanupResult();
     }                                             //for (i=0; i<mParams.queries_per_thread; i++){}
 
   performed_queries_total += Database->getPerformedQueries();

@@ -126,3 +126,9 @@ MysqlDatabase::getServerVersion() {
     }
   return server_version;
   }
+
+
+void
+MysqlDatabase::cleanupResult() {
+
+  }

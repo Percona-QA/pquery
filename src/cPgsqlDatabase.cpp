@@ -7,7 +7,7 @@ PgsqlDatabase::PgsqlDatabase() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   conn = NULL;
-  changed_rows = 0;
+  res = NULL;
   }
 
 
@@ -16,12 +16,30 @@ PgsqlDatabase::~PgsqlDatabase() {
   std::cerr << __PRETTY_FUNCTION__ << std::endl;
 #endif
   if(conn != NULL) { PQfinish(conn); }
+  if(res != NULL) { PQclear(res); }
   }
 
 
 void
 PgsqlDatabase::processQueryOutput() {
+  if(res == NULL) { return; }
 
+
+queryResult.clear();
+int rows = PQntuples(res);
+int columns = PQnfields(res);
+for(int row=0; row<rows; row++) {
+  for(int col=0; col<columns; col++){
+        std::string strres = PQgetvalue(res, row, col);
+        if (!strres.empty()){
+          queryResult += strres;
+          queryResult += " ";
+        }else{
+          queryResult += "#EMPTY# ";
+        }
+    }
+      queryResult += "\n";
+  }
   }
 
 
@@ -42,20 +60,14 @@ PgsqlDatabase::connect(workerParams& dbParams) {
 bool
 PgsqlDatabase::performRealQuery(std::string query) {
   res = PQexec(conn, query.c_str());
-  ExecStatusType pgstatus = PQresultStatus(res);
-  std::string affected_rows = PQcmdTuples(res);
-  if(affected_rows.empty()){ changed_rows = 0; }
-  else { changed_rows = std::stoll(affected_rows); }
-
-  PQclear(res);
+  pgstatus = PQresultStatus(res);
   return (pgstatus == PGRES_TUPLES_OK) ||
-         (pgstatus == PGRES_COMMAND_OK);
+    (pgstatus == PGRES_COMMAND_OK);
   }
 
 
 std::uint32_t
 PgsqlDatabase::getWarningsCount() {
-
   return 0;
   }
 
@@ -70,9 +82,7 @@ PgsqlDatabase::getServerVersion() {
   else {
     server_version = "PostgreSQL Server " + std::to_string(PQserverVersion(conn));
     }
-  if (res != NULL) {
-    PQclear(res);
-    }
+  cleanupResult();
   return server_version;
   }
 
@@ -80,11 +90,14 @@ PgsqlDatabase::getServerVersion() {
 std::string
 PgsqlDatabase::getErrorString() {
   std::string psql_errstring = PQerrorMessage(conn);
+  if(psql_errstring.substr(0, 5) == "ERROR"){
+    psql_errstring = psql_errstring.substr(5, std::string::npos);
+  }
   std::size_t found = psql_errstring.find_first_of("\n");
   if(found == std::string::npos) {
     return psql_errstring;
     }
-  return psql_errstring.substr(0, found);
+  return PQresStatus(pgstatus) + psql_errstring.substr(0, found);
   }
 
 
@@ -99,5 +112,16 @@ PgsqlDatabase::getHostInfo() {
 
 inline std::uint64_t
 PgsqlDatabase::getAffectedRows() {
-  return changed_rows;
+  std::string affected_rows = PQcmdTuples(res);
+  if(affected_rows.empty()){ return 0; }
+  return std::stoll(affected_rows);
+  }
+
+
+void
+PgsqlDatabase::cleanupResult() {
+  if (res != NULL) {
+    PQclear(res);
+    res = NULL;
+    }
   }

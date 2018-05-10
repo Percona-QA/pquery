@@ -25,6 +25,7 @@ class Database
     virtual bool performRealQuery(std::string) = 0;
     virtual void processQueryOutput() = 0;
     virtual std::uint32_t getWarningsCount() = 0;
+    virtual void cleanupResult() = 0;
 
   protected:
     std::string queryResult;

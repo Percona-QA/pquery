@@ -17,10 +17,11 @@ class PgsqlDatabase : public Database
     bool performRealQuery(std::string);
     void processQueryOutput();
     std::uint32_t getWarningsCount();
+    void cleanupResult();
 
   private:
     PGconn* conn;
     PGresult* res;
-    std::uint64_t changed_rows;
+    ExecStatusType pgstatus;
   };
 #endif
