@@ -30,9 +30,17 @@ SELECT '' AS three, * FROM ABSTIME_TBL   WHERE abstime 'epoch' >= ABSTIME_TBL.f1
 SELECT '' AS four, * FROM ABSTIME_TBL   WHERE ABSTIME_TBL.f1 <= abstime 'Jan 14, 1973 03:14:21';
 SELECT '' AS four, * FROM ABSTIME_TBL  WHERE ABSTIME_TBL.f1 <?> tinterval '["Apr 1 1950 00:00:00" "Dec 30 1999 23:00:00"]';
 SELECT '' AS four, f1 AS abstime,  date_part('year', f1) AS year, date_part('month', f1) AS month,  date_part('day',f1) AS day, date_part('hour', f1) AS hour,  date_part('minute', f1) AS minute, date_part('second', f1) AS second  FROM ABSTIME_TBL  WHERE isfinite(f1)  ORDER BY abstime;
-SELECT  pg_advisory_xact_lock(1), pg_advisory_xact_lock_shared(2),  pg_advisory_xact_lock(1, 1), pg_advisory_xact_lock_shared(2, 2);
-SELECT locktype, classid, objid, objsubid, mode, granted  FROM pg_locks WHERE locktype = 'advisory' ORDER BY classid, objid, objsubid;
-SELECT pg_advisory_unlock_all();
-SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
-SELECT  pg_advisory_unlock(1), pg_advisory_unlock_shared(2),  pg_advisory_unlock(1, 1), pg_advisory_unlock_shared(2, 2);
-SELECT count(*) FROM pg_locks WHERE locktype = 'advisory';
+select max(100) from tenk1;
+create table minmaxtest(f1 int);
+create table minmaxtest1() inherits (minmaxtest);
+create table minmaxtest2() inherits (minmaxtest);
+create table minmaxtest3() inherits (minmaxtest);
+create index minmaxtesti on minmaxtest(f1);
+create index minmaxtest1i on minmaxtest1(f1);
+create index minmaxtest2i on minmaxtest2(f1 desc);
+create index minmaxtest3i on minmaxtest3(f1) where f1 is not null;
+insert into minmaxtest values(11), (12);
+insert into minmaxtest1 values(13), (14);
+insert into minmaxtest2 values(15), (16);
+insert into minmaxtest3 values(17), (18);
+
