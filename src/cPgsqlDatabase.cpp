@@ -70,7 +70,12 @@ PgsqlDatabase::getServerVersion() {
 
 std::string
 PgsqlDatabase::getErrorString() {
-  return PQerrorMessage(conn);
+  std::string psql_errstring = PQerrorMessage(conn);
+  std::size_t found = psql_errstring.find_first_of("\n");
+  if(found == std::string::npos) {
+    return psql_errstring;
+    }
+  return psql_errstring.substr(0, found);
   }
 
 
