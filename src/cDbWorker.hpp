@@ -37,6 +37,7 @@ class DbWorker
 
   private:
     void writeFinalReport();
+    void calculateQueries(std::shared_ptr<Database>);
     virtual bool testConnection() = 0;
     void storeParams(struct workerParams& wParams);
     bool isComment(std::string&);

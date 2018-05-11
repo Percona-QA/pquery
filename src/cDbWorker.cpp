@@ -82,7 +82,6 @@ DbWorker::isComment(std::string& line) {
     );
   }
 
-
 bool
 DbWorker::loadQueryList() {
 #ifdef DEBUG
@@ -111,6 +110,12 @@ DbWorker::loadQueryList() {
   return true;
   }
 
+
+void
+DbWorker::calculateQueries(std::shared_ptr<Database> Database){
+  performed_queries_total += Database->getPerformedQueries();
+  failed_queries_total += Database->getFailedQueries();
+}
 
 void
 DbWorker::workerThread(int number) {
@@ -154,6 +159,7 @@ DbWorker::workerThread(int number) {
     if (max_con_fail_count >= MAX_CON_FAILURES) {
       *threadLogger << "=> Last " << max_con_fail_count <<
         " consecutive queries all failed. Likely crash/assert, user privileges drop, or similar. Ending run.\n";
+        calculateQueries(Database);
       return;
       }
 
@@ -193,10 +199,8 @@ thread logging according to config
       outputLogger->addPartialRecord("\n");
       }
     Database->cleanupResult();
-    }                                             //for (i=0; i<mParams.queries_per_thread; i++){}
-
-  performed_queries_total += Database->getPerformedQueries();
-  failed_queries_total += Database->getFailedQueries();
+    }
+    calculateQueries(Database);                                          //for (i=0; i<mParams.queries_per_thread; i++){}
   endDbThread();
   }                                               //void DbWorker::workerThread(int number)
 
