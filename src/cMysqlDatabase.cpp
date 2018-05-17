@@ -105,7 +105,7 @@ MysqlDatabase::getErrorString() {
 
 std::string
 MysqlDatabase::getServerVersion() {
-  MYSQL_RES* result = NULL;
+  result = NULL;
   std::string server_version;
 
   if (!mysql_query(conn, "select @@version_comment limit 1") && (result = mysql_use_result(conn))) {
@@ -120,14 +120,15 @@ MysqlDatabase::getServerVersion() {
     server_version = mysql_get_server_info(conn);
     }
 
-  if (result != NULL) {
-    mysql_free_result(result);
-    }
+  cleanupResult();
   return server_version;
   }
 
 
 void
 MysqlDatabase::cleanupResult() {
+  if (result != NULL){
   mysql_free_result(result);
+  result = NULL;
   }
+}
