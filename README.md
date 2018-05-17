@@ -138,9 +138,9 @@ To fix this, you can chose from 3 options;
 First, take a quick look at ``` pquery -h``` to see available modes and options.
 
 # v3.x Command line options example:
-```-h``` - help with config example
-```-c``` - config to run with
-```-v``` - version with commit info
+  *-h* - help with config example
+  *-c* - config to run with
+  *-v* - version with commit info
 
 # v3.x Configuration file example:
 ```
@@ -199,6 +199,14 @@ infile = pquery-pgsql.sql
 run = No
 
 ```
+
+# BUG reporting:
+  * please include ```pquery3 -v``` output
+  * if possible - use debug build (DEVELOPER_MODE) for reproducing
+  * please include steps showing incorrect behavior or leading to crash/failure
+
+
+# More information
 
 Note that logfiles (including SQL log files) are now overwritten.
 If SQL logs are appended to in old v2.0 versions, it will reduce issue reproducibility. To avoid this, simply use a new log file for each pquery run. The [pquery framework](https://github.com/Percona-QA/percona-qa) (ref [pquery-run.sh](https://github.com/Percona-QA/percona-qa/blob/master/pquery-run.sh)) already takes care of this automatically.
