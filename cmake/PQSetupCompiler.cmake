@@ -1,6 +1,6 @@
 #
 OPTION(WITH_ASAN "Turn ON Address sanitizer feature" OFF)
-OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" OFF)
+OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" ON)
 OPTION(NATIVE_CPU "Strictly bind the binary to current CPU" OFF)
 #
 IF(DEVELOPER_MODE)
@@ -75,7 +75,7 @@ IF(CMAKE_BUILD_TYPE STREQUAL "Debug")
 ENDIF()
 ##
 IF(NATIVE_CPU)
-  ADD_COMPILE_OPTIONS(-march=native -mtune=generic)
+  ADD_COMPILE_OPTIONS(-march=native)
 ENDIF()
 #
 IF(STRICT_FLAGS)
