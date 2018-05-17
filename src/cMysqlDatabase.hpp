@@ -22,6 +22,7 @@ class MysqlDatabase : public Database
 
   private:
     MYSQL* conn;
+    MYSQL_RES* result;
 
   };
 #endif
