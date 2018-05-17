@@ -67,7 +67,7 @@ Please note that only the MySQL client library will be linked statically if STAT
 ```
 $ cd pquery
 $ ./clean-tree.sh  # Important note: this removes any local updates you may have made
-$ cmake . -DWITH_MYSQL=ON -DMYSQL_FORK=PERCONASERVER -DMYSQL_BASEDIR=/tmp/percona-server-5.7.21-20-linux-x86_64
+$ cmake . -DWITH_PGSQL=OFF -DMYSQL_FORK=PERCONASERVER -DMYSQL_BASEDIR=/tmp/percona-server-5.7.21-20-linux-x86_64
 $ make
 $ sudo make install # If you want pquery to be installed on the system, otherwise the binary can be found in ./src
 $ ./clean-tree.sh  # Ref above
