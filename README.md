@@ -6,6 +6,7 @@ pquery is an open-source (GPLv2 licensed) multi-threaded test program created to
 + *pquery v3.x* was designed for multi-node MySQL setups, and accepts options from a configuration file in INI format. Ref ```pquery -h```
 
 Please note that v2.0 accepts the same CLI options as v1.0 does, for backwards compatibility. And, alike to v1.0, it can handle a single node setup in that mode. The recommended way to pass all options and params to pquery v2.0 is using a configuration file.
+pquery v3.x accept run options from configuration file only.
 
 pquery v3.x is under active development. v2.x is production, v1.0 is no longer in use.
 
@@ -49,7 +50,7 @@ Options are:
 
   * *MYSQL_FORK* - **MYSQL** by default, specifies MySQL fork/flavour to build pquery with. Options are *MYSQL*, *MARIADB*, *WEBSCALESQL*, *PERCONASERVER*, *PERCONACLUSTER*
 
-  a note for *STATIC_MYSQL* - For most distributions, the static library is included in standard downloads and definitely should be in place if you build MySQL/Percona Server yourself. However, MariaDB is not providing static client library in the standard optimized package, so pquery will automatically compile with a shared MariaDB library (which has to be installed on the OS first, i.e. yum/apt-get install mariadb-devel). In other words, when using ```-DWITHMYSQL=ON -DMYSQL_FORK=MARIADB```, this option is turned off by default.
+  a note for *STATIC_MYSQL* - For most distributions, the static library is included in standard downloads and definitely should be in place if you build MySQL/Percona Server yourself. However, MariaDB is not providing static client library in the standard optimized package, so pquery will automatically compile with a shared MariaDB library (which has to be installed on the OS first, i.e. yum/apt-get install mariadb-devel). In other words, when using ```-DWITH_MYSQL=ON -DMYSQL_FORK=MARIADB```, this option is turned off by default.
 
 
 4. If you have MySQL | Percona Server | WebScaleSQL | MariaDB installed to some custom location you may consider setting the additional flags to cmake: *MYSQL_INCLUDE_DIR* and *MYSQL_LIBRARY*. OR, you can set *MYSQL_BASEDIR* variable if you have binary tarball extracted to some custom place for fully automatic library detection (recommended).
