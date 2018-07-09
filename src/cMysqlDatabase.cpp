@@ -127,8 +127,8 @@ MysqlDatabase::getServerVersion() {
 
 void
 MysqlDatabase::cleanupResult() {
-  if (result != NULL){
-  mysql_free_result(result);
-  result = NULL;
+  if (result != NULL) {
+    mysql_free_result(result);
+    result = NULL;
+    }
   }
-}
