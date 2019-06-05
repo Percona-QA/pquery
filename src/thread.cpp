@@ -1,6 +1,7 @@
 #include "common.hpp"
 #include "node.hpp"
 
+#include "random_test.hpp"
 #include <algorithm>
 #include <chrono>
 #include <cstring>
@@ -95,8 +96,10 @@ void Node::workerThread(int number) {
     return;
   }
 
+  run_som_load(conn);
   unsigned long i;
-  for (i = 0; i < myParams.queries_per_thread; i++) {
+  // for (i = 0; i < myParams.queries_per_thread; i++) {
+  for (i = 0; i < 10; i++) {
 
     unsigned long query_number;
     // selecting query #, depends on random or sequential execution
