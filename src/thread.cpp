@@ -47,6 +47,7 @@ void Node::workerThread(int number) {
     std::ostringstream os;
     os << myParams.logdir << "/" << myParams.myName << "_thread-" << number
        << ".sql";
+    std::cout << "rahul Number " << number << os.str() << std::endl;
     thread_log.open(os.str(), std::ios::out | std::ios::trunc);
     if (!thread_log.is_open()) {
       general_log << "Unable to open thread logfile " << os.str() << ": "
@@ -96,10 +97,21 @@ void Node::workerThread(int number) {
     return;
   }
 
-  run_som_load(conn);
+
+  if (number ==0 ) {
+  run_som_load(conn, thread_log);
+  }
+   if (number != 0 ) {
+  std::chrono::seconds dura(10);
+  std::this_thread::sleep_for( dura );
+   }
+  run_some_query(conn,thread_log);
+
+  if (number == 0 ) 
+  save_dictionary();
+
   unsigned long i;
-  // for (i = 0; i < myParams.queries_per_thread; i++) {
-  for (i = 0; i < 10; i++) {
+  for (i = 0; i < myParams.queries_per_thread; i++) {
 
     unsigned long query_number;
     // selecting query #, depends on random or sequential execution
