@@ -102,7 +102,7 @@ void Node::workerThread(int number) {
 
 
   if (number == 0 ) {
-    run_som_load(conn, thread_log, tables);
+    run_default_load(conn, thread_log, tables);
     default_load = true;
   }
 
@@ -113,9 +113,6 @@ void Node::workerThread(int number) {
   }
 
   run_some_query(conn, thread_log, tables);
-  thread_log << "logs for thread" << number << " completed " << std::endl;
-  std::chrono::seconds dura(13);
-  std::this_thread::sleep_for(dura);
 
   unsigned long i;
   for (i = 0; i < myParams.queries_per_thread; i++) {

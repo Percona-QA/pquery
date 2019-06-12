@@ -26,22 +26,29 @@ int rand_int(int upper, int lower) {
   return dist(rng);
 }
 
+string rand_string(int upper, int lower) {
+  if (upper != lower)
+    return "test";
+  else
+    return "FAIL";
+}
+
 /* table attirbutes */
 namespace ta {
 string encryption = "none";
 vector<string> key_block_size;
 string engine = "InnoDB";
 vector<string> tablespace; // = {"abc"};
-int no_of_tables = 2;
+int no_of_tables = 100;
 int version = 1;
 string file_read_path = "data.dll";
 string file_write_path = "new_data.dll";
 int load_from_file = 0;
 string partition_string = "_p";
-int default_columns_in_table = 40;
-int default_indexes_in_table = 15;
+int default_columns_in_table = 3;
+int default_indexes_in_table = 5;
 int default_columns_in_index = 2;
-int default_number_of_records_in_table = 5;
+int default_number_of_records_in_table = 1;
 vector<Table *> *all_tables;
 } // namespace ta
 
@@ -49,18 +56,35 @@ vector<Table *> *all_tables;
 enum TABLE_TYPES { PARTITION, NORMAL };
 /* Column Basic Properties */
 
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, MAX };
+
 struct Column {
   Column(string n, Table *table) : name_(n), table_(table){};
-  Column(string name, string type, bool n)
-      : name_(name), type_(type), null(n){};
-  std::string name_;
-  std::string type_;
-  int length = 0;
-  bool null = false;
-  std::string default_value;
-  bool primary_key = false;
-  bool generated = false;
-  Table *table_;
+
+  Column(string name, string type, bool n, int l, Table *table)
+      : name_(name), type_(type), null(n), length(l), table_(table){};
+
+  Column(string name, Table *table, int type) : name_(name), table_(table) {
+    switch (type) {
+    case (COLUMN_TYPES::INT):
+      type_ = "INT";
+      if (rand_int(10) == 1)
+        length = rand_int(100, 20);
+      else
+        length = 0;
+      break;
+    case (COLUMN_TYPES::VARCHAR):
+      type_ = "VARCHAR";
+      length = rand_int(200, 10);
+      break;
+    case (COLUMN_TYPES::CHAR):
+      type_ = "CHAR";
+      length = rand_int(200, 10);
+    }
+  };
+
+  string rand_value();
+
   template <typename Writer> void Serialize(Writer &writer) const {
     writer.StartObject();
     writer.String("name");
@@ -73,10 +97,29 @@ struct Column {
     writer.Bool(primary_key);
     writer.String("generated");
     writer.Bool(generated);
+    writer.String("lenght");
+    writer.Int(length);
     writer.EndObject();
   }
-  ~Column();
+
+  ~Column(){};
+
+  std::string name_;
+  std::string type_;
+  bool null = false;
+  int length = 0;
+  std::string default_value;
+  bool primary_key = false;
+  bool generated = false;
+  Table *table_;
 };
+
+string Column::rand_value() {
+  if (type_.compare("INT") == 0)
+    return to_string(rand_int(100, 4));
+  else
+    return "\'" + rand_string(length) + "\'";
+}
 
 struct Ind_col {
   Ind_col(Column *c) : column(c){};
@@ -137,11 +180,11 @@ public:
   std::string table_name() { return name_; };
   /* method to create table of choice */
   static Table *table_id(int choice, int id);
-  string table_defination();
-
+  string Table_defination();
   void AddColumn(Column *column) { columns_->push_back(column); }
-
   void AddIndex(Index *index) { indexes_->push_back(index); }
+  void CreateDefaultColumn();
+  void CreateDefaultIndex();
 
   template <typename Writer> void Serialize(Writer &writer) const {
     writer.StartObject();
@@ -192,10 +235,6 @@ public:
   std::mutex table_mutex;
 };
 
-Column::~Column() {
-
-}
-
 /* Partition table */
 class Partition_table : public Table {
 public:
@@ -206,33 +245,29 @@ public:
 };
 
 /* create default column */
-void create_default_colum(Table *table) {
+void Table::CreateDefaultColumn() {
   int j = rand_int(ta::default_columns_in_table, 1);
   for (int i = 0; i < j; i++) {
-    string name = "a" + to_string(i);
-    Column *a = new Column{name, table}; // = Column(name);
-    a->type_ = "INT";
-    a->null = rand_int(2);
-    if (rand_int(10) == 1)
-      a->length = rand_int(100, 20);
-    a->default_value = rand_int(100);
-    table->AddColumn(a);
+    string name = "c" + to_string(i);
+    auto val = rand_int(COLUMN_TYPES::MAX - 1);
+    Column *a = new Column{name, this, val};
+    AddColumn(a);
   }
 }
 
 /* create default indexes */
-void create_default_index(Table *table) {
+void Table::CreateDefaultIndex() {
 
   int indexes = rand_int(ta::default_indexes_in_table, 1);
   for (int i = 0; i < indexes; i++) {
 
-    Index *id = new Index(table->name_ + "i" + to_string(i));
+    Index *id = new Index(name_ + "i" + to_string(i));
 
     int max_columns = rand_int(ta::default_columns_in_index, 1);
 
     int columns = max_columns;
 
-    for (auto *col : *table->columns_) {
+    for (auto *col : *columns_) {
       if (rand_int(3) > 1)
         continue;
       else {
@@ -247,8 +282,8 @@ void create_default_index(Table *table) {
 
     /* make sure it has  atleast one column */
     if (columns == max_columns)
-      id->AddColumn(new Ind_col(table->columns_->at(0)));
-    table->AddIndex(id);
+      id->AddColumn(new Ind_col(columns_->at(0)));
+    AddIndex(id);
   }
 }
 
@@ -262,8 +297,8 @@ Table *Table::table_id(int choice, int id) {
     table = new Table(name);
   }
 
-  create_default_colum(table);
-  create_default_index(table);
+  table->CreateDefaultColumn();
+  table->CreateDefaultIndex();
 
   if (ta::encryption.compare("all") == 0 && rand_int(2) == 0)
     table->encryption = true;
@@ -282,7 +317,7 @@ Table *Table::table_id(int choice, int id) {
 }
 
 /* prepare table defination */
-string Table::table_defination() {
+string Table::Table_defination() {
   std::string def = "CREATE TABLE  " + name_ + " (";
 
   // todo move to method
@@ -355,7 +390,7 @@ void load_default_data(std::vector<Table *> *all_tables, MYSQL *conn) {
       string insert = "INSERT INTO " + table->name_ + "  ( ";
       for (auto &column : *table->columns_) {
         insert += column->name_ + " ,";
-        vals += " " + to_string(rand_int(100)) + ",";
+        vals += " " + column->rand_value() + ",";
       }
       vals.pop_back();
       insert.pop_back();
@@ -366,20 +401,27 @@ void load_default_data(std::vector<Table *> *all_tables, MYSQL *conn) {
   }
 }
 
-
 /* alter table add column */
 void at_add_column(Table *table, MYSQL *conn) {
-  auto col_name = "COL" + to_string(rand_int(3));
   string sql = "ALTER TABLE " + table->name_ + "  ADD COLUMN ";
-  sql += col_name + " " + "INT" + ";";
+  string name;
+  name = "COL" + to_string(rand_int(300));
+
+  auto col = rand_int(COLUMN_TYPES::MAX - 1);
+  Column *tc = new Column(name, table, col);
+
+  sql += name + " " + tc->type_;
+  if (tc->length > 0)
+    sql += "(" + std::to_string(tc->length) + ")";
+  sql += ";";
 
   if (execute_sql(sql, conn)) {
     table->table_mutex.lock();
-    Column *tc = new Column(col_name, table);
     tc->type_ = "INT";
     table->AddColumn(tc);
     table->table_mutex.unlock();
-  }
+  } else
+    delete tc;
 }
 
 void insert_data(Table *table, MYSQL *conn) {
@@ -388,15 +430,15 @@ void insert_data(Table *table, MYSQL *conn) {
   string insert = "INSERT INTO " + table->name_ + "  ( ";
   for (auto &column : *table->columns_) {
     insert += column->name_ + " ,";
-    vals += " " + to_string(rand_int(100)) + ",";
+    vals += " " + column->rand_value() + ",";
   }
 
   vals.pop_back();
   insert.pop_back();
   insert += ") VALUES(" + vals;
   insert += " );";
-  execute_sql(insert, conn);
   table->table_mutex.unlock();
+  execute_sql(insert, conn);
 }
 
 /* alter table drop column */
@@ -406,12 +448,13 @@ void at_drop_column(Table *table, MYSQL *conn) {
     table->table_mutex.unlock();
     return;
   }
-  auto pos = rand_int(table->columns_->size() - 1);
-  auto &col = table->columns_->at(pos);
-  string sql =
-      "ALTER TABLE " + table->name_ + " DROP COLUMN " + col->name_ + ";";
+  auto ps = rand_int(table->columns_->size() - 1);
+  auto name = table->columns_->at(ps)->name_;
+  string sql = "ALTER TABLE " + table->name_ + " DROP COLUMN " + name + ";";
+  table->table_mutex.unlock();
 
   if (execute_sql(sql, conn)) {
+    table->table_mutex.lock();
 
     vector<int> indexes_to_drop;
     for (auto id = table->indexes_->begin(); id != table->indexes_->end();
@@ -421,7 +464,7 @@ void at_drop_column(Table *table, MYSQL *conn) {
       for (auto id_col = index->columns_->begin();
            id_col != index->columns_->end(); id_col++) {
         auto ic = *id_col;
-        if (ic->column->name_.compare(col->name_) == 0) {
+        if (ic->column->name_.compare(name) == 0) {
           if (index->columns_->size() == 1) {
             delete index;
             indexes_to_drop.push_back(id - table->indexes_->begin());
@@ -441,10 +484,16 @@ void at_drop_column(Table *table, MYSQL *conn) {
     }
     // table->indexes_->erase(id);
 
-    delete col;
-    table->columns_->erase(table->columns_->begin() + pos);
-  }
+    for (auto pos = table->columns_->begin(); pos != table->columns_->end();
+         pos++) {
+      if ((*pos)->name_.compare(name) == 0) {
+        delete *pos;
+        table->columns_->erase(pos);
+        break;
+      }
+    }
     table->table_mutex.unlock();
+  }
 }
 
 /* save objects to a file */
@@ -499,8 +548,9 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
       table = new Table(name);
 
     for (auto &col : tab["columns"].GetArray()) {
-      Column *a = new Column(col["name"].GetString(), col["type"].GetString(),
-                             col["null"].GetBool());
+      Column *a =
+          new Column(col["name"].GetString(), col["type"].GetString(),
+                     col["null"].GetBool(), col["lenght"].GetInt(), table);
       table->AddColumn(a);
     }
 
@@ -524,7 +574,6 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
     ta::no_of_tables = all_tables->size();
   }
   fclose(fp);
-
 }
 
 /* clean tables from memory */
@@ -533,8 +582,8 @@ void clean_up_at_end(std::vector<Table *> *all_tables) {
     delete table;
 }
 
-int run_som_load(MYSQL *conn, std::ofstream &logs,
-                 std::vector<Table *> *all_tables) {
+int run_default_load(MYSQL *conn, std::ofstream &logs,
+                     std::vector<Table *> *all_tables) {
   std::random_device dev;
   std::mt19937 rng(dev());
   logs << " creating defaut tables " << endl;
@@ -545,12 +594,11 @@ int run_som_load(MYSQL *conn, std::ofstream &logs,
   if (ta::no_of_tables <= 0)
     throw std::runtime_error("no table to work on \n");
 
-  // load_default_data(all_tables);
   execute_sql("drop database test;", conn);
   execute_sql("create database test;", conn);
   execute_sql("use test;", conn);
   for (auto &table : *all_tables) {
-    execute_sql(table->table_defination(), conn);
+    execute_sql(table->Table_defination(), conn);
   }
   load_default_data(all_tables, conn);
   return 1;
@@ -563,17 +611,11 @@ void run_some_query(MYSQL *conn, std::ofstream &logs,
   logs << "use test success " << endl;
   logs << "size of all_tables " << all_tables->size() << endl;
   Node::parallel_thread_running++;
-  logs << " Inside run_som_load value of " << Node::parallel_thread_running
-       << endl;
-  for (int i = 0; i < 40; i++) {
-    logs << "get some table " << endl;
+  for (int i = 0; i < 400; i++) {
     auto size = all_tables->size();
-    logs << "size is " << size << endl;
 
     auto table = all_tables->at(rand_int(size - 1));
-    logs << "will process " << table->name_ << endl;
     auto x = rand_int(2);
-    logs << "processing table" << table->name_ << " query " << x << endl;
     switch (x) {
     case 0:
       at_drop_column(table, conn);
@@ -584,9 +626,7 @@ void run_some_query(MYSQL *conn, std::ofstream &logs,
       insert_data(table, conn);
       break;
     }
-    logs << "processed " << endl;
   }
-  logs << "Processing finished " << endl;
   Node::parallel_thread_running--;
 }
 
