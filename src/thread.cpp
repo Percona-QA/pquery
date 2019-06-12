@@ -1,6 +1,5 @@
 #include "common.hpp"
 #include "node.hpp"
-
 #include "random_test.hpp"
 #include <algorithm>
 #include <chrono>
@@ -14,6 +13,10 @@ inline unsigned long long Node::getAffectedRows(MYSQL *connection) {
   return mysql_affected_rows(connection);
 }
 
+void Node::random_Generated_Load(int number) {
+  number++;
+  return;
+}
 void Node::workerThread(int number) {
 
   int failed_queries = 0;
@@ -98,17 +101,21 @@ void Node::workerThread(int number) {
   }
 
 
-  if (number ==0 ) {
-  run_som_load(conn, thread_log);
+  if (number == 0 ) {
+    run_som_load(conn, thread_log, tables);
+    default_load = true;
   }
-   if (number != 0 ) {
-  std::chrono::seconds dura(10);
-  std::this_thread::sleep_for( dura );
-   }
-  run_some_query(conn,thread_log);
 
-  if (number == 0 ) 
-  save_dictionary();
+  while (!default_load) {
+    std::chrono::seconds dura(3);
+    std::this_thread::sleep_for(dura);
+    thread_log << "waiting for defalut load to finish" << std::endl;
+  }
+
+  run_some_query(conn, thread_log, tables);
+  thread_log << "logs for thread" << number << " completed " << std::endl;
+  std::chrono::seconds dura(13);
+  std::this_thread::sleep_for(dura);
 
   unsigned long i;
   for (i = 0; i < myParams.queries_per_thread; i++) {

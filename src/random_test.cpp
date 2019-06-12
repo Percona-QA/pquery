@@ -1,12 +1,14 @@
 #include "random_test.hpp"
 #include "common.hpp"
 #include "node.hpp"
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 #include <document.h>
 #include <filereadstream.h>
 #include <fstream>
 #include <iostream>
+#include <mutex>
 #include <prettywriter.h>
 #include <random>
 #include <string.h>
@@ -17,19 +19,11 @@ using namespace std;
 using namespace rapidjson;
 std::mt19937 rng;
 
-int rand_int(int upper, int lower = 0) {
+int rand_int(int upper, int lower) {
   /*todo change the approach if it is too slow */
   std::uniform_int_distribution<std::mt19937::result_type> dist(
       lower, upper); // distribution in range [lower, upper]
   return dist(rng);
-}
-
-template <typename Writer>
-void key_value(Writer writer, std::string key, std::string value) {
-  writer.StartObject();
-  writer.String(key.c_str(), static_cast<SizeType>(key.length()));
-  writer.String(value.c_str(), static_cast<SizeType>(value.length()));
-  writer.EndObject();
 }
 
 /* table attirbutes */
@@ -38,18 +32,18 @@ string encryption = "none";
 vector<string> key_block_size;
 string engine = "InnoDB";
 vector<string> tablespace; // = {"abc"};
-int no_of_tables = 10;
+int no_of_tables = 2;
 int version = 1;
 string file_read_path = "data.dll";
 string file_write_path = "new_data.dll";
 int load_from_file = 0;
 string partition_string = "_p";
-int default_columns_in_table = 4;
+int default_columns_in_table = 40;
 int default_indexes_in_table = 15;
 int default_columns_in_index = 2;
 int default_number_of_records_in_table = 5;
 vector<Table *> *all_tables;
-}; // namespace ta
+} // namespace ta
 
 /* Different table type supported by tool */
 enum TABLE_TYPES { PARTITION, NORMAL };
@@ -195,6 +189,7 @@ public:
   std::string tablespace;
   std::vector<Column *> *columns_;
   std::vector<Index *> *indexes_;
+  std::mutex table_mutex;
 };
 
 Column::~Column() {
@@ -331,18 +326,16 @@ string Table::table_defination() {
   return def;
 }
 /* create default table include all tables now */
-vector<Table *> *create_default_tables() {
+void create_default_tables(std::vector<Table *> *all_tables) {
   int no_of_tables = ta::no_of_tables;
-  vector<Table *> *all_tables = new vector<Table *>;
   for (int i = 0; i < no_of_tables; i++) {
     Table *t = Table::table_id(rand_int(2), i);
     // auto *n = static_cast<Partition_table *>(t);
     all_tables->push_back(t);
   }
-  return all_tables;
 }
 
-int execute_sql(string sql, MYSQL *conn) {
+int execute_sql(std::string sql, MYSQL *conn) {
   auto query = sql.c_str();
   auto res = mysql_real_query(conn, query, strlen(query));
   if (res == 1) {
@@ -353,7 +346,7 @@ int execute_sql(string sql, MYSQL *conn) {
   return (res == 0 ? 1 : 0);
 }
 
-void load_default_data(vector<Table *> *all_tables, MYSQL *conn) {
+void load_default_data(std::vector<Table *> *all_tables, MYSQL *conn) {
   for (auto i = all_tables->begin(); i != all_tables->end(); i++) {
     auto table = *i;
     int rec = rand_int(ta::default_number_of_records_in_table);
@@ -368,7 +361,7 @@ void load_default_data(vector<Table *> *all_tables, MYSQL *conn) {
       insert.pop_back();
       insert += ") VALUES(" + vals;
       insert += " );";
-      execute_sql(insert,conn);
+      execute_sql(insert, conn);
     }
   }
 }
@@ -381,30 +374,38 @@ void at_add_column(Table *table, MYSQL *conn) {
   sql += col_name + " " + "INT" + ";";
 
   if (execute_sql(sql, conn)) {
+    table->table_mutex.lock();
     Column *tc = new Column(col_name, table);
     tc->type_ = "INT";
     table->AddColumn(tc);
+    table->table_mutex.unlock();
   }
 }
 
 void insert_data(Table *table, MYSQL *conn) {
-      string vals = "";
-      string insert = "INSERT INTO " + table->name_ + "  ( ";
-      for (auto &column : *table->columns_) {
-        insert += column->name_ + " ,";
-        vals += " " + to_string(rand_int(100)) + ",";
-      }
-      vals.pop_back();
-      insert.pop_back();
-      insert += ") VALUES(" + vals;
-      insert += " );";
-      execute_sql(insert,conn);
+  table->table_mutex.lock();
+  string vals = "";
+  string insert = "INSERT INTO " + table->name_ + "  ( ";
+  for (auto &column : *table->columns_) {
+    insert += column->name_ + " ,";
+    vals += " " + to_string(rand_int(100)) + ",";
+  }
+
+  vals.pop_back();
+  insert.pop_back();
+  insert += ") VALUES(" + vals;
+  insert += " );";
+  execute_sql(insert, conn);
+  table->table_mutex.unlock();
 }
 
 /* alter table drop column */
 void at_drop_column(Table *table, MYSQL *conn) {
-  if (table->columns_->size() == 1)
+  table->table_mutex.lock();
+  if (table->columns_->size() == 1) {
+    table->table_mutex.unlock();
     return;
+  }
   auto pos = rand_int(table->columns_->size() - 1);
   auto &col = table->columns_->at(pos);
   string sql =
@@ -416,7 +417,6 @@ void at_drop_column(Table *table, MYSQL *conn) {
     for (auto id = table->indexes_->begin(); id != table->indexes_->end();
          id++) {
       auto index = *id;
-
 
       for (auto id_col = index->columns_->begin();
            id_col != index->columns_->end(); id_col++) {
@@ -444,17 +444,18 @@ void at_drop_column(Table *table, MYSQL *conn) {
     delete col;
     table->columns_->erase(table->columns_->begin() + pos);
   }
+    table->table_mutex.unlock();
 }
 
 /* save objects to a file */
-void save_objects_to_file(vector<Table *> *all_tables, int version) {
+void save_objects_to_file(vector<Table *> *all_tables) {
   //  rapidjson::Writer<Stream> writer(stream);
 
   StringBuffer sb;
   PrettyWriter<StringBuffer> writer(sb);
   writer.StartObject();
   writer.String("version");
-  writer.Uint(version);
+  writer.Uint(ta::version);
 
   writer.String(("tables"));
   writer.StartArray();
@@ -471,9 +472,8 @@ void save_objects_to_file(vector<Table *> *all_tables, int version) {
 }
 
 /*load objects from a file */
-vector<Table *> *load_objects_from_file() {
+void load_objects_from_file(std::vector<Table *> *all_tables) {
   int version = ta::version;
-  vector<Table *> *all_tables = new vector<Table *>;
   FILE *fp = fopen(ta::file_read_path.c_str(), "r");
   char readBuffer[65536];
   FileReadStream is(fp, readBuffer, sizeof(readBuffer));
@@ -525,23 +525,22 @@ vector<Table *> *load_objects_from_file() {
   }
   fclose(fp);
 
-  return all_tables;
 }
 
 /* clean tables from memory */
-void clean_up_at_end(vector<Table *> *all_tables) {
+void clean_up_at_end(std::vector<Table *> *all_tables) {
   for (auto &table : *all_tables)
     delete table;
-  delete all_tables;
 }
 
-int run_som_load(MYSQL *conn, std::ofstream &logs) {
+int run_som_load(MYSQL *conn, std::ofstream &logs,
+                 std::vector<Table *> *all_tables) {
   std::random_device dev;
   std::mt19937 rng(dev());
+  logs << " creating defaut tables " << endl;
 
-  logs << "mamu " << endl;
-  vector<Table *> *all_tables =
-      ta::load_from_file ? load_objects_from_file() : create_default_tables();
+  ta::load_from_file == 1 ? load_objects_from_file(all_tables)
+                          : create_default_tables(all_tables);
 
   if (ta::no_of_tables <= 0)
     throw std::runtime_error("no table to work on \n");
@@ -553,42 +552,41 @@ int run_som_load(MYSQL *conn, std::ofstream &logs) {
   for (auto &table : *all_tables) {
     execute_sql(table->table_defination(), conn);
   }
-  load_default_data(all_tables,conn);
-  ta::all_tables = all_tables;
+  load_default_data(all_tables, conn);
   return 1;
 }
 
-
-void run_some_query(MYSQL *conn, std::ofstream &logs) {
+void run_some_query(MYSQL *conn, std::ofstream &logs,
+                    std::vector<Table *> *all_tables) {
+  logs << "executing use test " << endl;
   execute_sql("use test;", conn);
-  for (int i = 0; i < 4; i++) {
-    auto table = ta::all_tables->at(rand_int(ta::no_of_tables - 1));
+  logs << "use test success " << endl;
+  logs << "size of all_tables " << all_tables->size() << endl;
+  Node::parallel_thread_running++;
+  logs << " Inside run_som_load value of " << Node::parallel_thread_running
+       << endl;
+  for (int i = 0; i < 40; i++) {
+    logs << "get some table " << endl;
+    auto size = all_tables->size();
+    logs << "size is " << size << endl;
+
+    auto table = all_tables->at(rand_int(size - 1));
+    logs << "will process " << table->name_ << endl;
     auto x = rand_int(2);
-    logs << "processing table" << table->name_ << " query " << x;
+    logs << "processing table" << table->name_ << " query " << x << endl;
     switch (x) {
     case 0:
-    at_drop_column(table, conn);
-    break;
+      at_drop_column(table, conn);
+      break;
     case 1:
-    at_add_column(table, conn);
+      at_add_column(table, conn);
     case 3:
-    insert_data(table,conn);
-    break;
+      insert_data(table, conn);
+      break;
     }
+    logs << "processed " << endl;
   }
-	
-}
-
-int save_dictionary () {
-  /*
-  */
-  vector<Table *> *all_tables  = load_objects_from_file();
-
-  if (ta::file_write_path.size() > 0)
-    save_objects_to_file(all_tables, ta::version);
-
-  clean_up_at_end(all_tables);
-
-  return (0);
+  logs << "Processing finished " << endl;
+  Node::parallel_thread_running--;
 }
 

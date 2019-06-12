@@ -1,13 +1,15 @@
 #include "node.hpp"
 #include "common.hpp"
+#include "random_test.hpp"
 #include <cerrno>
 #include <cstring>
 #include <iostream>
 
 Node::Node() {
   workers.clear();
-  failed_queries_total = 0;
   performed_queries_total = 0;
+  failed_queries_total = 0;
+  default_load = false;
 }
 
 Node::~Node() {
@@ -18,8 +20,14 @@ Node::~Node() {
   if (querylist) {
     delete querylist;
   }
-}
 
+  if (tables) {
+    save_objects_to_file(tables);
+    clean_up_at_end(tables);
+    std::cout << "nothing is wrong " << std::endl;
+    delete tables;
+  }
+}
 bool Node::createGeneralLog() {
   std::string logName;
   logName = myParams.logdir + "/" + myParams.myName + "_general" + ".log";
@@ -74,6 +82,7 @@ int Node::startWork() {
     return EXIT_FAILURE;
   }
   querylist = new std::vector<std::string>;
+  tables = new std::vector<Table *>;
   std::string line;
 
   while (getline(sqlfile_in, line)) {
@@ -103,6 +112,8 @@ int Node::startWork() {
   }
   return EXIT_SUCCESS;
 }
+
+std::atomic<int> Node::parallel_thread_running(0);
 
 void Node::tryConnect() {
   MYSQL *conn;

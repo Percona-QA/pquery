@@ -32,13 +32,13 @@ void set_defaults(struct workerParams &Params) {
   Params.username = "root";
   Params.password = "";
   Params.infile = "pquery.sql";
-  Params.logdir = "/tmp";
+  Params.logdir = "/Users/rahulmalik/pquery/src";
   Params.port = 3306;
-  Params.threads = 1;
-  Params.queries_per_thread = 10000;
+  Params.threads = 2;
+  Params.queries_per_thread = 0;
   Params.verbose = false;
   Params.debug = false;
-  Params.log_all_queries = false;
+  Params.log_all_queries = true;
   Params.log_succeeded_queries = false, Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
