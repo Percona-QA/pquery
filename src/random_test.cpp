@@ -1,19 +1,5 @@
 #include "random_test.hpp"
-#include "common.hpp"
 #include "node.hpp"
-#include <algorithm>
-#include <cstdio>
-#include <cstring>
-#include <document.h>
-#include <filereadstream.h>
-#include <fstream>
-#include <iostream>
-#include <mutex>
-#include <prettywriter.h>
-#include <random>
-#include <string.h>
-#include <vector>
-#include <writer.h>
 
 using namespace std;
 using namespace rapidjson;
@@ -39,7 +25,7 @@ string encryption = "none";
 vector<string> key_block_size;
 string engine = "InnoDB";
 vector<string> tablespace; // = {"abc"};
-int no_of_tables = 100;
+int no_of_tables = 10;
 int version = 1;
 string file_read_path = "data.dll";
 string file_write_path = "new_data.dll";
@@ -185,7 +171,19 @@ public:
   void AddIndex(Index *index) { indexes_->push_back(index); }
   void CreateDefaultColumn();
   void CreateDefaultIndex();
-
+  void DropCreate(Thd1 *thd) {
+    execute_sql("drop table " + name_ + ";", thd->conn);
+    execute_sql(Table_defination(), thd->conn);
+  }
+  void Optimize(Thd1 *thd) {
+    execute_sql("OPTIMIZE TABLE " + name_ + ";", thd->conn);
+  }
+  void Analyze(Thd1 *thd) {
+    execute_sql("ANALYZE TABLE " + name_ + ";", thd->conn);
+  }
+  void Truncate(Thd1 *thd) {
+    execute_sql("TRUNCATE TABLE " + name_ + ";", thd->conn);
+  }
   template <typename Writer> void Serialize(Writer &writer) const {
     writer.StartObject();
     writer.String("name");
@@ -582,8 +580,10 @@ void clean_up_at_end(std::vector<Table *> *all_tables) {
     delete table;
 }
 
-int run_default_load(MYSQL *conn, std::ofstream &logs,
-                     std::vector<Table *> *all_tables) {
+int run_default_load(Thd1 *thd) {
+  std::vector<Table *> *all_tables = thd->tables;
+  auto &logs = thd->thread_log;
+  auto conn = thd->conn;
   std::random_device dev;
   std::mt19937 rng(dev());
   logs << " creating defaut tables " << endl;
@@ -604,26 +604,43 @@ int run_default_load(MYSQL *conn, std::ofstream &logs,
   return 1;
 }
 
-void run_some_query(MYSQL *conn, std::ofstream &logs,
-                    std::vector<Table *> *all_tables) {
+void run_some_query(Thd1 *thd) {
+  auto &logs = thd->thread_log;
+  auto *conn = thd->conn;
+  auto all_tables = thd->tables;
   logs << "executing use test " << endl;
   execute_sql("use test;", conn);
-  logs << "use test success " << endl;
-  logs << "size of all_tables " << all_tables->size() << endl;
   Node::parallel_thread_running++;
-  for (int i = 0; i < 400; i++) {
+  for (int i = 0; i < 40; i++) {
     auto size = all_tables->size();
 
+    if (i % 20 == 0)
+      logs << " executed " << i << " queries " << std::endl;
+
     auto table = all_tables->at(rand_int(size - 1));
-    auto x = rand_int(2);
+    auto x = rand_int(6);
     switch (x) {
     case 0:
       at_drop_column(table, conn);
       break;
     case 1:
       at_add_column(table, conn);
-    case 3:
+      break;
+    case 2:
       insert_data(table, conn);
+      break;
+    case 3:
+      table->Analyze(thd);
+      break;
+
+    case 4:
+      table->Optimize(thd);
+      break;
+    case 5:
+      table->DropCreate(thd);
+      break;
+    case 6:
+      table->Truncate(thd);
       break;
     }
   }

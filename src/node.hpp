@@ -3,6 +3,7 @@
 
 #include "pquery.hpp"
 #include "random_test.hpp"
+#include <mysql.h>
 #include <atomic>
 #include <iostream>
 #include <string>
@@ -34,6 +35,14 @@ struct workerParams {
   bool log_succeeded_queries;
   bool shuffle;
   bool test_connection;
+};
+
+struct Thd1 {
+  Thd1(std::ofstream &tl, MYSQL *c, std::vector<Table *> *tab)
+      : thread_log(tl), conn(c), tables(tab){};
+  std::ofstream &thread_log;
+  MYSQL *conn;
+  std::vector<Table *> *tables;
 };
 
 enum LogLevel {
@@ -78,6 +87,7 @@ private:
   std::ofstream general_log;
   std::atomic<unsigned long long> performed_queries_total;
   std::atomic<unsigned long long> failed_queries_total;
+
 public:
   static std::atomic<int> parallel_thread_running;
   std::atomic<bool> default_load;

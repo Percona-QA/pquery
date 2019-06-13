@@ -100,9 +100,10 @@ void Node::workerThread(int number) {
     return;
   }
 
+  Thd1 *THD = new Thd1(thread_log, conn, tables);
 
   if (number == 0 ) {
-    run_default_load(conn, thread_log, tables);
+    run_default_load(THD);
     default_load = true;
   }
 
@@ -112,7 +113,8 @@ void Node::workerThread(int number) {
     thread_log << "waiting for defalut load to finish" << std::endl;
   }
 
-  run_some_query(conn, thread_log, tables);
+  run_some_query(THD);
+  delete THD;
 
   unsigned long i;
   for (i = 0; i < myParams.queries_per_thread; i++) {
