@@ -50,7 +50,6 @@ void Node::workerThread(int number) {
     std::ostringstream os;
     os << myParams.logdir << "/" << myParams.myName << "_thread-" << number
        << ".sql";
-    std::cout << "rahul Number " << number << os.str() << std::endl;
     thread_log.open(os.str(), std::ios::out | std::ios::trunc);
     if (!thread_log.is_open()) {
       general_log << "Unable to open thread logfile " << os.str() << ": "
@@ -113,7 +112,7 @@ void Node::workerThread(int number) {
     thread_log << "waiting for defalut load to finish" << std::endl;
   }
 
-  run_some_query(THD);
+  // run_some_query(THD);
   delete THD;
 
   unsigned long i;
