@@ -112,7 +112,7 @@ void Node::workerThread(int number) {
     thread_log << "waiting for defalut load to finish" << std::endl;
   }
 
-  // run_some_query(THD);
+  run_some_query(THD);
   delete THD;
 
   unsigned long i;

@@ -5,6 +5,43 @@ using namespace std;
 using namespace rapidjson;
 std::mt19937 rng;
 
+std::vector<std::string> Thd1::encryption = {"Y", "N"};
+std::vector<std::string> Thd1::row_format = {"COMPRESSED", "DYNAMIC"};
+std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
+std::string Thd1::engine = "INNODB";
+int Thd1::default_records_in_table = 1000;
+int Thd1::no_of_tables = 40;
+int Thd1::s_len = 32;
+int Thd1::pkey_pb_per_table = 30;
+int Thd1::no_of_random_load_per_thread = 1000;
+
+std::vector<std::string> *random_strs_generator() {
+  static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz"
+                                 "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                                 "0123456789";
+
+  static const size_t N_STRS = 10000;
+
+  std::random_device rd;
+  std::default_random_engine rng(rd());
+  std::uniform_int_distribution<> dist(0, sizeof(alphabet) / sizeof(*alphabet) -
+                                              2);
+
+  std::vector<std::string> *strs = new std::vector<std::string>;
+  strs->reserve(N_STRS);
+  std::generate_n(std::back_inserter(*strs), strs->capacity(), [&] {
+    std::string str;
+    str.reserve(Thd1::s_len);
+    std::generate_n(std::back_inserter(str), Thd1::s_len,
+                    [&]() { return alphabet[dist(rng)]; });
+    return str;
+  });
+  return strs;
+  ;
+}
+
+std::vector<std::string> *Thd1::random_strs = random_strs_generator();
+
 int rand_int(int upper, int lower) {
   /*todo change the approach if it is too slow */
   std::uniform_int_distribution<std::mt19937::result_type> dist(
@@ -12,60 +49,92 @@ int rand_int(int upper, int lower) {
   return dist(rng);
 }
 
+/* return random string in range of upper and lower */
 string rand_string(int upper, int lower) {
-  if (upper != lower)
-    return "test";
-  else
-    return "FAIL";
-}
+  string rs = ""; /*random_string*/
+  auto size = rand_int(upper, lower);
+
+  /* let the query fail with string size greater */
+  if (rand_int(100) < 3)
+    size *= 1;
+
+  while (size > 0) {
+    auto str = Thd1::random_strs->at(rand_int(Thd1::random_strs->size() - 1));
+    if (size > Thd1::s_len)
+      rs += str;
+    else
+      rs += str.substr(0, size);
+    size -= Thd1::s_len;
+  }
+  return rs;
+  }
 
 /* table attirbutes */
 namespace ta {
-string encryption = "all";
-vector<string> key_block_size;
-string engine = "InnoDB";
 vector<string> tablespace; // = {"abc"};
-int no_of_tables = 10;
 int version = 1;
 string file_read_path = "data.dll";
 string file_write_path = "new_data.dll";
-int load_from_file = 1;
+int load_from_file = 0;
 string partition_string = "_p";
 int default_columns_in_table = 3;
 int default_indexes_in_table = 5;
 int default_columns_in_index = 2;
-int default_number_of_records_in_table = 3;
-vector<Table *> *all_tables;
 } // namespace ta
 
 /* Different table type supported by tool */
 enum TABLE_TYPES { PARTITION, NORMAL };
 /* Column Basic Properties */
 
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, MAX };
+/* SERIAL has to be in last */
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, SERIAL, MAX };
+string col_type[] = {"INT", "CHAR", "VARCHAR", "SERIAL"};
+
+enum RANDOM_SQL {
+  DROP_COLUMN,
+  ADD_COLUMN,
+  INSERT_RANDOM_ROW,
+  DROP_CREATE,
+  TRUNCATE,
+  OPTIMIZE,
+  ANALYZE,
+  DELETE_ALL_ROW,
+  ENCRYPTION,
+  DELETE_ROW_USING_PKEY,
+  // DELETE_ROW_RANDOM,
+  // UPDATE_ROW_USING_PKEY
+  RANDOM_MAX
+};
 
 struct Column {
   Column(string n, Table *table) : name_(n), table_(table){};
 
   Column(string name, string type, bool n, int l, Table *table)
-      : name_(name), type_(type), null(n), length(l), table_(table){};
+      : name_(name), null(n), length(l), table_(table) {
+    for (int i = 0; i < COLUMN_TYPES::MAX; i++) {
+      if (type.compare(col_type[i]) == 0) {
+        type_ = i;
+        break;
+      }
+    }
+  };
 
-  Column(string name, Table *table, int type) : name_(name), table_(table) {
+  Column(string name, Table *table, int type)
+      : name_(name), type_(type), table_(table) {
+
     switch (type) {
     case (COLUMN_TYPES::INT):
-      type_ = "INT";
       if (rand_int(10) == 1)
         length = rand_int(100, 20);
       else
         length = 0;
       break;
     case (COLUMN_TYPES::VARCHAR):
-      type_ = "VARCHAR";
       length = rand_int(200, 10);
       break;
     case (COLUMN_TYPES::CHAR):
-      type_ = "CHAR";
       length = rand_int(200, 10);
+      break;
     }
   };
 
@@ -76,7 +145,8 @@ struct Column {
     writer.String("name");
     writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
     writer.String("type");
-    writer.String(type_.c_str(), static_cast<SizeType>(type_.length()));
+    writer.String(col_type[type_].c_str(),
+                  static_cast<SizeType>(col_type[type_].length()));
     writer.String("null");
     writer.Bool(null);
     writer.String("primary_key");
@@ -91,7 +161,7 @@ struct Column {
   ~Column(){};
 
   std::string name_;
-  std::string type_;
+  int type_;
   bool null = false;
   int length = 0;
   std::string default_value;
@@ -101,7 +171,7 @@ struct Column {
 };
 
 string Column::rand_value() {
-  if (type_.compare("INT") == 0)
+  if (type_ == COLUMN_TYPES::INT)
     return to_string(rand_int(100, 4));
   else
     return "\'" + rand_string(length) + "\'";
@@ -159,11 +229,14 @@ struct Table {
 public:
   string engine;
   TABLE_TYPES table_type;
-  Table(std::string n) : name_(n), indexes_() {
+
+  Table(std::string n) : name_(n), indexes_(), max_pk_value_inserted(0) {
     columns_ = new vector<Column *>;
     indexes_ = new vector<Index *>;
   };
+
   std::string table_name() { return name_; };
+
   /* method to create table of choice */
   static Table *table_id(int choice, int id);
   string Table_defination();
@@ -183,7 +256,9 @@ public:
     execute_sql("TRUNCATE TABLE " + name_ + ";", thd);
   }
 
-  void InsertRandomRow(Thd1 *thd);
+  void SetEncryption(Thd1 *thd);
+
+  void InsertRandomRow(Thd1 *thd, bool islock);
   void DropColumn(Thd1 *thd);
   void AddColumn(Thd1 *thd);
   void DeleteRandomRow(Thd1 *thd);
@@ -229,13 +304,15 @@ public:
 
   std::string name_;
   bool encryption = false;
-  std::string key_block_size;
+  int key_block_size = 0;
   std::string data_directory;
-  std::string compression;
+  std::string row_format;
   std::string tablespace;
   std::vector<Column *> *columns_;
   std::vector<Index *> *indexes_;
+  bool has_pk = false;
   std::mutex table_mutex;
+  std::atomic<int> max_pk_value_inserted;
 };
 
 /* Partition table */
@@ -249,12 +326,22 @@ public:
 
 /* create default column */
 void Table::CreateDefaultColumn() {
+
   int j = rand_int(ta::default_columns_in_table, 1);
   for (int i = 0; i < j; i++) {
-    string name = "c" + to_string(i);
-    auto val = rand_int(COLUMN_TYPES::MAX - 1);
-    Column *a = new Column{name, this, val};
-    AddInternalColumn(a);
+    string name;
+    int type;
+    /* check if we need to create primary column */
+    if (i == 0 && rand_int(100) > Thd1::pkey_pb_per_table) {
+      type = COLUMN_TYPES::SERIAL;
+      name = "pkey";
+      has_pk = true;
+    } else {
+      name = "c" + to_string(i);
+      type = rand_int(COLUMN_TYPES::MAX - 2); // DON"T PICK Serial
+    }
+    Column *col = new Column{name, this, type};
+    AddInternalColumn(col);
   }
 }
 
@@ -290,10 +377,10 @@ void Table::CreateDefaultIndex() {
   }
 }
 
-/* Create new table and add attributes */
+/* Create new table and pick some attributes */
 Table *Table::table_id(int choice, int id) {
   Table *table;
-  string name = "kt_" + to_string(id);
+  string name = "tt_" + to_string(id);
   if (choice == PARTITION) {
     table = new Partition_table(name + ta::partition_string);
   } else {
@@ -302,22 +389,22 @@ Table *Table::table_id(int choice, int id) {
 
   table->CreateDefaultColumn();
   table->CreateDefaultIndex();
-
-  if (ta::encryption.compare("all") == 0) {
-    cout << "encryption set as true" << endl;
+  if (Thd1::encryption.size() > 0 &&
+      Thd1::encryption[rand_int(Thd1::encryption.size() - 1)].compare("Y") == 0)
     table->encryption = true;
-  } else {
-    cout << "encryption set as false " << endl;
-  }
 
-  cout << "GANDU" << endl;
-
-  if (ta::key_block_size.size() > 0)
+  if (Thd1::key_block_size.size() > 0)
     table->key_block_size =
-        ta::key_block_size[rand_int(ta::key_block_size.size() - 1)];
+        Thd1::key_block_size[rand_int(Thd1::key_block_size.size() - 1)];
 
-  if (!ta::engine.empty())
-    table->engine = ta::engine;
+  if (table->key_block_size > 0 && rand_int(3) == 0)
+    table->row_format = "COMPRESSED";
+
+  if (table->key_block_size == 0)
+    table->row_format = Thd1::row_format[rand_int(Thd1::row_format.size() - 1)];
+
+  if (!Thd1::engine.empty())
+    table->engine = Thd1::engine;
 
   if (ta::tablespace.size() > 0 && rand_int(10) > 5)
     table->tablespace = ta::tablespace[rand_int(ta::tablespace.size() - 1)];
@@ -331,7 +418,7 @@ string Table::Table_defination() {
 
   // todo move to method
   for (auto col : *columns_) {
-    def += " " + col->name_ + " " + col->type_;
+    def += " " + col->name_ + " " + col_type[col->type_];
     if (col->length > 0)
       def += "(" + to_string(col->length) + ")";
     if (col->null)
@@ -353,25 +440,28 @@ string Table::Table_defination() {
   def += " )";
 
   if (encryption)
-    def += " ENCRYPTION=Y";
-  else if (rand_int(5) == 14)
-    def += " ENCRYPTION=N";
+    def += " ENCRYPTION='Y'";
+  else if (rand_int(3) == 1)
+    def += " ENCRYPTION='N'";
 
   if (!tablespace.empty())
-    def += ", tablespace=" + tablespace;
+    def += " TABLESPACE=" + tablespace;
 
-  if (!key_block_size.empty())
-    def += ", KEY_BLOCK_SIZE=" + key_block_size;
+  if (key_block_size > 0)
+    def += " KEY_BLOCK_SIZE=" + to_string(key_block_size);
+
+  if (row_format.size() > 0)
+    def += " ROW_FORMAT=" + row_format;
 
   if (!engine.empty())
-    def += " ENGINE " + engine;
+    def += " ENGINE=" + engine;
 
   def += ";";
   return def;
 }
 /* create default table include all tables now */
 void create_default_tables(std::vector<Table *> *all_tables) {
-  int no_of_tables = ta::no_of_tables;
+  int no_of_tables = Thd1::no_of_tables;
   for (int i = 0; i < no_of_tables; i++) {
     Table *t = Table::table_id(rand_int(2), i);
     // auto *n = static_cast<Partition_table *>(t);
@@ -390,29 +480,32 @@ int execute_sql(std::string sql, Thd1 *thd) {
     result = mysql_store_result(thd->conn);
     mysql_free_result(result);
   }
-
   return (res == 0 ? 1 : 0);
 }
 
 void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd) {
   for (auto i = all_tables->begin(); i != all_tables->end(); i++) {
     auto table = *i;
-    int rec = rand_int(ta::default_number_of_records_in_table);
-    for (int i = 0; i <= rec; i++) {
-      string vals = "";
-      string insert = "INSERT INTO " + table->name_ + "  ( ";
-      for (auto &column : *table->columns_) {
-        insert += column->name_ + " ,";
-        vals += " " + column->rand_value() + ",";
-      }
-      vals.pop_back();
-      insert.pop_back();
-      insert += ") VALUES(" + vals;
-      insert += " );";
-      execute_sql(insert, thd);
+    int rec = rand_int(Thd1::default_records_in_table);
+    for (int i = 0; i < rec; i++) {
+      table->InsertRandomRow(thd, false);
     }
   }
 }
+
+void Table::SetEncryption(Thd1 *thd) {
+  string sql = "ALTER TABLE " + name_ + " ENCRYPTION = '";
+  std::string enc = thd->encryption[rand_int(thd->encryption.size() - 1)];
+  sql += enc + "';";
+  if (execute_sql(sql, thd)) {
+    table_mutex.lock();
+    if (enc.compare("Y"))
+      encryption = true;
+    else
+      encryption = false;
+    table_mutex.unlock();
+  }
+};
 
 /* alter table add column */
 void Table::AddColumn(Thd1 *thd) {
@@ -420,10 +513,10 @@ void Table::AddColumn(Thd1 *thd) {
   string name;
   name = "COL" + to_string(rand_int(300));
 
-  auto col = rand_int(COLUMN_TYPES::MAX - 1);
+  auto col = rand_int(COLUMN_TYPES::MAX - 2);
   Column *tc = new Column(name, this, col);
 
-  sql += name + " " + tc->type_;
+  sql += name + " " + col_type[tc->type_];
   if (tc->length > 0)
     sql += "(" + std::to_string(tc->length) + ")";
   sql += ";";
@@ -441,20 +534,36 @@ void Table::DeleteAllRows(Thd1 *thd) {
   execute_sql(sql, thd);
 }
 
-void Table::InsertRandomRow(Thd1 *thd) {
-  table_mutex.lock();
+void Table::DeleteRandomRow(Thd1 *thd) {
+  if (has_pk) {
+    string sql = "DELETE FROM " + name_ +
+                 " where pkey=" + to_string(rand_int(max_pk_value_inserted)) +
+                 ";";
+    execute_sql(sql, thd);
+  }
+}
+
+void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
+  if (is_lock)
+    table_mutex.lock();
   string vals = "";
   string insert = "INSERT INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
+    if (column->type_ == COLUMN_TYPES::SERIAL)
+      continue;
     insert += column->name_ + " ,";
     vals += " " + column->rand_value() + ",";
   }
 
-  vals.pop_back();
-  insert.pop_back();
+  if (vals.size() > 0) {
+    vals.pop_back();
+    insert.pop_back();
+  }
   insert += ") VALUES(" + vals;
   insert += " );";
-  table_mutex.unlock();
+  max_pk_value_inserted++;
+  if (is_lock)
+    table_mutex.unlock();
   execute_sql(insert, thd);
 }
 
@@ -467,6 +576,10 @@ void Table::DropColumn(Thd1 *thd) {
   }
   auto ps = rand_int(columns_->size() - 1);
   auto name = columns_->at(ps)->name_;
+  if (name.compare("pkey") == 0) {
+    table_mutex.unlock();
+    return;
+  }
   string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name + ";";
   table_mutex.unlock();
 
@@ -587,7 +700,7 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
     }
 
     all_tables->push_back(table);
-    ta::no_of_tables = all_tables->size();
+    Thd1::no_of_tables = all_tables->size();
   }
   fclose(fp);
 }
@@ -608,7 +721,7 @@ int run_default_load(Thd1 *thd) {
   ta::load_from_file == 1 ? load_objects_from_file(all_tables)
                           : create_default_tables(all_tables);
 
-  if (ta::no_of_tables <= 0)
+  if (Thd1::no_of_tables <= 0)
     throw std::runtime_error("no table to work on \n");
 
   execute_sql("DROP DATABASE test;", thd);
@@ -626,38 +739,44 @@ void run_some_query(Thd1 *thd) {
   auto all_tables = thd->tables;
   execute_sql("USE test;", thd);
   Node::parallel_thread_running++;
-  for (int i = 0; i < 40; i++) {
+  for (int i = 0; i < Thd1::no_of_random_load_per_thread; i++) {
     auto size = all_tables->size();
 
     if (i % 20 == 0)
       logs << " executed " << i << " queries " << std::endl;
 
     auto table = all_tables->at(rand_int(size - 1));
-    auto x = rand_int(7);
+    auto x = rand_int(RANDOM_SQL::RANDOM_MAX);
     switch (x) {
-    case 0:
+    case DROP_COLUMN:
       table->DropColumn(thd);
       break;
-    case 1:
+    case ADD_COLUMN:
       table->AddColumn(thd);
       break;
-    case 2:
-      table->InsertRandomRow(thd);
+    case INSERT_RANDOM_ROW:
+      table->InsertRandomRow(thd, true);
       break;
-    case 3:
+    case DROP_CREATE:
       table->DropCreate(thd);
       break;
-    case 4:
+    case TRUNCATE:
       table->Truncate(thd);
       break;
-    case 5:
+    case OPTIMIZE:
       table->Optimize(thd);
       break;
-    case 6:
+    case ANALYZE:
       table->Analyze(thd);
       break;
-    case 7:
+    case DELETE_ALL_ROW:
       table->DeleteAllRows(thd);
+      break;
+    case ENCRYPTION:
+      table->SetEncryption(thd);
+      break;
+    case DELETE_ROW_USING_PKEY:
+      table->DeleteRandomRow(thd);
     }
   }
   Node::parallel_thread_running--;

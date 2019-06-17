@@ -27,6 +27,9 @@ Node::~Node() {
     std::cout << "nothing is wrong " << std::endl;
     delete tables;
   }
+
+  Thd1::random_strs->empty();
+  delete Thd1::random_strs;
 }
 bool Node::createGeneralLog() {
   std::string logName;
@@ -169,3 +172,4 @@ void Node::tryConnect() {
     exit(EXIT_SUCCESS);
   }
 }
+

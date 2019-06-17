@@ -37,14 +37,6 @@ struct workerParams {
   bool test_connection;
 };
 
-struct Thd1 {
-  Thd1(std::ofstream &tl, MYSQL *c, std::vector<Table *> *tab)
-      : thread_log(tl), conn(c), tables(tab){};
-  std::ofstream &thread_log;
-  MYSQL *conn;
-  std::vector<Table *> *tables;
-};
-
 enum LogLevel {
   LOG_NOTHING = 0,
   LOG_QUERY_NUMBERS = 1 << 0,
