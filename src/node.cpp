@@ -28,8 +28,11 @@ Node::~Node() {
     delete tables;
   }
 
-  Thd1::random_strs->empty();
   delete Thd1::random_strs;
+
+  for (auto opt : *Thd1::options)
+    delete opt;
+  delete Thd1::options;
 }
 bool Node::createGeneralLog() {
   std::string logName;
