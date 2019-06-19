@@ -5,21 +5,35 @@ using namespace std;
 using namespace rapidjson;
 std::mt19937 rng;
 
+#define INNODB_16K_PAGE_SIZE 16
+#define INNODB_8K_PAGE_SIZE 8
+#define INNODB_32K_PAGE_SIZE 32
+#define INNODB_64K_PAGE_SIZE 64
+
 /* PRIMARY has to be in last */
 enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
 const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
                                    "INT PRIMARY KEY AUTO_INCREMENT"};
 
 std::vector<std::string> Thd1::encryption = {"Y", "N"};
-std::vector<std::string> Thd1::row_format = {"COMPRESSED", "DYNAMIC"};
+std::vector<std::string> Thd1::row_format = {"COMPRESSED", "DYNAMIC",
+                                             "REDUNDANT"};
+std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
+                                             "tab04k", "tab01k"};
 std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
 std::string Thd1::engine = "INNODB";
 int Thd1::default_records_in_table = 1000;
-int Thd1::no_of_tables = 3;
+int Thd1::no_of_tables = 50;
 int Thd1::s_len = 32;
 int Thd1::pkey_pb_per_table = 100;
 int Thd1::no_of_random_load_per_thread = 10000;
 int Thd1::ddl = true;
+bool Thd1::is_innodb_system_encrypted = false;
+int Thd1::max_columns_length = 100;
+int Thd1::max_columns_in_table = 3;
+int Thd1::max_indexes_in_table = 2;
+int Thd1::max_columns_in_index = 2;
+int Thd1::innodb_page_size = 64;
 
 typedef std::vector<Thd1::opt *> thd_ops;
 
@@ -33,10 +47,14 @@ thd_ops *options_process() {
   v_ops->push_back(new Thd1::opt(TRUNCATE, 2, true));
   v_ops->push_back(new Thd1::opt(OPTIMIZE, 15, false));
   v_ops->push_back(new Thd1::opt(ANALYZE, 24, false));
-  v_ops->push_back(new Thd1::opt(DELETE_ALL_ROW, 0, false));
+  v_ops->push_back(new Thd1::opt(DELETE_ALL_ROW, 1, false));
+  v_ops->push_back(new Thd1::opt(SELECT_ALL_ROW, 1, false));
   v_ops->push_back(new Thd1::opt(ENCRYPTION, 40, true));
+  v_ops->push_back(new Thd1::opt(TABLESPACE_ENCRYPTION, 40, true));
+  v_ops->push_back(new Thd1::opt(TABLESPACE_RENAME, 40, true));
   v_ops->push_back(new Thd1::opt(DELETE_ROW_USING_PKEY, 0, false));
   v_ops->push_back(new Thd1::opt(UPDATE_ROW_USING_PKEY, 100, false));
+  v_ops->push_back(new Thd1::opt(SELECT_ROW_USING_PKEY, 100, false));
   return v_ops;
 };
 
@@ -98,15 +116,11 @@ string rand_string(int upper, int lower) {
 
 /* table attirbutes */
 namespace ta {
-vector<string> tablespace; // = {"abc"};
 int version = 1;
 string file_read_path = "data.dll";
 string file_write_path = "new_data.dll";
 int load_from_file = 0;
 string partition_string = "_p";
-int default_columns_in_table = 3;
-int default_indexes_in_table = 5;
-int default_columns_in_index = 2;
 } // namespace ta
 
 
@@ -135,7 +149,7 @@ struct Column {
       break;
     case (COLUMN_TYPES::VARCHAR):
     case (COLUMN_TYPES::CHAR):
-      length = rand_int(200, 10);
+      length = rand_int(Thd1::max_columns_length, 10);
       break;
     }
   };
@@ -304,7 +318,7 @@ Table::~Table() {
 /* create default column */
 void Table::CreateDefaultColumn() {
 
-  for (int i = 0; i < rand_int(ta::default_columns_in_table, 1); i++) {
+  for (int i = 0; i < rand_int(Thd1::max_columns_in_table, 1); i++) {
     string name;
     int type;
     /*  if we need to create primary column */
@@ -324,12 +338,12 @@ void Table::CreateDefaultColumn() {
 /* create default indexes */
 void Table::CreateDefaultIndex() {
 
-  int indexes = rand_int(ta::default_indexes_in_table, 1);
+  int indexes = rand_int(Thd1::max_indexes_in_table, 1);
   for (int i = 0; i < indexes; i++) {
 
     Index *id = new Index(name_ + "i" + to_string(i));
 
-    int max_columns = rand_int(ta::default_columns_in_index, 1);
+    int max_columns = rand_int(Thd1::max_columns_in_index, 1);
 
     int columns = max_columns;
 
@@ -373,17 +387,28 @@ Table *Table::table_id(int choice, int id) {
     table->key_block_size =
         Thd1::key_block_size[rand_int(Thd1::key_block_size.size() - 1)];
 
-  if (table->key_block_size > 0 && rand_int(3) == 0)
+  if (table->key_block_size > 0 && rand_int(2) == 0) {
     table->row_format = "COMPRESSED";
+  }
 
-  if (table->key_block_size == 0)
+  if (table->key_block_size == 0 && Thd1::row_format.size() > 0)
     table->row_format = Thd1::row_format[rand_int(Thd1::row_format.size() - 1)];
 
   if (!Thd1::engine.empty())
     table->engine = Thd1::engine;
 
-  if (ta::tablespace.size() > 0 && rand_int(10) > 5)
-    table->tablespace = ta::tablespace[rand_int(ta::tablespace.size() - 1)];
+  if (Thd1::tablespace.size() > 0 && rand_int(2) == 0) {
+    table->tablespace = Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1)];
+    table->encryption = false;
+      table->row_format.clear();
+      if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE ||
+          table->tablespace.compare("innodb_system") == 0 ||
+          stoi(table->tablespace.substr(3, 2)) == Thd1::innodb_page_size)
+        table->key_block_size = 0;
+      else
+        table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
+
+  }
 
   return table;
 }
@@ -510,6 +535,11 @@ void Table::DeleteAllRows(Thd1 *thd) {
   execute_sql(sql, thd);
 }
 
+void Table::SelectAllRow(Thd1 *thd) {
+  string sql = "SELECT * FROM " + name_ + ";";
+  execute_sql(sql, thd);
+}
+
 void Table::DeleteRandomRow(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
@@ -518,6 +548,14 @@ void Table::DeleteRandomRow(Thd1 *thd) {
   }
 }
 
+void Table::SelectRandomRow(Thd1 *thd) {
+  if (has_pk) {
+    auto pk = rand_int(max_pk_value_inserted);
+    string sql =
+        "SELECT * FROM " + name_ + " WHERE pkey=" + to_string(pk) + ";";
+    execute_sql(sql, thd);
+  }
+}
 void Table::UpdateRandomROW(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
@@ -608,6 +646,29 @@ void Table::DropColumn(Thd1 *thd) {
   }
 }
 
+void alter_tablespace_encryption(Thd1 *thd) {
+  if (Thd1::tablespace.size() > 0) {
+    std::string sql = "ALTER tablespace " +
+                      Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1)] +
+                      " ENCRYPTION ";
+    sql += (rand_int(1) == 0 ? "'y'" : "'n'");
+    sql += ";";
+    execute_sql(sql, thd);
+  }
+};
+
+void alter_tablespace_rename(Thd1 *thd) {
+  if (Thd1::tablespace.size() > 0) {
+    auto tablespace = Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1),
+                                       1]; // don't pick innodb_system;
+    std::string sql = "ALTER tablespace " + tablespace;
+    if (rand_int(1) == 0)
+      sql += "_rename  rename to " + tablespace + ";";
+    else
+      sql += " rename to " + tablespace + "_rename;";
+    execute_sql(sql, thd);
+  }
+};
 /* save objects to a file */
 void save_objects_to_file(vector<Table *> *all_tables) {
   //  rapidjson::Writer<Stream> writer(stream);
@@ -702,6 +763,11 @@ int run_default_load(Thd1 *thd) {
   auto &logs = thd->thread_log;
   std::random_device dev;
   std::mt19937 rng(dev());
+
+  if (Thd1::innodb_page_size > 16) {
+    Thd1::row_format.clear();
+    Thd1::key_block_size.clear();
+  }
   logs << " creating defaut tables " << endl;
 
   ta::load_from_file == 1 ? load_objects_from_file(all_tables)
@@ -713,6 +779,38 @@ int run_default_load(Thd1 *thd) {
   execute_sql("DROP DATABASE test;", thd);
   execute_sql("CREATE DATABASE test;", thd);
   execute_sql("USE test;", thd);
+
+  if (Thd1::innodb_page_size >= INNODB_8K_PAGE_SIZE) {
+    Thd1::tablespace.push_back("tab08k");
+  }
+
+  if (Thd1::innodb_page_size >= INNODB_16K_PAGE_SIZE) {
+    Thd1::tablespace.push_back("tab16k");
+  }
+
+  if (Thd1::innodb_page_size >= INNODB_32K_PAGE_SIZE) {
+    Thd1::tablespace.push_back("tab32k");
+  }
+
+  if (Thd1::innodb_page_size >= INNODB_64K_PAGE_SIZE) {
+    Thd1::tablespace.push_back("tab64k");
+  }
+
+  for (auto &tab : Thd1::tablespace) {
+    if (tab.compare("innodb_system") == 0)
+      continue;
+
+    std::string sql =
+        "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd'";
+
+    if (Thd1::innodb_page_size <= INNODB_16K_PAGE_SIZE) {
+      sql += "FILE_BLOCK_SIZE " + tab.substr(3, 3);
+    }
+
+    sql += ";";
+    execute_sql("DROP TABLESPACE " + tab + ";", thd);
+    execute_sql(sql, thd);
+  }
   for (auto &table : *all_tables) {
     execute_sql(table->Table_defination(), thd);
   }
@@ -790,6 +888,18 @@ void run_some_query(Thd1 *thd) {
       break;
     case UPDATE_ROW_USING_PKEY:
       table->UpdateRandomROW(thd);
+      break;
+    case SELECT_ALL_ROW:
+      table->SelectAllRow(thd);
+      break;
+    case SELECT_ROW_USING_PKEY:
+      table->SelectRandomRow(thd);
+      break;
+    case TABLESPACE_ENCRYPTION:
+      alter_tablespace_encryption(thd);
+      break;
+    case TABLESPACE_RENAME:
+      alter_tablespace_rename(thd);
       break;
     default:
       throw std::runtime_error("invalid options");

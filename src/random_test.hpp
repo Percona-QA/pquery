@@ -30,6 +30,10 @@ enum RANDOM_SQL {
   ENCRYPTION,
   DELETE_ROW_USING_PKEY,
   UPDATE_ROW_USING_PKEY,
+  SELECT_ROW_USING_PKEY,
+  SELECT_ALL_ROW,
+  TABLESPACE_ENCRYPTION,
+  TABLESPACE_RENAME,
   // DELETE_ROW_RANDOM,
   // UPDATE_ROW_USING_PKEY
   RANDOM_MAX
@@ -47,26 +51,33 @@ struct Thd1 {
       : thread_log(tl), conn(c), tables(tab){};
 
   std::ofstream &thread_log;
-  MYSQL *conn;
-  static int s_len;
-  static std::vector<std::string> *random_strs;
-  static std::vector<std::string> encryption;
-  static std::vector<std::string> row_format;
-  static std::vector<int> key_block_size;
-  static std::string engine;
-  static int default_records_in_table;
-  static int no_of_tables;
-  static int pkey_pb_per_table;
-  static int no_of_random_load_per_thread;
   struct opt {
     opt(RANDOM_SQL t, int p, bool d) : type(t), probability(p), ddl(d){};
     RANDOM_SQL type;
     int probability;
     bool ddl;
   };
+  MYSQL *conn;
+  static std::vector<std::string> *random_strs;
+  static std::vector<std::string> encryption;
+  static std::vector<std::string> row_format;
+  static std::vector<int> key_block_size;
   static std::vector<opt *> *options;
   std::vector<Table *> *tables;
+  static std::vector<std::string> tablespace;
+  static std::string engine;
+  static int default_records_in_table;
+  static int no_of_tables;
+  static int pkey_pb_per_table;
+  static int no_of_random_load_per_thread;
+  static int s_len;
   static int ddl;
+  static bool is_innodb_system_encrypted;
+  static int max_columns_length;
+  static int max_columns_in_table;
+  static int max_indexes_in_table;
+  static int max_columns_in_index;
+  static int innodb_page_size;
 };
 
 struct Column;
@@ -95,6 +106,8 @@ public:
   void AddColumn(Thd1 *thd);
   void DeleteRandomRow(Thd1 *thd);
   void UpdateRandomROW(Thd1 *thd);
+  void SelectRandomRow(Thd1 *thd);
+  void SelectAllRow(Thd1 *thd);
   void DeleteAllRows(Thd1 *thd);
   /* end */
   template <typename Writer> void Serialize(Writer &writer) const;
@@ -115,6 +128,9 @@ public:
 };
 int run_default_load(Thd1 *thd);
 void run_some_query(Thd1 *thd);
+
+void alter_tablespace_encrpytion(Thd1 *thd);
+void alter_tablespace_rename(Thd1 *thd);
 
 int save_dictionary(std::vector<Table *> *all_tables);
 std::string rand_string(int upper, int lower = 0);
