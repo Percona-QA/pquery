@@ -1,15 +1,53 @@
 #include "random_test.hpp"
 #include "node.hpp"
 
-using namespace std;
 using namespace rapidjson;
+using namespace std;
 std::mt19937 rng;
 
 #define INNODB_16K_PAGE_SIZE 16
 #define INNODB_8K_PAGE_SIZE 8
 #define INNODB_32K_PAGE_SIZE 32
 #define INNODB_64K_PAGE_SIZE 64
+#define MAX_SEED_SIZE 100000
+typedef std::vector<Thd1::opt *> thd_ops;
 
+int sum_of_all_options() {
+  int total = 0;
+  for (auto &opt : *Thd1::options) {
+    if (!Thd1::ddl && opt->ddl)
+      continue;
+    total += opt->probability;
+  }
+  return total;
+}
+
+int pick_some_option() {
+  static int total_probablity = sum_of_all_options();
+  int rd = rand_int(total_probablity);
+  for (auto &opt : *Thd1::options) {
+    if (!Thd1::ddl && opt->ddl)
+      continue;
+    if (rd <= opt->probability)
+      return opt->type;
+    else
+      rd -= opt->probability;
+  }
+  return -1;
+};
+
+/* set seed of current thread */
+int set_seed(Thd1 *thd) {
+  auto initial_seed = Thd1::initial_seed;
+  std::default_random_engine rng(initial_seed);
+  std::uniform_int_distribution<std::mt19937::result_type> dis(1000,
+                                                               MAX_SEED_SIZE);
+  for (int i = 0; i < thd->thread_id; i++)
+    dis(rng);
+  thd->seed = dis(rng);
+  thd->thread_log << "CURRENT SEED IS " << thd->seed << std::endl;
+  return thd->seed;
+}
 /* PRIMARY has to be in last */
 enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
 const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
@@ -22,11 +60,11 @@ std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
                                              "tab04k", "tab01k"};
 std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
 std::string Thd1::engine = "INNODB";
-int Thd1::default_records_in_table = 1000;
-int Thd1::no_of_tables = 50;
+int Thd1::default_records_in_table = 10;
+int Thd1::no_of_tables = 40;
 int Thd1::s_len = 32;
+int Thd1::no_of_random_load_per_thread = 10;
 int Thd1::pkey_pb_per_table = 100;
-int Thd1::no_of_random_load_per_thread = 10000;
 int Thd1::ddl = true;
 bool Thd1::is_innodb_system_encrypted = false;
 int Thd1::max_columns_length = 100;
@@ -34,15 +72,14 @@ int Thd1::max_columns_in_table = 3;
 int Thd1::max_indexes_in_table = 2;
 int Thd1::max_columns_in_index = 2;
 int Thd1::innodb_page_size = 64;
-
-typedef std::vector<Thd1::opt *> thd_ops;
-
+bool Thd1::just_load_ddl = false;
+unsigned long int Thd1::initial_seed = 5;
 thd_ops *options_process() {
   thd_ops *v_ops = new thd_ops;
   v_ops->reserve(RANDOM_MAX);
   v_ops->push_back(new Thd1::opt(DROP_COLUMN, 2, true));
   v_ops->push_back(new Thd1::opt(ADD_COLUMN, 2, true));
-  v_ops->push_back(new Thd1::opt(INSERT_RANDOM_ROW, 600, false));
+  v_ops->push_back(new Thd1::opt(INSERT_RANDOM_ROW, 400, false));
   v_ops->push_back(new Thd1::opt(DROP_CREATE, 1, true));
   v_ops->push_back(new Thd1::opt(TRUNCATE, 2, true));
   v_ops->push_back(new Thd1::opt(OPTIMIZE, 15, false));
@@ -60,15 +97,14 @@ thd_ops *options_process() {
 
 thd_ops *Thd1::options = options_process();
 
-std::vector<std::string> *random_strs_generator() {
+std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz"
                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
                                  "0123456789";
 
   static const size_t N_STRS = 10000;
 
-  std::random_device rd;
-  std::default_random_engine rng(rd());
+  std::default_random_engine rng(seed);
   std::uniform_int_distribution<> dist(0, sizeof(alphabet) / sizeof(*alphabet) -
                                               2);
 
@@ -85,7 +121,8 @@ std::vector<std::string> *random_strs_generator() {
   return strs;
 }
 
-std::vector<std::string> *Thd1::random_strs = random_strs_generator();
+std::vector<std::string> *Thd1::random_strs =
+    random_strs_generator(Thd1::initial_seed);
 
 int rand_int(int upper, int lower) {
   /*todo change the approach if it is too slow */
@@ -95,8 +132,8 @@ int rand_int(int upper, int lower) {
 }
 
 /* return random string in range of upper and lower */
-string rand_string(int upper, int lower) {
-  string rs = ""; /*random_string*/
+std::string rand_string(int upper, int lower) {
+  std::string rs = ""; /*random_string*/
   auto size = rand_int(upper, lower);
 
   /* let the query fail with string size greater */
@@ -117,142 +154,96 @@ string rand_string(int upper, int lower) {
 /* table attirbutes */
 namespace ta {
 int version = 1;
-string file_read_path = "data.dll";
-string file_write_path = "new_data.dll";
+std::string file_read_path = "data.dll";
+std::string file_write_path = "new_data.dll";
 int load_from_file = 0;
-string partition_string = "_p";
+std::string partition_string = "_p";
 } // namespace ta
 
-
-struct Column {
-  Column(string n, Table *table) : name_(n), table_(table){};
-
-  Column(string name, string type, bool n, int l, Table *table)
-      : name_(name), null(n), length(l), table_(table) {
-    for (int i = 0; i < COLUMN_TYPES::MAX; i++) {
-      if (type.compare(column_type[i]) == 0) {
-        type_ = i;
-        break;
-      }
-    }
-  };
-
-  Column(string name, Table *table, int type)
-      : name_(name), type_(type), table_(table) {
-
-    switch (type) {
-    case (COLUMN_TYPES::INT):
-      if (rand_int(10) == 1)
-        length = rand_int(100, 20);
-      else
-        length = 0;
-      break;
-    case (COLUMN_TYPES::VARCHAR):
-    case (COLUMN_TYPES::CHAR):
-      length = rand_int(Thd1::max_columns_length, 10);
-      break;
-    }
-  };
-
-  string rand_value();
-
-  template <typename Writer> void Serialize(Writer &writer) const {
-    writer.StartObject();
-    writer.String("name");
-    writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
-    writer.String("type");
-    writer.String(column_type[type_].c_str(),
-                  static_cast<SizeType>(column_type[type_].length()));
-    writer.String("null");
-    writer.Bool(null);
-    writer.String("primary_key");
-    writer.Bool(primary_key);
-    writer.String("generated");
-    writer.Bool(generated);
-    writer.String("lenght");
-    writer.Int(length);
-    writer.EndObject();
-  }
-
-  ~Column(){};
-
-  std::string name_;
-  int type_;
-  bool null = false;
-  int length = 0;
-  std::string default_value;
-  bool primary_key = false;
-  bool generated = false;
-  Table *table_;
-};
-
-string Column::rand_value() {
+std::string Column::rand_value() {
   if (type_ == COLUMN_TYPES::INT)
-    return to_string(rand_int(100, 4));
+    return std::to_string(rand_int(100, 4));
   else
     return "\'" + rand_string(length) + "\'";
 }
 
-struct Ind_col {
-  Ind_col(Column *c) : column(c){};
-  Ind_col(Column *c, bool d) : column(c), desc(d){};
-  template <typename Writer> void Serialize(Writer &writer) const {
-    writer.StartObject();
-    writer.String("name");
-    auto &name = column->name_;
-    writer.String(name.c_str(), static_cast<SizeType>(name.length()));
-    writer.String("desc");
-    writer.Bool(desc);
-    writer.String("length");
-    writer.Uint(length);
-    writer.EndObject();
-  }
+Column::Column(std::string name, Table *table) : name_(name), table_(table){};
 
-  Column *column;
-  bool desc = false;
-  int length = 0;
-};
-
-struct Index {
-
-  Index(string n) : columns_(), name_(n) { columns_ = new vector<Ind_col *>; };
-  vector<Ind_col *> *columns_;
-  void AddInternalColumn(Ind_col *column) { columns_->push_back(column); }
-  template <typename Writer> void Serialize(Writer &writer) const {
-    writer.StartObject();
-    writer.String("name");
-    writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
-    writer.String(("index_columns"));
-    writer.StartArray();
-    for (auto ic : *columns_)
-      ic->Serialize(writer);
-    writer.EndArray();
-    writer.EndObject();
-  }
-
-  std::string name_;
-  ~Index() {
-    for (auto id_col : *columns_) {
-      delete id_col;
+Column::Column(std::string name, std::string type, bool is_null, int len,
+               Table *table)
+    : name_(name), null(is_null), length(len), table_(table) {
+  for (int i = 0; i < COLUMN_TYPES::MAX; i++) {
+    if (type.compare(column_type[i]) == 0) {
+      type_ = i;
+      break;
     }
-    delete columns_;
-  };
+  }
 };
 
-/* Partition table */
-struct Partition_table : public Table {
-public:
-  Partition_table(string n, int max_pk) : Table(n, max_pk){};
-  ~Partition_table() {}
-  string partition_start;
-  string partiton_type() { return partition_start; }
+Column::Column(std::string name, Table *table, int type)
+    : name_(name), type_(type), table_(table) {
+  switch (type) {
+  case (COLUMN_TYPES::INT):
+    if (rand_int(10) == 1)
+      length = rand_int(100, 20);
+    else
+      length = 0;
+    break;
+  case (COLUMN_TYPES::VARCHAR):
+  case (COLUMN_TYPES::CHAR):
+    length = rand_int(Thd1::max_columns_length, 10);
+    break;
+  }
 };
 
-Table::Table(std::string n, int max_pk)
-    : name_(n), indexes_(), max_pk_value_inserted(max_pk) {
-  columns_ = new vector<Column *>;
-  indexes_ = new vector<Index *>;
+template <typename Writer> void Column::Serialize(Writer &writer) const {
+  writer.StartObject();
+  writer.String("name");
+  writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
+  writer.String("type");
+  writer.String(column_type[type_].c_str(),
+                static_cast<SizeType>(column_type[type_].length()));
+  writer.String("null");
+  writer.Bool(null);
+  writer.String("primary_key");
+  writer.Bool(primary_key);
+  writer.String("generated");
+  writer.Bool(generated);
+  writer.String("lenght");
+  writer.Int(length);
+  writer.EndObject();
+}
+
+template <typename Writer> void Ind_col::Serialize(Writer &writer) const {
+  writer.StartObject();
+  writer.String("name");
+  auto &name = column->name_;
+  writer.String(name.c_str(), static_cast<SizeType>(name.length()));
+  writer.String("desc");
+  writer.Bool(desc);
+  writer.String("length");
+  writer.Uint(length);
+  writer.EndObject();
+}
+
+template <typename Writer> void Index::Serialize(Writer &writer) const {
+  writer.StartObject();
+  writer.String("name");
+  writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
+  writer.String(("index_columns"));
+  writer.StartArray();
+  for (auto ic : *columns_)
+    ic->Serialize(writer);
+  writer.EndArray();
+  writer.EndObject();
+}
+Index::~Index() {
+  for (auto id_col : *columns_) {
+    delete id_col;
+  }
+  delete columns_;
 };
+
 template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.StartObject();
   writer.String("name");
@@ -284,6 +275,22 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.EndArray();
   writer.EndObject();
 }
+
+Ind_col::Ind_col(Column *c) : column(c){};
+
+Ind_col::Ind_col(Column *c, bool d) : column(c), desc(d){};
+
+Index::Index(std::string n) : name_(n), columns_() {
+  columns_ = new std::vector<Ind_col *>;
+};
+
+void Index::AddInternalColumn(Ind_col *column) { columns_->push_back(column); }
+
+Table::Table(std::string n, int max_pk)
+    : name_(n), indexes_(), max_pk_value_inserted(max_pk) {
+  columns_ = new std::vector<Column *>;
+  indexes_ = new std::vector<Index *>;
+};
 
 void Table::DropCreate(Thd1 *thd) {
   if (execute_sql("drop table " + name_ + ";", thd))
@@ -319,7 +326,7 @@ Table::~Table() {
 void Table::CreateDefaultColumn() {
 
   for (int i = 0; i < rand_int(Thd1::max_columns_in_table, 1); i++) {
-    string name;
+    std::string name;
     int type;
     /*  if we need to create primary column */
     if (i == 0 && rand_int(100) < Thd1::pkey_pb_per_table) {
@@ -327,7 +334,7 @@ void Table::CreateDefaultColumn() {
       name = "pkey";
       has_pk = true;
     } else {
-      name = "c" + to_string(i);
+      name = "c" + std::to_string(i);
       type = rand_int(COLUMN_TYPES::MAX - 2); // DON"T PICK Serial
     }
     Column *col = new Column{name, this, type};
@@ -341,7 +348,7 @@ void Table::CreateDefaultIndex() {
   int indexes = rand_int(Thd1::max_indexes_in_table, 1);
   for (int i = 0; i < indexes; i++) {
 
-    Index *id = new Index(name_ + "i" + to_string(i));
+    Index *id = new Index(name_ + "i" + std::to_string(i));
 
     int max_columns = rand_int(Thd1::max_columns_in_index, 1);
 
@@ -370,7 +377,7 @@ void Table::CreateDefaultIndex() {
 /* Create new table and pick some attributes */
 Table *Table::table_id(int choice, int id) {
   Table *table;
-  string name = "tt_" + to_string(id);
+  std::string name = "tt_" + std::to_string(id);
   if (choice == PARTITION) {
     table = new Partition_table(name + ta::partition_string, 0);
   } else {
@@ -400,28 +407,27 @@ Table *Table::table_id(int choice, int id) {
   if (Thd1::tablespace.size() > 0 && rand_int(2) == 0) {
     table->tablespace = Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1)];
     table->encryption = false;
-      table->row_format.clear();
-      if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE ||
-          table->tablespace.compare("innodb_system") == 0 ||
-          stoi(table->tablespace.substr(3, 2)) == Thd1::innodb_page_size)
-        table->key_block_size = 0;
-      else
-        table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
-
+    table->row_format.clear();
+    if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE ||
+        table->tablespace.compare("innodb_system") == 0 ||
+        stoi(table->tablespace.substr(3, 2)) == Thd1::innodb_page_size)
+      table->key_block_size = 0;
+    else
+      table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
   }
 
   return table;
 }
 
 /* prepare table defination */
-string Table::Table_defination() {
+std::string Table::Table_defination() {
   std::string def = "CREATE TABLE  " + name_ + " (";
 
   // todo move to method
   for (auto col : *columns_) {
     def += " " + col->name_ + " " + column_type[col->type_];
     if (col->length > 0)
-      def += "(" + to_string(col->length) + ")";
+      def += "(" + std::to_string(col->length) + ")";
     if (col->null)
       def += " NOT NULL";
     def += ", ";
@@ -449,7 +455,7 @@ string Table::Table_defination() {
     def += " TABLESPACE=" + tablespace;
 
   if (key_block_size > 0)
-    def += " KEY_BLOCK_SIZE=" + to_string(key_block_size);
+    def += " KEY_BLOCK_SIZE=" + std::to_string(key_block_size);
 
   if (row_format.size() > 0)
     def += " ROW_FORMAT=" + row_format;
@@ -495,7 +501,7 @@ void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd) {
 }
 
 void Table::SetEncryption(Thd1 *thd) {
-  string sql = "ALTER TABLE " + name_ + " ENCRYPTION = '";
+  std::string sql = "ALTER TABLE " + name_ + " ENCRYPTION = '";
   std::string enc = thd->encryption[rand_int(thd->encryption.size() - 1)];
   sql += enc + "';";
   if (execute_sql(sql, thd)) {
@@ -510,9 +516,9 @@ void Table::SetEncryption(Thd1 *thd) {
 
 /* alter table add column */
 void Table::AddColumn(Thd1 *thd) {
-  string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
-  string name;
-  name = "COL" + to_string(rand_int(300));
+  std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
+  std::string name;
+  name = "COL" + std::to_string(rand_int(300));
 
   auto col = rand_int(COLUMN_TYPES::MAX - 2);
   Column *tc = new Column(name, this, col);
@@ -531,19 +537,20 @@ void Table::AddColumn(Thd1 *thd) {
 }
 
 void Table::DeleteAllRows(Thd1 *thd) {
-  string sql = "DELETE FROM " + name_ + ";";
+  std::string sql = "DELETE FROM " + name_ + ";";
   execute_sql(sql, thd);
 }
 
 void Table::SelectAllRow(Thd1 *thd) {
-  string sql = "SELECT * FROM " + name_ + ";";
+  std::string sql = "SELECT * FROM " + name_ + ";";
   execute_sql(sql, thd);
 }
 
 void Table::DeleteRandomRow(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
-    string sql = "DELETE FROM " + name_ + " WHERE pkey=" + to_string(pk) + ";";
+    std::string sql =
+        "DELETE FROM " + name_ + " WHERE pkey=" + std::to_string(pk) + ";";
     execute_sql(sql, thd);
   }
 }
@@ -551,16 +558,16 @@ void Table::DeleteRandomRow(Thd1 *thd) {
 void Table::SelectRandomRow(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
-    string sql =
-        "SELECT * FROM " + name_ + " WHERE pkey=" + to_string(pk) + ";";
+    std::string sql =
+        "SELECT * FROM " + name_ + " WHERE pkey=" + std::to_string(pk) + ";";
     execute_sql(sql, thd);
   }
 }
 void Table::UpdateRandomROW(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
-    string sql = "UPDATE " + name_ + " SET pkey =" + to_string(-pk);
-    sql += " WHERE pkey= " + to_string(pk);
+    std::string sql = "UPDATE " + name_ + " SET pkey =" + std::to_string(-pk);
+    sql += " WHERE pkey= " + std::to_string(pk);
     execute_sql(sql, thd);
   }
 }
@@ -568,8 +575,8 @@ void Table::UpdateRandomROW(Thd1 *thd) {
 void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   if (is_lock)
     table_mutex.lock();
-  string vals = "";
-  string insert = "INSERT INTO " + name_ + "  ( ";
+  std::string vals = "";
+  std::string insert = "INSERT INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
     if (column->type_ == COLUMN_TYPES::PRIMARY)
       continue;
@@ -602,13 +609,13 @@ void Table::DropColumn(Thd1 *thd) {
     table_mutex.unlock();
     return;
   }
-  string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name + ";";
+  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name + ";";
   table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
 
-    vector<int> indexes_to_drop;
+    std::vector<int> indexes_to_drop;
     for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
       auto index = *id;
 
@@ -627,7 +634,8 @@ void Table::DropColumn(Thd1 *thd) {
         }
       }
     }
-    std::sort(indexes_to_drop.begin(), indexes_to_drop.end(), greater<int>());
+    std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
+              std::greater<int>());
 
     for (auto &i : indexes_to_drop) {
       indexes_->at(i) = indexes_->back();
@@ -669,8 +677,9 @@ void alter_tablespace_rename(Thd1 *thd) {
     execute_sql(sql, thd);
   }
 };
+
 /* save objects to a file */
-void save_objects_to_file(vector<Table *> *all_tables) {
+void save_objects_to_file(std::vector<Table *> *all_tables) {
   //  rapidjson::Writer<Stream> writer(stream);
 
   StringBuffer sb;
@@ -706,14 +715,14 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
   if (d["version"].GetInt() != version)
     throw std::runtime_error("version mismatch between " + ta::file_read_path +
                              " and codebase " + " file::version is " +
-                             to_string(v) + " code::version is " +
-                             to_string(version));
+                             std::to_string(v) + " code::version is " +
+                             std::to_string(version));
 
   for (auto &tab : d["tables"].GetArray()) {
     Table *table;
 
-    string name = tab["name"].GetString();
-    string table_type = name.substr(name.size() - 2, 2);
+    std::string name = tab["name"].GetString();
+    std::string table_type = name.substr(name.size() - 2, 2);
 
     int max_pk = tab["max_pk_value_inserted"].GetInt();
 
@@ -733,7 +742,7 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
       Index *index = new Index(ind["name"].GetString());
 
       for (auto &ind_col : ind["index_columns"].GetArray()) {
-        string index_base_column = ind_col["name"].GetString();
+        std::string index_base_column = ind_col["name"].GetString();
 
         for (auto &column : *table->columns_) {
           if (index_base_column.compare(column->name_) == 0) {
@@ -756,29 +765,20 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
 void clean_up_at_end(std::vector<Table *> *all_tables) {
   for (auto &table : *all_tables)
     delete table;
+
+  delete Thd1::random_strs;
+
+  for (auto opt : *Thd1::options)
+    delete opt;
+  delete Thd1::options;
 }
 
-int run_default_load(Thd1 *thd) {
-  std::vector<Table *> *all_tables = thd->tables;
-  auto &logs = thd->thread_log;
-  std::random_device dev;
-  std::mt19937 rng(dev());
+void create_database_tablespace(Thd1 *thd) {
 
-  if (Thd1::innodb_page_size > 16) {
+  if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE) {
     Thd1::row_format.clear();
     Thd1::key_block_size.clear();
   }
-  logs << " creating defaut tables " << endl;
-
-  ta::load_from_file == 1 ? load_objects_from_file(all_tables)
-                          : create_default_tables(all_tables);
-
-  if (Thd1::no_of_tables <= 0)
-    throw std::runtime_error("no table to work on \n");
-
-  execute_sql("DROP DATABASE test;", thd);
-  execute_sql("CREATE DATABASE test;", thd);
-  execute_sql("USE test;", thd);
 
   if (Thd1::innodb_page_size >= INNODB_8K_PAGE_SIZE) {
     Thd1::tablespace.push_back("tab08k");
@@ -795,6 +795,9 @@ int run_default_load(Thd1 *thd) {
   if (Thd1::innodb_page_size >= INNODB_64K_PAGE_SIZE) {
     Thd1::tablespace.push_back("tab64k");
   }
+  execute_sql("DROP DATABASE test;", thd);
+  execute_sql("CREATE DATABASE test;", thd);
+  execute_sql("USE test;", thd);
 
   for (auto &tab : Thd1::tablespace) {
     if (tab.compare("innodb_system") == 0)
@@ -811,51 +814,48 @@ int run_default_load(Thd1 *thd) {
     execute_sql("DROP TABLESPACE " + tab + ";", thd);
     execute_sql(sql, thd);
   }
+}
+
+int run_default_load(Thd1 *thd) {
+  std::vector<Table *> *all_tables = thd->tables;
+  auto &logs = thd->thread_log;
+  std::mt19937 rng(thd->initial_seed);
+
+  logs << " creating defaut tables " << std::endl;
+
+  ta::load_from_file == 1 ? load_objects_from_file(all_tables)
+                          : create_default_tables(all_tables);
+
+  create_database_tablespace(thd);
+
+  if (Thd1::no_of_tables <= 0)
+    throw std::runtime_error("no table to work on \n");
+
   for (auto &table : *all_tables) {
     execute_sql(table->Table_defination(), thd);
   }
   load_default_data(all_tables, thd);
   return 1;
 }
-int sum_of_all_options() {
-  int total = 0;
-  for (auto &opt : *Thd1::options) {
-    if (!Thd1::ddl && opt->ddl)
-      continue;
-    total += opt->probability;
-  }
-  return total;
-}
-
-static int total_probablity = sum_of_all_options();
-
-int pick_some_option() {
-  int rd = rand_int(total_probablity);
-  for (auto &opt : *Thd1::options) {
-    if (!Thd1::ddl && opt->ddl)
-      continue;
-    if (rd <= opt->probability)
-      return opt->type;
-    else
-      rd -= opt->probability;
-  }
-  return -1;
-};
 
 void run_some_query(Thd1 *thd) {
-  auto &logs = thd->thread_log;
+
+  std::mt19937 rng(set_seed(thd));
+
   auto all_tables = thd->tables;
+
   execute_sql("USE test;", thd);
+
   Node::parallel_thread_running++;
+
   for (int i = 0; i < Thd1::no_of_random_load_per_thread; i++) {
     auto size = all_tables->size();
 
-    if (i % 20 == 0)
-      logs << " executed " << i << " queries " << std::endl;
-
     auto table = all_tables->at(rand_int(size - 1));
-    auto x = pick_some_option();
-    switch (x) {
+
+    auto option = pick_some_option();
+    thd->thread_log << "option picked is " << option << std::endl;
+    switch (option) {
     case DROP_COLUMN:
       table->DropColumn(thd);
       break;
