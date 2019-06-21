@@ -9,7 +9,9 @@ std::mt19937 rng;
 #define INNODB_8K_PAGE_SIZE 8
 #define INNODB_32K_PAGE_SIZE 32
 #define INNODB_64K_PAGE_SIZE 64
+#define MIN_SEED_SIZE 10000
 #define MAX_SEED_SIZE 100000
+
 typedef std::vector<Thd1::opt *> thd_ops;
 
 int sum_of_all_options() {
@@ -40,7 +42,7 @@ int pick_some_option() {
 int set_seed(Thd1 *thd) {
   auto initial_seed = Thd1::initial_seed;
   std::default_random_engine rng(initial_seed);
-  std::uniform_int_distribution<std::mt19937::result_type> dis(1000,
+  std::uniform_int_distribution<std::mt19937::result_type> dis(MIN_SEED_SIZE,
                                                                MAX_SEED_SIZE);
   for (int i = 0; i < thd->thread_id; i++)
     dis(rng);
@@ -61,9 +63,9 @@ std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
 std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
 std::string Thd1::engine = "INNODB";
 int Thd1::default_records_in_table = 10;
-int Thd1::no_of_tables = 40;
+int Thd1::no_of_tables = 4;
 int Thd1::s_len = 32;
-int Thd1::no_of_random_load_per_thread = 10;
+int Thd1::no_of_random_load_per_thread = 1000;
 int Thd1::pkey_pb_per_table = 100;
 int Thd1::ddl = true;
 bool Thd1::is_innodb_system_encrypted = false;
@@ -89,6 +91,7 @@ thd_ops *options_process() {
   v_ops->push_back(new Thd1::opt(ENCRYPTION, 40, true));
   v_ops->push_back(new Thd1::opt(TABLESPACE_ENCRYPTION, 40, true));
   v_ops->push_back(new Thd1::opt(TABLESPACE_RENAME, 40, true));
+  v_ops->push_back(new Thd1::opt(COLUMN_RENAME, 40, true));
   v_ops->push_back(new Thd1::opt(DELETE_ROW_USING_PKEY, 0, false));
   v_ops->push_back(new Thd1::opt(UPDATE_ROW_USING_PKEY, 100, false));
   v_ops->push_back(new Thd1::opt(SELECT_ROW_USING_PKEY, 100, false));
@@ -546,6 +549,30 @@ void Table::SelectAllRow(Thd1 *thd) {
   execute_sql(sql, thd);
 }
 
+void Table::ColumnRename(Thd1 *thd) {
+  table_mutex.lock();
+  auto ps = rand_int(columns_->size() - 1);
+  auto name = columns_->at(ps)->name_;
+  /* ALTER column to _rename or back to orignal_name */
+  std::string new_name = "_rename";
+  static auto s = new_name.size();
+  if (name.size() > s && name.substr(name.length() - s).compare("_rename") == 0)
+    new_name = name.substr(0, name.length() - s);
+  else
+    new_name = name + new_name;
+  std::string sql =
+      "ALTER TABLE " + name_ + " RENAME COLUMN " + name + " To " + new_name;
+  table_mutex.unlock();
+  if (execute_sql(sql, thd)) {
+    table_mutex.lock();
+    for (auto &col : *columns_) {
+      if (col->name_.compare(name) == 0)
+        col->name_ = new_name;
+    }
+    table_mutex.unlock();
+  };
+}
+
 void Table::DeleteRandomRow(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
@@ -558,16 +585,23 @@ void Table::DeleteRandomRow(Thd1 *thd) {
 void Table::SelectRandomRow(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
-    std::string sql =
-        "SELECT * FROM " + name_ + " WHERE pkey=" + std::to_string(pk) + ";";
+    table_mutex.lock();
+    std::string sql = "SELECT * FROM " + name_ + " WHERE " +
+                      columns_->at(0)->name_ + "=" + std::to_string(pk) + ";";
+    table_mutex.unlock();
     execute_sql(sql, thd);
   }
 }
 void Table::UpdateRandomROW(Thd1 *thd) {
   if (has_pk) {
+    if (max_pk_value_inserted == 0)
+      return;
     auto pk = rand_int(max_pk_value_inserted);
-    std::string sql = "UPDATE " + name_ + " SET pkey =" + std::to_string(-pk);
-    sql += " WHERE pkey= " + std::to_string(pk);
+    table_mutex.lock();
+    std::string sql = "UPDATE " + name_ + " SET " + columns_->at(0)->name_ +
+                      "=" + std::to_string(-pk) + " WHERE " +
+                      columns_->at(0)->name_ + "=" + std::to_string(pk);
+    table_mutex.unlock();
     execute_sql(sql, thd);
   }
 }
@@ -605,7 +639,7 @@ void Table::DropColumn(Thd1 *thd) {
   }
   auto ps = rand_int(columns_->size() - 1);
   auto name = columns_->at(ps)->name_;
-  if (name.compare("pkey") == 0) {
+  if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
     table_mutex.unlock();
     return;
   }
@@ -900,6 +934,9 @@ void run_some_query(Thd1 *thd) {
       break;
     case TABLESPACE_RENAME:
       alter_tablespace_rename(thd);
+      break;
+    case COLUMN_RENAME:
+      table->ColumnRename(thd);
       break;
     default:
       throw std::runtime_error("invalid options");

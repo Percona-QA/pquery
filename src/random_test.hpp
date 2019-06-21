@@ -34,6 +34,7 @@ enum RANDOM_SQL {
   SELECT_ALL_ROW,
   TABLESPACE_ENCRYPTION,
   TABLESPACE_RENAME,
+  COLUMN_RENAME,
   // DELETE_ROW_RANDOM,
   // UPDATE_ROW_USING_PKEY
   RANDOM_MAX
@@ -150,6 +151,7 @@ public:
   void SelectRandomRow(Thd1 *thd);
   void SelectAllRow(Thd1 *thd);
   void DeleteAllRows(Thd1 *thd);
+  void ColumnRename(Thd1 *thd);
   /* end */
   template <typename Writer> void Serialize(Writer &writer) const;
   virtual ~Table();
