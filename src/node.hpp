@@ -35,6 +35,7 @@ struct workerParams {
   bool log_succeeded_queries;
   bool shuffle;
   bool test_connection;
+  bool ddl;
 };
 
 enum LogLevel {

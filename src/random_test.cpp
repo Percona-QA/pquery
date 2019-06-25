@@ -1,4 +1,5 @@
 #include "random_test.hpp"
+#include "common.hpp"
 #include "node.hpp"
 
 using namespace rapidjson;
@@ -14,28 +15,35 @@ std::mt19937 rng;
 
 typedef std::vector<Thd1::opt *> thd_ops;
 
+/* PRIMARY has to be in last */
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
+const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
+                                   "INT PRIMARY KEY AUTO_INCREMENT"};
+
 int sum_of_all_options() {
   int total = 0;
-  for (auto &opt : *Thd1::options) {
-    if (!Thd1::ddl && opt->ddl)
+  bool ddl = options->at(Option::DDL)->getBool();
+  for (auto &opt : *options) {
+    if (!opt->sql || (!ddl && opt->ddl))
       continue;
-    total += opt->probability;
+    total += opt->getInt();
   }
   return total;
 }
 
-int pick_some_option() {
+Option::type pick_some_option() {
   static int total_probablity = sum_of_all_options();
-  int rd = rand_int(total_probablity);
-  for (auto &opt : *Thd1::options) {
-    if (!Thd1::ddl && opt->ddl)
+  int rd = rand_int(total_probablity, 1);
+  static bool ddl = options->at(Option::DDL)->getBool();
+  for (auto &opt : *options) {
+    if (!opt->sql || (!ddl && opt->ddl))
       continue;
-    if (rd <= opt->probability)
-      return opt->type;
+    if (rd <= opt->getInt())
+      return opt->option_type;
     else
-      rd -= opt->probability;
+      rd -= opt->getInt();
   }
-  return -1;
+  return Option::MAX;
 };
 
 /* set seed of current thread */
@@ -50,10 +58,6 @@ int set_seed(Thd1 *thd) {
   thd->thread_log << "CURRENT SEED IS " << thd->seed << std::endl;
   return thd->seed;
 }
-/* PRIMARY has to be in last */
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
-const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
-                                   "INT PRIMARY KEY AUTO_INCREMENT"};
 
 std::vector<std::string> Thd1::encryption = {"Y", "N"};
 std::vector<std::string> Thd1::row_format = {"COMPRESSED", "DYNAMIC",
@@ -63,7 +67,6 @@ std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
 std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
 std::string Thd1::engine = "INNODB";
 int Thd1::default_records_in_table = 10;
-int Thd1::no_of_tables = 4;
 int Thd1::s_len = 32;
 int Thd1::no_of_random_load_per_thread = 1000;
 int Thd1::pkey_pb_per_table = 100;
@@ -73,17 +76,17 @@ int Thd1::max_columns_length = 100;
 int Thd1::max_columns_in_table = 3;
 int Thd1::max_indexes_in_table = 2;
 int Thd1::max_columns_in_index = 2;
-int Thd1::innodb_page_size = 64;
+int Thd1::innodb_page_size = 16;
 bool Thd1::just_load_ddl = false;
 unsigned long int Thd1::initial_seed = 5;
+
 thd_ops *options_process() {
   thd_ops *v_ops = new thd_ops;
+  /*
   v_ops->reserve(RANDOM_MAX);
-  v_ops->push_back(new Thd1::opt(DROP_COLUMN, 2, true));
   v_ops->push_back(new Thd1::opt(ADD_COLUMN, 2, true));
   v_ops->push_back(new Thd1::opt(INSERT_RANDOM_ROW, 400, false));
   v_ops->push_back(new Thd1::opt(DROP_CREATE, 1, true));
-  v_ops->push_back(new Thd1::opt(TRUNCATE, 2, true));
   v_ops->push_back(new Thd1::opt(OPTIMIZE, 15, false));
   v_ops->push_back(new Thd1::opt(ANALYZE, 24, false));
   v_ops->push_back(new Thd1::opt(DELETE_ALL_ROW, 1, false));
@@ -95,6 +98,7 @@ thd_ops *options_process() {
   v_ops->push_back(new Thd1::opt(DELETE_ROW_USING_PKEY, 0, false));
   v_ops->push_back(new Thd1::opt(UPDATE_ROW_USING_PKEY, 100, false));
   v_ops->push_back(new Thd1::opt(SELECT_ROW_USING_PKEY, 100, false));
+  */
   return v_ops;
 };
 
@@ -471,7 +475,7 @@ std::string Table::Table_defination() {
 }
 /* create default table include all tables now */
 void create_default_tables(std::vector<Table *> *all_tables) {
-  int no_of_tables = Thd1::no_of_tables;
+  int no_of_tables = options->at(Option::TABLE)->getInt();
   for (int i = 0; i < no_of_tables; i++) {
     Table *t = Table::table_id(rand_int(TABLE_MAX), i);
     // auto *n = static_cast<Partition_table *>(t);
@@ -790,7 +794,7 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
     }
 
     all_tables->push_back(table);
-    Thd1::no_of_tables = all_tables->size();
+    options->at(Option::DDL)->setInt(all_tables->size());
   }
   fclose(fp);
 }
@@ -862,7 +866,7 @@ int run_default_load(Thd1 *thd) {
 
   create_database_tablespace(thd);
 
-  if (Thd1::no_of_tables <= 0)
+  if (options->at(Option::TABLE)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
 
   for (auto &table : *all_tables) {
@@ -888,22 +892,33 @@ void run_some_query(Thd1 *thd) {
     auto table = all_tables->at(rand_int(size - 1));
 
     auto option = pick_some_option();
-    thd->thread_log << "option picked is " << option << std::endl;
+    thd->thread_log << "option picked is " << options->at(option)->getName()
+                    << std::endl;
     switch (option) {
-    case DROP_COLUMN:
+    case Option::DROP_COLUMN:
       table->DropColumn(thd);
       break;
-    case ADD_COLUMN:
+    case Option::TRUNCATE:
+      table->Truncate(thd);
+      break;
+    case Option::ADD_COLUMN:
       table->AddColumn(thd);
       break;
-    case INSERT_RANDOM_ROW:
-      table->InsertRandomRow(thd, true);
-      break;
-    case DROP_CREATE:
+    case Option::DROP_CREATE:
       table->DropCreate(thd);
       break;
-    case TRUNCATE:
-      table->Truncate(thd);
+    case Option::ENCRYPTION:
+      table->SetEncryption(thd);
+      break;
+    case Option::TABLESPACE_ENCRYPTION:
+      alter_tablespace_encryption(thd);
+      break;
+    case Option::TABLESPACE_RENAME:
+      alter_tablespace_rename(thd);
+      break;
+      /*
+    case INSERT_RANDOM_ROW:
+      table->InsertRandomRow(thd, true);
       break;
     case OPTIMIZE:
       table->Optimize(thd);
@@ -913,9 +928,6 @@ void run_some_query(Thd1 *thd) {
       break;
     case DELETE_ALL_ROW:
       table->DeleteAllRows(thd);
-      break;
-    case ENCRYPTION:
-      table->SetEncryption(thd);
       break;
     case DELETE_ROW_USING_PKEY:
       table->DeleteRandomRow(thd);
@@ -938,6 +950,7 @@ void run_some_query(Thd1 *thd) {
     case COLUMN_RENAME:
       table->ColumnRename(thd);
       break;
+      */
     default:
       throw std::runtime_error("invalid options");
     }

@@ -19,21 +19,16 @@
 #include <writer.h>
 
 enum RANDOM_SQL {
-  DROP_COLUMN,
-  ADD_COLUMN,
+  ADD_COLUMN = 20,
   INSERT_RANDOM_ROW,
   DROP_CREATE,
-  TRUNCATE,
   OPTIMIZE,
   ANALYZE,
   DELETE_ALL_ROW,
-  ENCRYPTION,
   DELETE_ROW_USING_PKEY,
   UPDATE_ROW_USING_PKEY,
   SELECT_ROW_USING_PKEY,
   SELECT_ALL_ROW,
-  TABLESPACE_ENCRYPTION,
-  TABLESPACE_RENAME,
   COLUMN_RENAME,
   // DELETE_ROW_RANDOM,
   // UPDATE_ROW_USING_PKEY
@@ -194,6 +189,6 @@ void load_objects_from_file(std::vector<Table *> *all_tables);
 void create_default_tables(std::vector<Table *> *all_tables);
 void clean_up_at_end(std::vector<Table *> *all_tables);
 int sum_of_all_options();
-int pick_some_option();
+Option::type pick_some_option();
 std::vector<std::string> *random_strs_generator(unsigned long int seed);
 #endif

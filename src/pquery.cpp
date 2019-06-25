@@ -22,7 +22,6 @@
 std::string confFile;
 pid_t childPID, wPID;
 int status;
-
 void set_defaults(struct workerParams &Params) {
   // initialize all fields with default values
   Params.myName = "default.node.tld";
@@ -39,7 +38,8 @@ void set_defaults(struct workerParams &Params) {
   Params.verbose = false;
   Params.debug = false;
   Params.log_all_queries = true;
-  Params.log_succeeded_queries = false, Params.log_failed_queries = false;
+  Params.log_succeeded_queries = false;
+  Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
   Params.log_client_output = false;
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
         // config file with all options
         {"config-file", required_argument, 0, 'c'},
         // help options
-        {"help", no_argument, 0, 'h'},
+        {"help", optional_argument, NULL, 'h'},
         {"config-help", no_argument, 0, 'I'},
         {"cli-help", no_argument, 0, 'C'},
         // single-node options
@@ -145,12 +145,30 @@ int main(int argc, char *argv[]) {
         {"log-all-queries", no_argument, 0, 'A'},
         {"log-succeded-queries", no_argument, 0, 'S'},
         {"log-failed-queries", no_argument, 0, 'F'},
+        {"ddl", required_argument, 0, Option::DDL},
+        {options->at(Option::SELECT)->getName(), required_argument, 0,
+         Option::SELECT},
+        {options->at(Option::DROP_COLUMN)->getName(), required_argument, 0,
+         Option::DROP_COLUMN},
+        {options->at(Option::TRUNCATE)->getName(), required_argument, 0,
+         Option::TRUNCATE},
+        {options->at(Option::ADD_COLUMN)->getName(), required_argument, 0,
+         Option::ADD_COLUMN},
+        {options->at(Option::DROP_CREATE)->getName(), required_argument, 0,
+         Option::DROP_CREATE},
+        {options->at(Option::ENCRYPTION)->getName(), required_argument, 0,
+         Option::ENCRYPTION},
+        {options->at(Option::TABLESPACE_ENCRYPTION)->getName(),
+         required_argument, 0, Option::TABLESPACE_ENCRYPTION},
+        {options->at(Option::TABLESPACE_RENAME)->getName(), required_argument,
+         0, Option::TABLESPACE_RENAME},
         {"no-shuffle", no_argument, 0, 'n'},
         {"log-query-statistics", no_argument, 0, 'L'},
         {"log-query-duration", no_argument, 0, 'D'},
         {"test-connection", no_argument, 0, 'T'},
         {"log-query-numbers", no_argument, 0, 'N'},
         {"log-client-output", no_argument, 0, 'O'},
+        {"tables", required_argument, 0, Option::TABLE},
         // finally
         {0, 0, 0, 0}};
 
@@ -161,11 +179,15 @@ int main(int argc, char *argv[]) {
 
     if (c == -1) {
       break;
+      exit(EXIT_FAILURE);
     }
 
     switch (c) {
     case 'h':
-      show_help();
+      if (optarg)
+        show_help();
+      else
+        show_help(Option::DDL);
       exit(EXIT_FAILURE);
     case 'I':
       show_config_help();
@@ -219,6 +241,7 @@ int main(int argc, char *argv[]) {
       break;
     case 'v':
       std::cout << "> Verbose mode: ON" << std::endl;
+      // show_help("verbose");
       wParams.verbose = true;
       break;
     case 'A':
@@ -262,6 +285,7 @@ int main(int argc, char *argv[]) {
       wParams.log_client_output = true;
       break;
     default:
+      options->at(c)->setInt(optarg);
       break;
     }
   } // while
@@ -300,7 +324,9 @@ int main(int argc, char *argv[]) {
     std::cerr << "! Exit status of child with PID " << wPID << ": " << status
               << std::endl;
   }
+
   mysql_library_end();
+  delete_options();
 
   return EXIT_SUCCESS;
 }

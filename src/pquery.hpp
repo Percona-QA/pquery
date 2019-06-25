@@ -1,13 +1,15 @@
 #ifndef __PQUERY_HPP__
 #define __PQUERY_HPP__
 
-#include <vector>
-#include <string>
+#include "common.hpp"
 #include "node.hpp"
+#include <string>
+#include <vector>
 
 // declaration for help functions
 void print_version(void);
 void show_help(void);
+void show_help(Option::type help);
 void show_config_help(void);
 void show_cli_help(void);
 
