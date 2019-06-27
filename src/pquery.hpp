@@ -9,7 +9,7 @@
 // declaration for help functions
 void print_version(void);
 void show_help(void);
-void show_help(Option::type help);
+void show_help(Option::Opt help);
 void show_config_help(void);
 void show_cli_help(void);
 

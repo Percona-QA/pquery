@@ -5,7 +5,6 @@
  =========================================================
 */
 
-#include <getopt.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -119,60 +118,70 @@ int main(int argc, char *argv[]) {
   static struct workerParams wParams;
   set_defaults(wParams); // reset all settings in struct to defaults
   int c;
-
   while (true) {
 
-    static struct option long_options[] = {
-        // config file with all options
-        {"config-file", required_argument, 0, 'c'},
-        // help options
-        {"help", optional_argument, NULL, 'h'},
-        {"config-help", no_argument, 0, 'I'},
-        {"cli-help", no_argument, 0, 'C'},
-        // single-node options
-        {"database", required_argument, 0, 'd'},
-        {"address", required_argument, 0, 'a'},
-        {"infile", required_argument, 0, 'i'},
-        {"logdir", required_argument, 0, 'l'},
-        {"socket", required_argument, 0, 's'},
-        {"port", required_argument, 0, 'p'},
-        {"user", required_argument, 0, 'u'},
-        {"password", required_argument, 0, 'P'},
-        {"threads", required_argument, 0, 't'},
-        {"queries-per-thread", required_argument, 0, 'q'},
-        {"verbose", no_argument, 0, 'v'},
-        {"debug", no_argument, 0, 'E'},
-        {"log-all-queries", no_argument, 0, 'A'},
-        {"log-succeded-queries", no_argument, 0, 'S'},
-        {"log-failed-queries", no_argument, 0, 'F'},
-        {"ddl", required_argument, 0, Option::DDL},
-        {options->at(Option::SELECT)->getName(), required_argument, 0,
-         Option::SELECT},
-        {options->at(Option::DROP_COLUMN)->getName(), required_argument, 0,
-         Option::DROP_COLUMN},
-        {options->at(Option::TRUNCATE)->getName(), required_argument, 0,
-         Option::TRUNCATE},
-        {options->at(Option::ADD_COLUMN)->getName(), required_argument, 0,
-         Option::ADD_COLUMN},
-        {options->at(Option::DROP_CREATE)->getName(), required_argument, 0,
-         Option::DROP_CREATE},
-        {options->at(Option::ENCRYPTION)->getName(), required_argument, 0,
-         Option::ENCRYPTION},
-        {options->at(Option::TABLESPACE_ENCRYPTION)->getName(),
-         required_argument, 0, Option::TABLESPACE_ENCRYPTION},
-        {options->at(Option::TABLESPACE_RENAME)->getName(), required_argument,
-         0, Option::TABLESPACE_RENAME},
-        {"no-shuffle", no_argument, 0, 'n'},
-        {"log-query-statistics", no_argument, 0, 'L'},
-        {"log-query-duration", no_argument, 0, 'D'},
-        {"test-connection", no_argument, 0, 'T'},
-        {"log-query-numbers", no_argument, 0, 'N'},
-        {"log-client-output", no_argument, 0, 'O'},
-        {"tables", required_argument, 0, Option::TABLE},
-        // finally
-        {0, 0, 0, 0}};
+    struct option long_options[sizeof(Option) / sizeof(int)];
+    /*
+static struct option long_options[] = {
+  // config file with all options
+  {"config-file", required_argument, 0, 'c'},
+  // help options
+  {"help", optional_argument, NULL, 'h'},
+  {"config-help", no_argument, 0, 'I'},
+  {"cli-help", no_argument, 0, 'C'},
+  // single-node options
+  {"database", required_argument, 0, 'd'},
+  {"address", required_argument, 0, 'a'},
+  {"infile", required_argument, 0, 'i'},
+  {"logdir", required_argument, 0, 'l'},
+  {"socket", required_argument, 0, 's'},
+  {"port", required_argument, 0, 'p'},
+  {"user", required_argument, 0, 'u'},
+  {"password", required_argument, 0, 'P'},
+  {"threads", required_argument, 0, 't'},
+  {"queries-per-thread", required_argument, 0, 'q'},
+  {"verbose", no_argument, 0, 'v'},
+  {"debug", no_argument, 0, 'E'},
+  {"log-all-queries", no_argument, 0, 'A'},
+  {"log-succeded-queries", no_argument, 0, 'S'},
+  {"log-failed-queries", no_argument, 0, 'F'},
+  {"ddl", required_argument, 0, Option::DDL},
+  {options->at(Option::SELECT)->getName(), required_argument, 0,
+   Option::SELECT},
+  {options->at(Option::DROP_COLUMN)->getName(), required_argument, 0,
+   Option::DROP_COLUMN},
+  {options->at(Option::TRUNCATE)->getName(), required_argument, 0,
+   Option::TRUNCATE},
+  {options->at(Option::ADD_COLUMN)->getName(), required_argument, 0,
+   Option::ADD_COLUMN},
+  {options->at(Option::DROP_CREATE)->getName(), required_argument, 0,
+   Option::DROP_CREATE},
+  {options->at(Option::ENCRYPTION)->getName(), required_argument, 0,
+   Option::ENCRYPTION},
+  {options->at(Option::TABLESPACE_ENCRYPTION)->getName(),
+   required_argument, 0, Option::TABLESPACE_ENCRYPTION},
+  {options->at(Option::TABLESPACE_RENAME)->getName(), required_argument,
+   0, Option::TABLESPACE_RENAME},
+  {"no-shuffle", no_argument, 0, 'n'},
+  {"log-query-statistics", no_argument, 0, 'L'},
+  {"log-query-duration", no_argument, 0, 'D'},
+  {"test-connection", no_argument, 0, 'T'},
+  {"log-query-numbers", no_argument, 0, 'N'},
+  {"log-client-output", no_argument, 0, 'O'},
+  {"tables", required_argument, 0, Option::TABLE},
+  // finally
+  {0, 0, 0, 0}};
 
+  */
     int option_index = 0;
+
+    int i = 0;
+    for (auto op : *options) {
+      if (op == nullptr)
+        continue;
+      long_options[i++] = {op->getName(), op->getArgs(), 0, op->getOption()};
+    };
+    long_options[i] = {0, 0, 0, 0};
 
     c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAEFNLDTNOS",
                          long_options, &option_index);
@@ -187,6 +196,7 @@ int main(int argc, char *argv[]) {
       if (optarg)
         show_help();
       else
+        std::cout << "ASED FOR HELP" << std::endl;
         show_help(Option::DDL);
       exit(EXIT_FAILURE);
     case 'I':
@@ -285,7 +295,28 @@ int main(int argc, char *argv[]) {
       wParams.log_client_output = true;
       break;
     default:
-      options->at(c)->setInt(optarg);
+      std::cout << "option picked is " << c << std::endl;
+      if (c >= Option::MAX) {
+        break;
+      }
+      if (options->at(c) == nullptr) {
+        std::cout << "INVALID OPTION" << std::endl;
+        break;
+      }
+      auto op = options->at(c);
+      if (op->getArgs() == required_argument) {
+        switch (op->getType()) {
+        case Option::INT:
+          op->setInt(optarg);
+          break;
+        case Option::STRING:
+          op->setString(optarg);
+          break;
+        case Option::BOOL:
+          op->setBool(optarg);
+          break;
+        }
+      }
       break;
     }
   } // while

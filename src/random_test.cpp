@@ -31,7 +31,7 @@ int sum_of_all_options() {
   return total;
 }
 
-Option::type pick_some_option() {
+Option::Opt pick_some_option() {
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
   static bool ddl = options->at(Option::DDL)->getBool();
@@ -39,7 +39,7 @@ Option::type pick_some_option() {
     if (!opt->sql || (!ddl && opt->ddl))
       continue;
     if (rd <= opt->getInt())
-      return opt->option_type;
+      return opt->getOption();
     else
       rd -= opt->getInt();
   }

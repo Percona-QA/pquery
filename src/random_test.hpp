@@ -189,6 +189,6 @@ void load_objects_from_file(std::vector<Table *> *all_tables);
 void create_default_tables(std::vector<Table *> *all_tables);
 void clean_up_at_end(std::vector<Table *> *all_tables);
 int sum_of_all_options();
-Option::type pick_some_option();
+Option::Opt pick_some_option();
 std::vector<std::string> *random_strs_generator(unsigned long int seed);
 #endif

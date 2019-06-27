@@ -17,12 +17,13 @@
 #ifndef PQREVISION
 #define PQREVISION "unknown"
 #endif
+#include <getopt.h>
 #include <map>
 #include <string>
 
 struct Option {
-  enum default_t { BOOL, INT, STRING } default_type;
-  enum type {
+  enum Type { BOOL, INT, STRING } type;
+  enum Opt {
     DDL,
     TABLE,
     SELECT,
@@ -41,30 +42,31 @@ struct Option {
     DROP_INDEX,
     ADD_INDEX,
     */
+    HELP = 'h',
     MAX
-  } option_type;
-  Option(default_t t, type j, std::string n, bool s = false, bool d = false)
-      : default_type(t), option_type(j), name(n), sql(s), ddl(d){};
+  } option;
+  Option(Type t, Opt o, std::string n) : type(t), option(o), name(n){};
   void print_pretty();
 
+  Type getType() { return type; };
+  Opt getOption() { return option; };
+
+  const char *getName() { return name.c_str(); };
   bool getBool() { return default_bool; }
-
   int getInt() { return default_int; }
-
   std::string getString() { return default_value; }
+  short getArgs() { return args; }
+  void setArgs(short s) { args = s; };
 
   void setBool(std::string in) {
     default_bool = in.compare("true") == 0 ? true : false;
   }
-
-  const char *getName() { return name.c_str(); };
   void setBool(bool in) { default_bool = in; }
-
   void setInt(std::string n) { default_int = stoi(n); }
-
   void setInt(int n) { default_int = n; }
-
-  default_t get_type() { return default_type; }
+  void setString(std::string n) { default_value = n; };
+  void setSQL() { sql = true; };
+  void setDDL() { ddl = true; };
 
   std::string name;
   std::string help;
@@ -74,6 +76,7 @@ struct Option {
   bool sql; // true if option is SQL, False if others
   bool ddl; // If SQL is DDL, or false if it is not
   ~Option();
+  short args = required_argument; // default is required argument
 };
 
 void delete_options();

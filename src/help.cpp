@@ -20,53 +20,73 @@ std::vector<Option *> *add_options() {
   options->at(Option::TABLE) = opt;
 
   /* SELECT */
-  opt = new Option(Option::BOOL, Option::SELECT, "SELECT", true);
+  opt = new Option(Option::BOOL, Option::SELECT, "select");
   opt->help = "execute SELECT against tables";
   opt->setInt(0);
   options->at(Option::SELECT) = opt;
 
   /* Drop column */
-  opt = new Option(Option::INT, Option::DROP_COLUMN, "atdcpm", true, true);
+  opt = new Option(Option::INT, Option::DROP_COLUMN, "atdcpm");
   opt->help = "Alter table drop column";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
   options->at(Option::DROP_COLUMN) = opt;
 
   /* Add column */
-  opt = new Option(Option::INT, Option::ADD_COLUMN, "atacpm", true, true);
+  opt = new Option(Option::INT, Option::ADD_COLUMN, "atacpm");
   opt->help = "Alter table add column";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
   options->at(Option::ADD_COLUMN) = opt;
 
   /* Truncate column */
-  opt = new Option(Option::INT, Option::TRUNCATE, "ttpm", true, true);
-  opt->help = "truncate table";
+  opt = new Option(Option::INT, Option::TRUNCATE, "ttpm");
+  opt->help = "Truncate table";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
   options->at(Option::TRUNCATE) = opt;
 
   /* Drop and recreate table */
-  opt = new Option(Option::INT, Option::DROP_CREATE, "dctpm", true, true);
+  opt = new Option(Option::INT, Option::DROP_CREATE, "dctpm");
   opt->help = "Drop and recreate table";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
   options->at(Option::DROP_CREATE) = opt;
 
   /*Encryption table */
-  opt = new Option(Option::INT, Option::ENCRYPTION, "atsepm", true, true);
+  opt = new Option(Option::INT, Option::ENCRYPTION, "atsepm");
   opt->help = "Alter table set Encrytion";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
   options->at(Option::ENCRYPTION) = opt;
 
   /*Tablespace Encrytion */
-  opt = new Option(Option::INT, Option::TABLESPACE_ENCRYPTION, "asepm", true,
-                   true);
+  opt = new Option(Option::INT, Option::TABLESPACE_ENCRYPTION, "asepm");
   opt->help = "Alter tablespace set Encrytion";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
   options->at(Option::TABLESPACE_ENCRYPTION) = opt;
 
   /* Tablespace Rename */
-  opt = new Option(Option::INT, Option::TABLESPACE_RENAME, "asrpm", true, true);
+  opt = new Option(Option::INT, Option::TABLESPACE_RENAME, "asrpm");
   opt->help = "Alter tablespace rename";
   opt->setInt(1);
   options->at(Option::TABLESPACE_RENAME) = opt;
+  opt->setSQL();
+  opt->setDDL();
+
+  /* HELP */
+  opt = new Option(Option::BOOL, Option::HELP, "help");
+  opt->help = "user asked for help";
+  opt->setArgs(optional_argument);
+  options->at(Option::HELP) = opt;
+
   return options;
 }
 
@@ -85,10 +105,10 @@ void delete_options() {
   delete options;
 }
 
-void show_help(Option::type type) {
+void show_help(Option::Opt option) {
   /* Print all avilable options */
 
-  if (type == Option::MAX) {
+  if (option == Option::MAX) {
     print_version();
     for (auto &it : *options) {
       it->print_pretty();
