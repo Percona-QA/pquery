@@ -34,6 +34,16 @@ struct Option {
     ENCRYPTION,
     TABLESPACE_ENCRYPTION,
     TABLESPACE_RENAME,
+    DATABASE = 'd',
+    ADDRESS = 'a',
+    INFILE = 'i',
+    LOGDIR = 'l',
+    SOCKET = 's',
+    CONFIGFILE = 'c',
+    PORT = 'p',
+    USER = 'u',
+    PASSWORD = 'P',
+    THREADS = 't',
     /*
     VERBOSE,
     COLUMNS,
@@ -42,7 +52,7 @@ struct Option {
     DROP_INDEX,
     ADD_INDEX,
     */
-    HELP = 'h',
+    HELP = 'z',
     MAX
   } option;
   Option(Type t, Opt o, std::string n) : type(t), option(o), name(n){};

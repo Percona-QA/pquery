@@ -87,6 +87,61 @@ std::vector<Option *> *add_options() {
   opt->setArgs(optional_argument);
   options->at(Option::HELP) = opt;
 
+  /* DATABASE */
+  opt = new Option(Option::STRING, Option::DATABASE, "database");
+  opt->help = "The database to connect to";
+  opt->setString("test");
+  options->at(Option::DATABASE) = opt;
+
+  /* Address */
+  opt = new Option(Option::STRING, Option::ADDRESS, "address");
+  opt->help = "IP address to connect to";
+  options->at(Option::ADDRESS) = opt;
+
+  /* Infile */
+  opt = new Option(Option::STRING, Option::INFILE, "infile");
+  opt->help = "The SQL input file";
+  options->at(Option::INFILE) = opt;
+
+  /* Logdir */
+  opt = new Option(Option::STRING, Option::LOGDIR, "logdir");
+  opt->help = "Log directory";
+  options->at(Option::LOGDIR) = opt;
+
+  /* Socket */
+  opt = new Option(Option::STRING, Option::SOCKET, "socket");
+  opt->help = "Socket file to use";
+  opt->setString("/tmp/my.sock");
+  options->at(Option::SOCKET) = opt;
+
+  /*config file */
+  opt = new Option(Option::STRING, Option::CONFIGFILE, "config-file");
+  opt->help = "Config file to use for test";
+  options->at(Option::CONFIGFILE) = opt;
+
+  /*Port */
+  opt = new Option(Option::INT, Option::PORT, "port");
+  opt->help = "Port to use";
+  opt->setInt(3306);
+  options->at(Option::PORT) = opt;
+
+  /* User*/
+  opt = new Option(Option::STRING, Option::USER, "user");
+  opt->help = "The MySQL userID to be used";
+  opt->setString("root");
+  options->at(Option::USER) = opt;
+
+  /* Password*/
+  opt = new Option(Option::STRING, Option::PASSWORD, "password");
+  opt->help = "The MySQL user's password";
+  opt->setString("");
+  options->at(Option::PASSWORD) = opt;
+
+  /* Threads */
+  opt = new Option(Option::INT, Option::THREADS, "threads");
+  opt->help = "The number of threads to use";
+  opt->setInt(1);
+  options->at(Option::THREADS) = opt;
   return options;
 }
 

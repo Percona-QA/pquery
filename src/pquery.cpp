@@ -27,11 +27,9 @@ void set_defaults(struct workerParams &Params) {
   Params.database = "";
   Params.address = "localhost";
   Params.socket = "/tmp/socket.sock";
-  Params.username = "root";
   Params.password = "";
   Params.infile = "pquery.sql";
   Params.logdir = "/Users/rahulmalik/pquery/src";
-  Params.port = 3306;
   Params.threads = 2;
   Params.queries_per_thread = 0;
   Params.verbose = false;
@@ -123,45 +121,16 @@ int main(int argc, char *argv[]) {
     struct option long_options[sizeof(Option) / sizeof(int)];
     /*
 static struct option long_options[] = {
-  // config file with all options
-  {"config-file", required_argument, 0, 'c'},
   // help options
-  {"help", optional_argument, NULL, 'h'},
   {"config-help", no_argument, 0, 'I'},
   {"cli-help", no_argument, 0, 'C'},
   // single-node options
-  {"database", required_argument, 0, 'd'},
-  {"address", required_argument, 0, 'a'},
-  {"infile", required_argument, 0, 'i'},
-  {"logdir", required_argument, 0, 'l'},
-  {"socket", required_argument, 0, 's'},
-  {"port", required_argument, 0, 'p'},
-  {"user", required_argument, 0, 'u'},
-  {"password", required_argument, 0, 'P'},
-  {"threads", required_argument, 0, 't'},
   {"queries-per-thread", required_argument, 0, 'q'},
   {"verbose", no_argument, 0, 'v'},
   {"debug", no_argument, 0, 'E'},
   {"log-all-queries", no_argument, 0, 'A'},
   {"log-succeded-queries", no_argument, 0, 'S'},
   {"log-failed-queries", no_argument, 0, 'F'},
-  {"ddl", required_argument, 0, Option::DDL},
-  {options->at(Option::SELECT)->getName(), required_argument, 0,
-   Option::SELECT},
-  {options->at(Option::DROP_COLUMN)->getName(), required_argument, 0,
-   Option::DROP_COLUMN},
-  {options->at(Option::TRUNCATE)->getName(), required_argument, 0,
-   Option::TRUNCATE},
-  {options->at(Option::ADD_COLUMN)->getName(), required_argument, 0,
-   Option::ADD_COLUMN},
-  {options->at(Option::DROP_CREATE)->getName(), required_argument, 0,
-   Option::DROP_CREATE},
-  {options->at(Option::ENCRYPTION)->getName(), required_argument, 0,
-   Option::ENCRYPTION},
-  {options->at(Option::TABLESPACE_ENCRYPTION)->getName(),
-   required_argument, 0, Option::TABLESPACE_ENCRYPTION},
-  {options->at(Option::TABLESPACE_RENAME)->getName(), required_argument,
-   0, Option::TABLESPACE_RENAME},
   {"no-shuffle", no_argument, 0, 'n'},
   {"log-query-statistics", no_argument, 0, 'L'},
   {"log-query-duration", no_argument, 0, 'D'},
@@ -205,46 +174,6 @@ static struct option long_options[] = {
     case 'C':
       show_cli_help();
       exit(EXIT_FAILURE);
-    case 'c':
-      std::cout << "> Config file: " << optarg << std::endl;
-      confFile = optarg;
-      break;
-    case 'd':
-      std::cout << "> Database: " << optarg << std::endl;
-      wParams.database = optarg;
-      break;
-    case 'a':
-      std::cout << "> Address: " << optarg << std::endl;
-      wParams.address = optarg;
-      break;
-    case 'i':
-      std::cout << "> Infile: " << optarg << std::endl;
-      wParams.infile = optarg;
-      break;
-    case 'l':
-      std::cout << "> Logdir: " << optarg << std::endl;
-      wParams.logdir = optarg;
-      break;
-    case 's':
-      std::cout << "> Socket: " << optarg << std::endl;
-      wParams.socket = optarg;
-      break;
-    case 'p':
-      std::cout << "> Port: " << optarg << std::endl;
-      wParams.port = atoi(optarg);
-      break;
-    case 'u':
-      std::cout << "> Username: " << optarg << std::endl;
-      wParams.username = optarg;
-      break;
-    case 'P':
-      std::cout << "> Password: " << optarg << std::endl;
-      wParams.password = optarg;
-      break;
-    case 't':
-      std::cout << "> Threads: " << optarg << std::endl;
-      wParams.threads = atoi(optarg);
-      break;
     case 'q':
       std::cout << "> Queries per thread: " << optarg << std::endl;
       wParams.queries_per_thread = atoi(optarg);
@@ -320,6 +249,15 @@ static struct option long_options[] = {
       break;
     }
   } // while
+
+  wParams.socket = options->at(Option::SOCKET)->getString();
+  wParams.username = options->at(Option::USER)->getString();
+  wParams.password = options->at(Option::PASSWORD)->getString();
+  wParams.port = options->at(Option::PORT)->getInt();
+  wParams.threads = options->at(Option::THREADS)->getInt();
+
+  if (options->at(Option::CONFIGFILE)->getString().size() > 0)
+    confFile = options->at(Option::CONFIGFILE)->getString();
 
   if (confFile.empty()) {
     if (wParams.debug) {
