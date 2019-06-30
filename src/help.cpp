@@ -21,9 +21,69 @@ std::vector<Option *> *add_options() {
 
   /* SELECT */
   opt = new Option(Option::BOOL, Option::SELECT, "select");
-  opt->help = "execute SELECT against tables";
-  opt->setInt(0);
+  opt->help = "Execute any type select on tables";
+  opt->setBool(true);
   options->at(Option::SELECT) = opt;
+
+  /* INSERT */
+  opt = new Option(Option::BOOL, Option::INSERT, "insert");
+  opt->help = "Execute insert into tables";
+  opt->setBool(true);
+  options->at(Option::INSERT) = opt;
+
+  /* UPDATE */
+  opt = new Option(Option::BOOL, Option::UPDATE, "update");
+  opt->help = "Execute any type  of update on tables";
+  opt->setBool(true);
+  options->at(Option::UPDATE) = opt;
+
+  /* DELETE */
+  opt = new Option(Option::BOOL, Option::DELETE, "delete");
+  opt->help = "Execute any type of  delete on tables";
+  opt->setBool(true);
+  options->at(Option::DELETE) = opt;
+
+  /* Select all row */
+  opt = new Option(Option::INT, Option::SELECT_ALL_ROW, "stapm");
+  opt->help = "Selecting Tables All data probablity";
+  opt->setInt(80);
+  options->at(Option::SELECT_ALL_ROW) = opt;
+  opt->setSQL();
+
+  /* Select row using pkey */
+  opt = new Option(Option::INT, Option::SELECT_ROW_USING_PKEY, "strppm");
+  opt->help = "Select table row using pkey probablity";
+  opt->setInt(800);
+  opt->setSQL();
+  options->at(Option::SELECT_ROW_USING_PKEY) = opt;
+
+  /* Insert random row */
+  opt = new Option(Option::INT, Option::INSERT_RANDOM_ROW, "itrpm");
+  opt->help = "insert random row";
+  opt->setInt(800);
+  opt->setSQL();
+  options->at(Option::INSERT_RANDOM_ROW) = opt;
+
+  /* Update row using pkey */
+  opt = new Option(Option::INT, Option::UPDATE_ROW_USING_PKEY, "utppm");
+  opt->help = "Update row using pkey";
+  opt->setInt(40);
+  opt->setSQL();
+  options->at(Option::UPDATE_ROW_USING_PKEY) = opt;
+
+  /* Delete all rows */
+  opt = new Option(Option::INT, Option::DELETE_ALL_ROW, "dtapm");
+  opt->help = "delete all rows of a table";
+  opt->setInt(1);
+  opt->setSQL();
+  options->at(Option::DELETE_ALL_ROW) = opt;
+
+  /* Delete row using pkey */
+  opt = new Option(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
+  opt->help = "Delete row using pkey";
+  opt->setInt(40);
+  opt->setSQL();
+  options->at(Option::DELETE_ROW_USING_PKEY) = opt;
 
   /* Drop column */
   opt = new Option(Option::INT, Option::DROP_COLUMN, "atdcpm");
@@ -41,7 +101,28 @@ std::vector<Option *> *add_options() {
   opt->setDDL();
   options->at(Option::ADD_COLUMN) = opt;
 
-  /* Truncate column */
+  /* Rename Column */
+  opt = new Option(Option::INT, Option::RENAME_COLUMN, "atrcpm");
+  opt->help = "Alter table rename column";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+  options->at(Option::RENAME_COLUMN) = opt;
+
+  /* Analyze Table */
+  opt = new Option(Option::INT, Option::ANALYZE, "tapm");
+  opt->help = "Analyze Table";
+  opt->setInt(1);
+  opt->setSQL();
+  options->at(Option::ANALYZE) = opt;
+
+  /* Optimize Table */
+  opt = new Option(Option::INT, Option::OPTIMIZE, "topm");
+  opt->help = "Optimize Table";
+  opt->setSQL();
+  options->at(Option::OPTIMIZE) = opt;
+
+  /* Truncate table */
   opt = new Option(Option::INT, Option::TRUNCATE, "ttpm");
   opt->help = "Truncate table";
   opt->setInt(1);
@@ -57,7 +138,7 @@ std::vector<Option *> *add_options() {
   opt->setDDL();
   options->at(Option::DROP_CREATE) = opt;
 
-  /*Encryption table */
+  /*Encrypt table */
   opt = new Option(Option::INT, Option::ENCRYPTION, "atsepm");
   opt->help = "Alter table set Encrytion";
   opt->setInt(1);
@@ -111,7 +192,7 @@ std::vector<Option *> *add_options() {
   /* Socket */
   opt = new Option(Option::STRING, Option::SOCKET, "socket");
   opt->help = "Socket file to use";
-  opt->setString("/tmp/my.sock");
+  opt->setString("/tmp/socket.sock");
   options->at(Option::SOCKET) = opt;
 
   /*config file */
@@ -142,6 +223,7 @@ std::vector<Option *> *add_options() {
   opt->help = "The number of threads to use";
   opt->setInt(1);
   options->at(Option::THREADS) = opt;
+
   return options;
 }
 

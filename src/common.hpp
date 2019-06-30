@@ -27,8 +27,20 @@ struct Option {
     DDL,
     TABLE,
     SELECT,
+    INSERT,
+    UPDATE,
+    DELETE,
+    SELECT_ALL_ROW,
+    SELECT_ROW_USING_PKEY,
+    INSERT_RANDOM_ROW,
+    UPDATE_ROW_USING_PKEY,
+    DELETE_ALL_ROW,
+    DELETE_ROW_USING_PKEY,
     DROP_COLUMN,
     ADD_COLUMN,
+    RENAME_COLUMN,
+    OPTIMIZE,
+    ANALYZE,
     TRUNCATE,
     DROP_CREATE,
     ENCRYPTION,
@@ -44,18 +56,11 @@ struct Option {
     USER = 'u',
     PASSWORD = 'P',
     THREADS = 't',
-    /*
-    VERBOSE,
-    COLUMNS,
-    INDEXES,
-    ADD_COLUMN,
-    DROP_INDEX,
-    ADD_INDEX,
-    */
     HELP = 'z',
     MAX
   } option;
-  Option(Type t, Opt o, std::string n) : type(t), option(o), name(n){};
+  Option(Type t, Opt o, std::string n)
+      : type(t), option(o), name(n), sql(false), ddl(false){};
   void print_pretty();
 
   Type getType() { return type; };

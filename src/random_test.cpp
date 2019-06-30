@@ -22,9 +22,16 @@ const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
 
 int sum_of_all_options() {
   int total = 0;
+
+  /* if select is set as zero , disable all type of selects */
+  if (options->at(Option::SELECT)->getBool() == false) {
+    options->at(Option::SELECT_ALL_ROW)->setInt(0);
+    options->at(Option::SELECT_ROW_USING_PKEY)->setInt(0);
+  }
+
   bool ddl = options->at(Option::DDL)->getBool();
   for (auto &opt : *options) {
-    if (!opt->sql || (!ddl && opt->ddl))
+    if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
     total += opt->getInt();
   }
@@ -32,11 +39,12 @@ int sum_of_all_options() {
 }
 
 Option::Opt pick_some_option() {
+  std::cout << "TRYING" << std::endl;
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
   static bool ddl = options->at(Option::DDL)->getBool();
   for (auto &opt : *options) {
-    if (!opt->sql || (!ddl && opt->ddl))
+    if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
     if (rd <= opt->getInt())
       return opt->getOption();
@@ -84,8 +92,6 @@ thd_ops *options_process() {
   thd_ops *v_ops = new thd_ops;
   /*
   v_ops->reserve(RANDOM_MAX);
-  v_ops->push_back(new Thd1::opt(ADD_COLUMN, 2, true));
-  v_ops->push_back(new Thd1::opt(INSERT_RANDOM_ROW, 400, false));
   v_ops->push_back(new Thd1::opt(DROP_CREATE, 1, true));
   v_ops->push_back(new Thd1::opt(OPTIMIZE, 15, false));
   v_ops->push_back(new Thd1::opt(ANALYZE, 24, false));
@@ -916,41 +922,32 @@ void run_some_query(Thd1 *thd) {
     case Option::TABLESPACE_RENAME:
       alter_tablespace_rename(thd);
       break;
-      /*
-    case INSERT_RANDOM_ROW:
-      table->InsertRandomRow(thd, true);
-      break;
-    case OPTIMIZE:
-      table->Optimize(thd);
-      break;
-    case ANALYZE:
-      table->Analyze(thd);
-      break;
-    case DELETE_ALL_ROW:
-      table->DeleteAllRows(thd);
-      break;
-    case DELETE_ROW_USING_PKEY:
-      table->DeleteRandomRow(thd);
-      break;
-    case UPDATE_ROW_USING_PKEY:
-      table->UpdateRandomROW(thd);
-      break;
-    case SELECT_ALL_ROW:
+    case Option::SELECT_ALL_ROW:
       table->SelectAllRow(thd);
       break;
-    case SELECT_ROW_USING_PKEY:
+    case Option::SELECT_ROW_USING_PKEY:
       table->SelectRandomRow(thd);
       break;
-    case TABLESPACE_ENCRYPTION:
-      alter_tablespace_encryption(thd);
+    case Option::INSERT_RANDOM_ROW:
+      table->InsertRandomRow(thd, true);
       break;
-    case TABLESPACE_RENAME:
-      alter_tablespace_rename(thd);
+    case Option::DELETE_ALL_ROW:
+      table->DeleteAllRows(thd);
       break;
-    case COLUMN_RENAME:
+    case Option::DELETE_ROW_USING_PKEY:
+      table->DeleteRandomRow(thd);
+      break;
+    case Option::UPDATE_ROW_USING_PKEY:
+      table->UpdateRandomROW(thd);
+      break;
+    case Option::OPTIMIZE:
+      table->Optimize(thd);
+      break;
+    case Option::ANALYZE:
+      table->Analyze(thd);
+    case Option::RENAME_COLUMN:
       table->ColumnRename(thd);
       break;
-      */
     default:
       throw std::runtime_error("invalid options");
     }

@@ -116,9 +116,10 @@ int main(int argc, char *argv[]) {
   static struct workerParams wParams;
   set_defaults(wParams); // reset all settings in struct to defaults
   int c;
+  std::cout << "STARTING" << std::endl;
   while (true) {
 
-    struct option long_options[sizeof(Option) / sizeof(int)];
+    struct option long_options[Option::MAX];
     /*
 static struct option long_options[] = {
   // help options
@@ -152,9 +153,11 @@ static struct option long_options[] = {
     };
     long_options[i] = {0, 0, 0, 0};
 
+    std::cout << "Trying to parse argument" << std::endl;
     c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAEFNLDTNOS",
                          long_options, &option_index);
 
+    std::cout << "Argument processed" << std::endl;
     if (c == -1) {
       break;
       exit(EXIT_FAILURE);
@@ -224,7 +227,7 @@ static struct option long_options[] = {
       wParams.log_client_output = true;
       break;
     default:
-      std::cout << "option picked is " << c << std::endl;
+      std::cout << "DEFAULT" << std::endl;
       if (c >= Option::MAX) {
         break;
       }
@@ -242,7 +245,19 @@ static struct option long_options[] = {
           op->setString(optarg);
           break;
         case Option::BOOL:
-          op->setBool(optarg);
+          std::string s(optarg);
+          std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+          if (s.compare("ON") == 0 || s.compare("TRUE") == 0 ||
+              s.compare("1") == 0)
+            op->setBool(true);
+          else if (s.compare("OFF") == 0 || s.compare("FALSE") == 0 ||
+                   s.compare("0") == 0)
+            op->setBool(false);
+          else {
+            std::cout << "wrong value " << optarg << " for option "
+                      << op->getName();
+          exit(EXIT_FAILURE);
+          }
           break;
         }
       }
