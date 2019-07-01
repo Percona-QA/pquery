@@ -24,8 +24,16 @@
 struct Option {
   enum Type { BOOL, INT, STRING } type;
   enum Opt {
+    MODE_OF_PQUERY,
+    INITIAL_SEED,
+    ENGINE,
+    JUST_LOAD_DDL,
     DDL,
     TABLE,
+    ENCRYPTION,
+    ROW_FORMAT,
+    TABLESPACE_ENCRYPTION,
+    TABLESPACE_RENAME,
     SELECT,
     INSERT,
     UPDATE,
@@ -43,9 +51,6 @@ struct Option {
     ANALYZE,
     TRUNCATE,
     DROP_CREATE,
-    ENCRYPTION,
-    TABLESPACE_ENCRYPTION,
-    TABLESPACE_RENAME,
     DATABASE = 'd',
     ADDRESS = 'a',
     INFILE = 'i',
@@ -95,7 +100,9 @@ struct Option {
 };
 
 void delete_options();
-extern std::vector<Option *> *options;
-std::vector<Option *> *add_options();
+typedef std::vector<Option *> Opx;
+extern Opx *options;
+void add_options();
+Option *newOption(Option::Type t, Option::Opt o, std::string s);
 
 #endif

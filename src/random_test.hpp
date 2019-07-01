@@ -84,26 +84,16 @@ struct Thd1 {
   Thd1(int id, std::ofstream &tl, MYSQL *c, std::vector<Table *> *tab)
       : thread_id(id), thread_log(tl), conn(c), tables(tab){};
 
-  struct opt {
-    opt(RANDOM_SQL t, int p, bool d) : type(t), probability(p), ddl(d){};
-    RANDOM_SQL type;
-    int probability;
-    bool ddl;
-  };
-
   int thread_id;
   std::ofstream &thread_log;
   MYSQL *conn;
   std::vector<Table *> *tables;
-  unsigned long int seed;
-  static unsigned long int initial_seed;
+  int seed;
   static std::vector<std::string> *random_strs;
   static std::vector<std::string> encryption;
   static std::vector<std::string> row_format;
   static std::vector<int> key_block_size;
-  static std::vector<opt *> *options;
   static std::vector<std::string> tablespace;
-  static std::string engine;
   static int default_records_in_table;
   static int no_of_tables;
   static int pkey_pb_per_table;
@@ -116,7 +106,6 @@ struct Thd1 {
   static int max_indexes_in_table;
   static int max_columns_in_index;
   static int innodb_page_size;
-  static bool just_load_ddl;
 };
 
 

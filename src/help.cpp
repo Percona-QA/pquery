@@ -2,229 +2,229 @@
 #include "pquery.hpp"
 #include <iostream>
 
-std::vector<Option *> *add_options() {
-  std::vector<Option *> *options = new std::vector<Option *>;
+Opx *options = new Opx;
+
+/* add new options */
+Option *newOption(Option::Type t, Option::Opt o, std::string s) {
+  auto *opt = new Option(t, o, s);
+  options->at(o) = opt;
+  return opt;
+}
+
+/* All all avilable options to options */
+void add_options() {
+  std::cout << "ADDing new Option" << std::endl;
   options->resize(Option::MAX);
   Option *opt;
 
+  /* Mode of Pquery */
+  opt = newOption(Option::BOOL, Option::MODE_OF_PQUERY, "mode");
+  opt->help = "Testing";
+
+  /* Intial Seed for test */
+  opt = newOption(Option::INT, Option::INITIAL_SEED, "seed");
+  opt->help = "Initial seed used for the test";
+  opt->setInt(1);
+
+  /* Engine */
+  opt = newOption(Option::STRING, Option::ENGINE, "engine");
+  opt->help = "Engine used ";
+  opt->setString("INNODB");
+
+  /* Just Load DDL*/
+  opt = newOption(Option::BOOL, Option::JUST_LOAD_DDL, "jlddl");
+  opt->help = "load DDL and exit";
+  opt->setBool(false);
+
   /* DDL option */
-  opt = new Option(Option::BOOL, Option::DDL, "ddl");
+  opt = newOption(Option::BOOL, Option::DDL, "ddl");
   opt->help = "Use DDL in workload";
   opt->setBool(true);
-  options->at(Option::DDL) = opt;
 
   /* Initial Table */
-  opt = new Option(Option::INT, Option::TABLE, "table");
+  opt = newOption(Option::INT, Option::TABLE, "table");
   opt->help = "Number of initial tables";
   opt->setInt(10);
-  options->at(Option::TABLE) = opt;
-
-  /* SELECT */
-  opt = new Option(Option::BOOL, Option::SELECT, "select");
-  opt->help = "Execute any type select on tables";
-  opt->setBool(true);
-  options->at(Option::SELECT) = opt;
-
-  /* INSERT */
-  opt = new Option(Option::BOOL, Option::INSERT, "insert");
-  opt->help = "Execute insert into tables";
-  opt->setBool(true);
-  options->at(Option::INSERT) = opt;
-
-  /* UPDATE */
-  opt = new Option(Option::BOOL, Option::UPDATE, "update");
-  opt->help = "Execute any type  of update on tables";
-  opt->setBool(true);
-  options->at(Option::UPDATE) = opt;
-
-  /* DELETE */
-  opt = new Option(Option::BOOL, Option::DELETE, "delete");
-  opt->help = "Execute any type of  delete on tables";
-  opt->setBool(true);
-  options->at(Option::DELETE) = opt;
-
-  /* Select all row */
-  opt = new Option(Option::INT, Option::SELECT_ALL_ROW, "stapm");
-  opt->help = "Selecting Tables All data probablity";
-  opt->setInt(80);
-  options->at(Option::SELECT_ALL_ROW) = opt;
-  opt->setSQL();
-
-  /* Select row using pkey */
-  opt = new Option(Option::INT, Option::SELECT_ROW_USING_PKEY, "strppm");
-  opt->help = "Select table row using pkey probablity";
-  opt->setInt(800);
-  opt->setSQL();
-  options->at(Option::SELECT_ROW_USING_PKEY) = opt;
-
-  /* Insert random row */
-  opt = new Option(Option::INT, Option::INSERT_RANDOM_ROW, "itrpm");
-  opt->help = "insert random row";
-  opt->setInt(800);
-  opt->setSQL();
-  options->at(Option::INSERT_RANDOM_ROW) = opt;
-
-  /* Update row using pkey */
-  opt = new Option(Option::INT, Option::UPDATE_ROW_USING_PKEY, "utppm");
-  opt->help = "Update row using pkey";
-  opt->setInt(40);
-  opt->setSQL();
-  options->at(Option::UPDATE_ROW_USING_PKEY) = opt;
-
-  /* Delete all rows */
-  opt = new Option(Option::INT, Option::DELETE_ALL_ROW, "dtapm");
-  opt->help = "delete all rows of a table";
-  opt->setInt(1);
-  opt->setSQL();
-  options->at(Option::DELETE_ALL_ROW) = opt;
-
-  /* Delete row using pkey */
-  opt = new Option(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
-  opt->help = "Delete row using pkey";
-  opt->setInt(40);
-  opt->setSQL();
-  options->at(Option::DELETE_ROW_USING_PKEY) = opt;
-
-  /* Drop column */
-  opt = new Option(Option::INT, Option::DROP_COLUMN, "atdcpm");
-  opt->help = "Alter table drop column";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-  options->at(Option::DROP_COLUMN) = opt;
-
-  /* Add column */
-  opt = new Option(Option::INT, Option::ADD_COLUMN, "atacpm");
-  opt->help = "Alter table add column";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-  options->at(Option::ADD_COLUMN) = opt;
-
-  /* Rename Column */
-  opt = new Option(Option::INT, Option::RENAME_COLUMN, "atrcpm");
-  opt->help = "Alter table rename column";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-  options->at(Option::RENAME_COLUMN) = opt;
-
-  /* Analyze Table */
-  opt = new Option(Option::INT, Option::ANALYZE, "tapm");
-  opt->help = "Analyze Table";
-  opt->setInt(1);
-  opt->setSQL();
-  options->at(Option::ANALYZE) = opt;
-
-  /* Optimize Table */
-  opt = new Option(Option::INT, Option::OPTIMIZE, "topm");
-  opt->help = "Optimize Table";
-  opt->setSQL();
-  options->at(Option::OPTIMIZE) = opt;
-
-  /* Truncate table */
-  opt = new Option(Option::INT, Option::TRUNCATE, "ttpm");
-  opt->help = "Truncate table";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-  options->at(Option::TRUNCATE) = opt;
-
-  /* Drop and recreate table */
-  opt = new Option(Option::INT, Option::DROP_CREATE, "dctpm");
-  opt->help = "Drop and recreate table";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-  options->at(Option::DROP_CREATE) = opt;
 
   /*Encrypt table */
-  opt = new Option(Option::INT, Option::ENCRYPTION, "atsepm");
+  opt = newOption(Option::INT, Option::ENCRYPTION, "atsepm");
   opt->help = "Alter table set Encrytion";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
-  options->at(Option::ENCRYPTION) = opt;
+
+  /* Row Format */
+  opt = newOption(Option::STRING, Option::ROW_FORMAT, "ctrf");
+  opt->help = "Create Table Row Format. It the row format of  table. A "
+              "table can have COMPRESSED, DYNAMIC, REDUNDANT, row format. ";
+  opt->setString("all");
 
   /*Tablespace Encrytion */
-  opt = new Option(Option::INT, Option::TABLESPACE_ENCRYPTION, "asepm");
+  opt = newOption(Option::INT, Option::TABLESPACE_ENCRYPTION, "asepm");
   opt->help = "Alter tablespace set Encrytion";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
-  options->at(Option::TABLESPACE_ENCRYPTION) = opt;
 
   /* Tablespace Rename */
-  opt = new Option(Option::INT, Option::TABLESPACE_RENAME, "asrpm");
+  opt = newOption(Option::INT, Option::TABLESPACE_RENAME, "asrpm");
   opt->help = "Alter tablespace rename";
   opt->setInt(1);
-  options->at(Option::TABLESPACE_RENAME) = opt;
+  opt->setSQL();
+  opt->setDDL();
+
+  /* SELECT */
+  opt = newOption(Option::BOOL, Option::SELECT, "select");
+  opt->help = "Execute any type select on tables";
+  opt->setBool(true);
+
+  /* INSERT */
+  opt = newOption(Option::BOOL, Option::INSERT, "insert");
+  opt->help = "Execute insert into tables";
+  opt->setBool(true);
+
+  /* UPDATE */
+  opt = newOption(Option::BOOL, Option::UPDATE, "update");
+  opt->help = "Execute any type  of update on tables";
+  opt->setBool(true);
+
+  /* DELETE */
+  opt = newOption(Option::BOOL, Option::DELETE, "delete");
+  opt->help = "Execute any type of  delete on tables";
+  opt->setBool(true);
+
+  /* Select all row */
+  opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "stapm");
+  opt->help = "Selecting Tables All data probablity";
+  opt->setInt(80);
+  opt->setSQL();
+
+  /* Select row using pkey */
+  opt = newOption(Option::INT, Option::SELECT_ROW_USING_PKEY, "strppm");
+  opt->help = "Select table row using pkey probablity";
+  opt->setInt(800);
+  opt->setSQL();
+
+  /* Insert random row */
+  opt = newOption(Option::INT, Option::INSERT_RANDOM_ROW, "itrpm");
+  opt->help = "insert random row";
+  opt->setInt(800);
+  opt->setSQL();
+
+  /* Update row using pkey */
+  opt = newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "utppm");
+  opt->help = "Update row using pkey";
+  opt->setInt(40);
+  opt->setSQL();
+
+  /* Delete all rows */
+  opt = newOption(Option::INT, Option::DELETE_ALL_ROW, "dtapm");
+  opt->help = "delete all rows of a table";
+  opt->setInt(1);
+  opt->setSQL();
+
+  /* Delete row using pkey */
+  opt = newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
+  opt->help = "Delete row using pkey";
+  opt->setInt(40);
+  opt->setSQL();
+
+  /* Drop column */
+  opt = newOption(Option::INT, Option::DROP_COLUMN, "atdcpm");
+  opt->help = "Alter table drop column";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Add column */
+  opt = newOption(Option::INT, Option::ADD_COLUMN, "atacpm");
+  opt->help = "Alter table add column";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Rename Column */
+  opt = newOption(Option::INT, Option::RENAME_COLUMN, "atrcpm");
+  opt->help = "Alter table rename column";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Analyze Table */
+  opt = newOption(Option::INT, Option::ANALYZE, "tapm");
+  opt->help = "Analyze Table";
+  opt->setInt(1);
+  opt->setSQL();
+
+  /* Optimize Table */
+  opt = newOption(Option::INT, Option::OPTIMIZE, "topm");
+  opt->help = "Optimize Table";
+  opt->setSQL();
+
+  /* Truncate table */
+  opt = newOption(Option::INT, Option::TRUNCATE, "ttpm");
+  opt->help = "Truncate table";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Drop and recreate table */
+  opt = newOption(Option::INT, Option::DROP_CREATE, "dctpm");
+  opt->help = "Drop and recreate table";
+  opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* HELP */
-  opt = new Option(Option::BOOL, Option::HELP, "help");
+  opt = newOption(Option::BOOL, Option::HELP, "help");
   opt->help = "user asked for help";
   opt->setArgs(optional_argument);
-  options->at(Option::HELP) = opt;
 
   /* DATABASE */
-  opt = new Option(Option::STRING, Option::DATABASE, "database");
+  opt = newOption(Option::STRING, Option::DATABASE, "database");
   opt->help = "The database to connect to";
   opt->setString("test");
-  options->at(Option::DATABASE) = opt;
 
   /* Address */
-  opt = new Option(Option::STRING, Option::ADDRESS, "address");
+  opt = newOption(Option::STRING, Option::ADDRESS, "address");
   opt->help = "IP address to connect to";
-  options->at(Option::ADDRESS) = opt;
 
   /* Infile */
-  opt = new Option(Option::STRING, Option::INFILE, "infile");
+  opt = newOption(Option::STRING, Option::INFILE, "infile");
   opt->help = "The SQL input file";
-  options->at(Option::INFILE) = opt;
 
   /* Logdir */
-  opt = new Option(Option::STRING, Option::LOGDIR, "logdir");
+  opt = newOption(Option::STRING, Option::LOGDIR, "logdir");
   opt->help = "Log directory";
-  options->at(Option::LOGDIR) = opt;
 
   /* Socket */
-  opt = new Option(Option::STRING, Option::SOCKET, "socket");
+  opt = newOption(Option::STRING, Option::SOCKET, "socket");
   opt->help = "Socket file to use";
   opt->setString("/tmp/socket.sock");
-  options->at(Option::SOCKET) = opt;
 
   /*config file */
-  opt = new Option(Option::STRING, Option::CONFIGFILE, "config-file");
+  opt = newOption(Option::STRING, Option::CONFIGFILE, "config-file");
   opt->help = "Config file to use for test";
-  options->at(Option::CONFIGFILE) = opt;
 
   /*Port */
-  opt = new Option(Option::INT, Option::PORT, "port");
+  opt = newOption(Option::INT, Option::PORT, "port");
   opt->help = "Port to use";
   opt->setInt(3306);
-  options->at(Option::PORT) = opt;
 
   /* User*/
-  opt = new Option(Option::STRING, Option::USER, "user");
+  opt = newOption(Option::STRING, Option::USER, "user");
   opt->help = "The MySQL userID to be used";
   opt->setString("root");
-  options->at(Option::USER) = opt;
 
   /* Password*/
-  opt = new Option(Option::STRING, Option::PASSWORD, "password");
+  opt = newOption(Option::STRING, Option::PASSWORD, "password");
   opt->help = "The MySQL user's password";
   opt->setString("");
-  options->at(Option::PASSWORD) = opt;
 
   /* Threads */
-  opt = new Option(Option::INT, Option::THREADS, "threads");
+  opt = newOption(Option::INT, Option::THREADS, "threads");
   opt->help = "The number of threads to use";
   opt->setInt(1);
-  options->at(Option::THREADS) = opt;
-
-  return options;
 }
 
 Option::~Option() {}
@@ -234,7 +234,6 @@ void Option::print_pretty() {
   std::cout << " default value: " << std::endl;
 }
 
-std::vector<Option *> *options = add_options();
 
 void delete_options() {
   for (auto &it : *options)

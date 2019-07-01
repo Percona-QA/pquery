@@ -111,10 +111,13 @@ void create_worker(struct workerParams &Params) {
 
 int main(int argc, char *argv[]) {
 
+  std::cout << "STARTING" << std::endl;
   std::ios_base::sync_with_stdio(false);
   confFile.clear();
   static struct workerParams wParams;
   set_defaults(wParams); // reset all settings in struct to defaults
+  std::cout << "ADDING OPTIONS";
+  add_options();
   int c;
   std::cout << "STARTING" << std::endl;
   while (true) {

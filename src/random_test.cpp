@@ -13,7 +13,6 @@ std::mt19937 rng;
 #define MIN_SEED_SIZE 10000
 #define MAX_SEED_SIZE 100000
 
-typedef std::vector<Thd1::opt *> thd_ops;
 
 /* PRIMARY has to be in last */
 enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
@@ -23,10 +22,21 @@ const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
 int sum_of_all_options() {
   int total = 0;
 
-  /* if select is set as zero , disable all type of selects */
+  /* if select is set as zero, disable all type of selects */
   if (options->at(Option::SELECT)->getBool() == false) {
     options->at(Option::SELECT_ALL_ROW)->setInt(0);
     options->at(Option::SELECT_ROW_USING_PKEY)->setInt(0);
+  }
+
+  /* if delete is set as zero, diable all type of deletes */
+  if (options->at(Option::DELETE)->getBool() == false) {
+    options->at(Option::DELETE_ALL_ROW)->setInt(0);
+    options->at(Option::DELETE_ROW_USING_PKEY)->setInt(0);
+  }
+
+  /* If Update is disable, set all update probability to zero */
+  if (options->at(Option::UPDATE)->getBool() == false) {
+    options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
 
   bool ddl = options->at(Option::DDL)->getBool();
@@ -56,7 +66,8 @@ Option::Opt pick_some_option() {
 
 /* set seed of current thread */
 int set_seed(Thd1 *thd) {
-  auto initial_seed = Thd1::initial_seed;
+  // auto initial_seed = options->at(Option::INITIAL_SEED)->getInt();
+  int initial_seed = 5;
   std::default_random_engine rng(initial_seed);
   std::uniform_int_distribution<std::mt19937::result_type> dis(MIN_SEED_SIZE,
                                                                MAX_SEED_SIZE);
@@ -73,42 +84,18 @@ std::vector<std::string> Thd1::row_format = {"COMPRESSED", "DYNAMIC",
 std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
                                              "tab04k", "tab01k"};
 std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
-std::string Thd1::engine = "INNODB";
+
 int Thd1::default_records_in_table = 10;
 int Thd1::s_len = 32;
-int Thd1::no_of_random_load_per_thread = 1000;
+int Thd1::no_of_random_load_per_thread = 100000;
 int Thd1::pkey_pb_per_table = 100;
 int Thd1::ddl = true;
 bool Thd1::is_innodb_system_encrypted = false;
 int Thd1::max_columns_length = 100;
-int Thd1::max_columns_in_table = 3;
-int Thd1::max_indexes_in_table = 2;
+int Thd1::max_columns_in_table = 15;
+int Thd1::max_indexes_in_table = 3;
 int Thd1::max_columns_in_index = 2;
 int Thd1::innodb_page_size = 16;
-bool Thd1::just_load_ddl = false;
-unsigned long int Thd1::initial_seed = 5;
-
-thd_ops *options_process() {
-  thd_ops *v_ops = new thd_ops;
-  /*
-  v_ops->reserve(RANDOM_MAX);
-  v_ops->push_back(new Thd1::opt(DROP_CREATE, 1, true));
-  v_ops->push_back(new Thd1::opt(OPTIMIZE, 15, false));
-  v_ops->push_back(new Thd1::opt(ANALYZE, 24, false));
-  v_ops->push_back(new Thd1::opt(DELETE_ALL_ROW, 1, false));
-  v_ops->push_back(new Thd1::opt(SELECT_ALL_ROW, 1, false));
-  v_ops->push_back(new Thd1::opt(ENCRYPTION, 40, true));
-  v_ops->push_back(new Thd1::opt(TABLESPACE_ENCRYPTION, 40, true));
-  v_ops->push_back(new Thd1::opt(TABLESPACE_RENAME, 40, true));
-  v_ops->push_back(new Thd1::opt(COLUMN_RENAME, 40, true));
-  v_ops->push_back(new Thd1::opt(DELETE_ROW_USING_PKEY, 0, false));
-  v_ops->push_back(new Thd1::opt(UPDATE_ROW_USING_PKEY, 100, false));
-  v_ops->push_back(new Thd1::opt(SELECT_ROW_USING_PKEY, 100, false));
-  */
-  return v_ops;
-};
-
-thd_ops *Thd1::options = options_process();
 
 std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz"
@@ -134,8 +121,7 @@ std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   return strs;
 }
 
-std::vector<std::string> *Thd1::random_strs =
-    random_strs_generator(Thd1::initial_seed);
+std::vector<std::string> *Thd1::random_strs;
 
 int rand_int(int upper, int lower) {
   /*todo change the approach if it is too slow */
@@ -414,8 +400,8 @@ Table *Table::table_id(int choice, int id) {
   if (table->key_block_size == 0 && Thd1::row_format.size() > 0)
     table->row_format = Thd1::row_format[rand_int(Thd1::row_format.size() - 1)];
 
-  if (!Thd1::engine.empty())
-    table->engine = Thd1::engine;
+  auto engine = options->at(Option::ENGINE)->getString();
+  table->engine = engine;
 
   if (Thd1::tablespace.size() > 0 && rand_int(2) == 0) {
     table->tablespace = Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1)];
@@ -812,9 +798,6 @@ void clean_up_at_end(std::vector<Table *> *all_tables) {
 
   delete Thd1::random_strs;
 
-  for (auto opt : *Thd1::options)
-    delete opt;
-  delete Thd1::options;
 }
 
 void create_database_tablespace(Thd1 *thd) {
@@ -861,9 +844,11 @@ void create_database_tablespace(Thd1 *thd) {
 }
 
 int run_default_load(Thd1 *thd) {
+  Thd1::random_strs =
+      random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
   std::vector<Table *> *all_tables = thd->tables;
   auto &logs = thd->thread_log;
-  std::mt19937 rng(thd->initial_seed);
+  std::mt19937 rng(options->at(Option::INITIAL_SEED)->getInt());
 
   logs << " creating defaut tables " << std::endl;
 
@@ -878,7 +863,8 @@ int run_default_load(Thd1 *thd) {
   for (auto &table : *all_tables) {
     execute_sql(table->Table_defination(), thd);
   }
-  load_default_data(all_tables, thd);
+  if (!options->at(Option::JUST_LOAD_DDL)->getBool())
+    load_default_data(all_tables, thd);
   return 1;
 }
 

@@ -112,7 +112,7 @@ void Node::workerThread(int number) {
     thread_log << "waiting for defalut load to finish" << std::endl;
   }
 
-  if (!Thd1::just_load_ddl)
+  if (!options->at(Option::JUST_LOAD_DDL)->getBool())
     run_some_query(THD);
   delete THD;
 
