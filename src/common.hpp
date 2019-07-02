@@ -25,11 +25,14 @@ struct Option {
   enum Type { BOOL, INT, STRING } type;
   enum Opt {
     MODE_OF_PQUERY,
+    LOAD_FROM_FILE,
     INITIAL_SEED,
     ENGINE,
     JUST_LOAD_DDL,
     DDL,
     TABLE,
+    INITIAL_RECORDS_IN_TABLE,
+    NUMBER_OF_SECONDS_WORKLOAD,
     ENCRYPTION,
     ROW_FORMAT,
     TABLESPACE_ENCRYPTION,
@@ -58,10 +61,10 @@ struct Option {
     SOCKET = 's',
     CONFIGFILE = 'c',
     PORT = 'p',
-    USER = 'u',
     PASSWORD = 'P',
+    HELP = 'h',
     THREADS = 't',
-    HELP = 'z',
+    USER = 'u',
     MAX
   } option;
   Option(Type t, Opt o, std::string n)
@@ -78,9 +81,18 @@ struct Option {
   short getArgs() { return args; }
   void setArgs(short s) { args = s; };
 
-  void setBool(std::string in) {
-    default_bool = in.compare("true") == 0 ? true : false;
+  void setBool(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+    if (s.compare("ON") == 0 || s.compare("TRUE") == 0 || s.compare("1") == 0)
+      default_bool = true;
+    else if (s.compare("OFF") == 0 || s.compare("FALSE") == 0 ||
+             s.compare("0") == 0)
+      default_bool = false;
+    else {
+      // todo throw some execption
+    }
   }
+
   void setBool(bool in) { default_bool = in; }
   void setInt(std::string n) { default_int = stoi(n); }
   void setInt(int n) { default_int = n; }

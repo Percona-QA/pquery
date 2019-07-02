@@ -111,15 +111,12 @@ void create_worker(struct workerParams &Params) {
 
 int main(int argc, char *argv[]) {
 
-  std::cout << "STARTING" << std::endl;
   std::ios_base::sync_with_stdio(false);
   confFile.clear();
   static struct workerParams wParams;
   set_defaults(wParams); // reset all settings in struct to defaults
-  std::cout << "ADDING OPTIONS";
   add_options();
   int c;
-  std::cout << "STARTING" << std::endl;
   while (true) {
 
     struct option long_options[Option::MAX];
@@ -156,11 +153,9 @@ static struct option long_options[] = {
     };
     long_options[i] = {0, 0, 0, 0};
 
-    std::cout << "Trying to parse argument" << std::endl;
     c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAEFNLDTNOS",
                          long_options, &option_index);
 
-    std::cout << "Argument processed" << std::endl;
     if (c == -1) {
       break;
       exit(EXIT_FAILURE);
@@ -168,11 +163,12 @@ static struct option long_options[] = {
 
     switch (c) {
     case 'h':
-      if (optarg)
+      if (optarg) {
+        std::string s(optarg);
+        show_help(s);
+      } else {
         show_help();
-      else
-        std::cout << "ASED FOR HELP" << std::endl;
-        show_help(Option::DDL);
+      }
       exit(EXIT_FAILURE);
     case 'I':
       show_config_help();
@@ -186,7 +182,7 @@ static struct option long_options[] = {
       break;
     case 'v':
       std::cout << "> Verbose mode: ON" << std::endl;
-      // show_help("verbose");
+      show_help("verbose");
       wParams.verbose = true;
       break;
     case 'A':
@@ -230,7 +226,6 @@ static struct option long_options[] = {
       wParams.log_client_output = true;
       break;
     default:
-      std::cout << "DEFAULT" << std::endl;
       if (c >= Option::MAX) {
         break;
       }
@@ -249,22 +244,19 @@ static struct option long_options[] = {
           break;
         case Option::BOOL:
           std::string s(optarg);
-          std::transform(s.begin(), s.end(), s.begin(), ::toupper);
-          if (s.compare("ON") == 0 || s.compare("TRUE") == 0 ||
-              s.compare("1") == 0)
-            op->setBool(true);
-          else if (s.compare("OFF") == 0 || s.compare("FALSE") == 0 ||
-                   s.compare("0") == 0)
-            op->setBool(false);
-          else {
-            std::cout << "wrong value " << optarg << " for option "
-                      << op->getName();
-          exit(EXIT_FAILURE);
-          }
+          op->setBool(s);
           break;
         }
+      } else if (op->getArgs() == no_argument) {
+        op->setBool(true);
+      } else if (op->getArgs() == optional_argument) {
+        if (optarg) {
+          std::string s(optarg);
+          op->setBool(s);
+        } else
+          op->setBool(true);
+        break;
       }
-      break;
     }
   } // while
 

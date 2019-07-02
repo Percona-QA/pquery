@@ -13,6 +13,8 @@ std::mt19937 rng;
 #define MIN_SEED_SIZE 10000
 #define MAX_SEED_SIZE 100000
 
+#define option_int(a) options->at(Option::a)->getInt();
+#define option_bool(a) options->at(Option::a)->getBool();
 
 /* PRIMARY has to be in last */
 enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
@@ -49,7 +51,6 @@ int sum_of_all_options() {
 }
 
 Option::Opt pick_some_option() {
-  std::cout << "TRYING" << std::endl;
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
   static bool ddl = options->at(Option::DDL)->getBool();
@@ -66,8 +67,8 @@ Option::Opt pick_some_option() {
 
 /* set seed of current thread */
 int set_seed(Thd1 *thd) {
-  // auto initial_seed = options->at(Option::INITIAL_SEED)->getInt();
-  int initial_seed = 5;
+  auto initial_seed = options->at(Option::INITIAL_SEED)->getInt();
+  thd->thread_log << "Initial seed " << initial_seed;
   std::default_random_engine rng(initial_seed);
   std::uniform_int_distribution<std::mt19937::result_type> dis(MIN_SEED_SIZE,
                                                                MAX_SEED_SIZE);
@@ -292,10 +293,21 @@ Table::Table(std::string n, int max_pk)
 };
 
 void Table::DropCreate(Thd1 *thd) {
-  if (execute_sql("drop table " + name_ + ";", thd))
+  if (execute_sql("DROP TABLE " + name_ + ";", thd))
     max_pk_value_inserted = 0;
+
   if (execute_sql(Table_defination(), thd))
     max_pk_value_inserted = 0;
+  else if (tablespace.size() > 0) { // may be tablespace is encryted later //
+    std::string s = Table_defination();
+    s += " ENCRYPTION = ";
+    s += (encryption == false ? "'y' " : "'n'");
+    if (execute_sql(s, thd)) {
+      table_mutex.lock();
+      encryption = !encryption;
+      table_mutex.unlock();
+    }
+  }
 }
 
 void Table::Optimize(Thd1 *thd) {
@@ -400,7 +412,7 @@ Table *Table::table_id(int choice, int id) {
   if (table->key_block_size == 0 && Thd1::row_format.size() > 0)
     table->row_format = Thd1::row_format[rand_int(Thd1::row_format.size() - 1)];
 
-  auto engine = options->at(Option::ENGINE)->getString();
+  static auto engine = options->at(Option::ENGINE)->getString();
   table->engine = engine;
 
   if (Thd1::tablespace.size() > 0 && rand_int(2) == 0) {
@@ -462,7 +474,6 @@ std::string Table::Table_defination() {
   if (!engine.empty())
     def += " ENGINE=" + engine;
 
-  def += ";";
   return def;
 }
 /* create default table include all tables now */
@@ -476,6 +487,7 @@ void create_default_tables(std::vector<Table *> *all_tables) {
 }
 
 int execute_sql(std::string sql, Thd1 *thd) {
+  sql += ";";
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
   if (res == 1) {
@@ -492,7 +504,9 @@ int execute_sql(std::string sql, Thd1 *thd) {
 void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd) {
   for (auto i = all_tables->begin(); i != all_tables->end(); i++) {
     auto table = *i;
-    int rec = rand_int(Thd1::default_records_in_table);
+    static int initial_records =
+        options->at(Option::INITIAL_RECORDS_IN_TABLE)->getInt();
+    int rec = rand_int(initial_records);
     for (int i = 0; i < rec; i++) {
       table->InsertRandomRow(thd, false);
     }
@@ -800,6 +814,7 @@ void clean_up_at_end(std::vector<Table *> *all_tables) {
 
 }
 
+/* create new database and tables */
 void create_database_tablespace(Thd1 *thd) {
 
   if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE) {
@@ -852,10 +867,12 @@ int run_default_load(Thd1 *thd) {
 
   logs << " creating defaut tables " << std::endl;
 
-  ta::load_from_file == 1 ? load_objects_from_file(all_tables)
-                          : create_default_tables(all_tables);
+  auto load_from_file = option_bool(LOAD_FROM_FILE);
+  load_from_file == true ? load_objects_from_file(all_tables)
+                         : create_default_tables(all_tables);
 
-  create_database_tablespace(thd);
+  if (!load_from_file)
+    create_database_tablespace(thd);
 
   if (options->at(Option::TABLE)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
@@ -870,19 +887,18 @@ int run_default_load(Thd1 *thd) {
 
 void run_some_query(Thd1 *thd) {
 
-  std::mt19937 rng(set_seed(thd));
-
-  auto all_tables = thd->tables;
+  auto sec = option_int(NUMBER_OF_SECONDS_WORKLOAD);
+  auto begin = std::chrono::system_clock::now();
+  auto end =
+      std::chrono::system_clock::time_point(begin + std::chrono::seconds(sec));
 
   execute_sql("USE test;", thd);
-
+  std::mt19937 rng(set_seed(thd));
+  auto all_tables = thd->tables;
   Node::parallel_thread_running++;
-
-  for (int i = 0; i < Thd1::no_of_random_load_per_thread; i++) {
+  while (std::chrono::system_clock::now() < end) {
     auto size = all_tables->size();
-
     auto table = all_tables->at(rand_int(size - 1));
-
     auto option = pick_some_option();
     thd->thread_log << "option picked is " << options->at(option)->getName()
                     << std::endl;
@@ -931,6 +947,7 @@ void run_some_query(Thd1 *thd) {
       break;
     case Option::ANALYZE:
       table->Analyze(thd);
+      break;
     case Option::RENAME_COLUMN:
       table->ColumnRename(thd);
       break;

@@ -10,6 +10,7 @@
 void print_version(void);
 void show_help(void);
 void show_help(Option::Opt help);
+void show_help(std::string option);
 void show_config_help(void);
 void show_cli_help(void);
 
