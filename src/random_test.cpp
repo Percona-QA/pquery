@@ -86,11 +86,8 @@ std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
                                              "tab04k", "tab01k"};
 std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
 
-int Thd1::default_records_in_table = 10;
 int Thd1::s_len = 32;
-int Thd1::no_of_random_load_per_thread = 100000;
 int Thd1::pkey_pb_per_table = 100;
-int Thd1::ddl = true;
 bool Thd1::is_innodb_system_encrypted = false;
 int Thd1::max_columns_length = 100;
 int Thd1::max_columns_in_table = 15;
@@ -298,14 +295,17 @@ void Table::DropCreate(Thd1 *thd) {
 
   if (execute_sql(Table_defination(), thd))
     max_pk_value_inserted = 0;
-  else if (tablespace.size() > 0) { // may be tablespace is encryted later //
-    std::string s = Table_defination();
-    s += " ENCRYPTION = ";
-    s += (encryption == false ? "'y' " : "'n'");
-    if (execute_sql(s, thd)) {
+  else if (tablespace.size() > 0) { // if tablespace is alter //
+    std::string encrypt_sql = Table_defination();
+    encrypt_sql += " ENCRYPTION = ";
+    encrypt_sql += (encryption == false ? "'y' " : "'n'");
+    auto tbs = " tablespace=" + tablespace + "_rename";
+    if (execute_sql(encrypt_sql, thd) || execute_sql(encrypt_sql + tbs, thd)) {
       table_mutex.lock();
       encryption = !encryption;
       table_mutex.unlock();
+    } else {
+      execute_sql(Table_defination() + tbs, thd);
     }
   }
 }
@@ -491,8 +491,8 @@ int execute_sql(std::string sql, Thd1 *thd) {
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
   if (res == 1) {
-    std::cout << "Query => " << sql << std::endl;
-    std::cout << "Error " << mysql_error(thd->conn) << std::endl;
+    thd->thread_log << "Query => " << sql << std::endl;
+    thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
   } else {
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
@@ -586,8 +586,9 @@ void Table::ColumnRename(Thd1 *thd) {
 void Table::DeleteRandomRow(Thd1 *thd) {
   if (has_pk) {
     auto pk = rand_int(max_pk_value_inserted);
-    std::string sql =
-        "DELETE FROM " + name_ + " WHERE pkey=" + std::to_string(pk) + ";";
+    auto column = columns_->at(0);
+    std::string sql = "DELETE FROM " + name_ + " WHERE " + column->name_ + "=" +
+                      std::to_string(pk);
     execute_sql(sql, thd);
   }
 }
@@ -853,7 +854,8 @@ void create_database_tablespace(Thd1 *thd) {
     }
 
     sql += ";";
-    execute_sql("DROP TABLESPACE " + tab + ";", thd);
+    execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
+    execute_sql("DROP TABLESPACE " + tab, thd);
     execute_sql(sql, thd);
   }
 }

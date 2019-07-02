@@ -94,12 +94,8 @@ struct Thd1 {
   static std::vector<std::string> row_format;
   static std::vector<int> key_block_size;
   static std::vector<std::string> tablespace;
-  static int default_records_in_table;
-  static int no_of_tables;
   static int pkey_pb_per_table;
-  static int no_of_random_load_per_thread;
   static int s_len;
-  static int ddl;
   static bool is_innodb_system_encrypted;
   static int max_columns_length;
   static int max_columns_in_table;

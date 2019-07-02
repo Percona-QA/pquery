@@ -142,27 +142,27 @@ void add_options() {
 
   /* Delete row using pkey */
   opt = newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
-  opt->help = "Delete row using pkey";
+  opt->help = "delete row using pkey";
   opt->setInt(40);
   opt->setSQL();
 
   /* Drop column */
   opt = newOption(Option::INT, Option::DROP_COLUMN, "atdcpm");
-  opt->help = "Alter table drop column";
-  opt->setInt(10);
+  opt->help = "alter table drop column";
+  opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Add column */
   opt = newOption(Option::INT, Option::ADD_COLUMN, "atacpm");
-  opt->help = "Alter table add column";
+  opt->help = "alter table add column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Rename Column */
   opt = newOption(Option::INT, Option::RENAME_COLUMN, "atrcpm");
-  opt->help = "Alter table rename column";
+  opt->help = "alter table rename column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
