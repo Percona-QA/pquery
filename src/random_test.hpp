@@ -17,6 +17,7 @@
 #include <string.h>
 #include <vector>
 #include <writer.h>
+#include <atomic>
 
 enum RANDOM_SQL {
   ADD_COLUMN = 20,
@@ -163,7 +164,7 @@ void create_database_tablespace(Thd1 *thd);
 int set_seed(Thd1 *thd);
 int run_default_load(Thd1 *thd);
 void run_some_query(Thd1 *thd);
-void alter_tablespace_encrpytion(Thd1 *thd);
+void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 int save_dictionary(std::vector<Table *> *all_tables);
 std::string rand_string(int upper, int lower = 0);

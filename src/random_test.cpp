@@ -22,7 +22,6 @@ const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
                                    "INT PRIMARY KEY AUTO_INCREMENT"};
 
 int sum_of_all_options() {
-  int total = 0;
 
   /* if select is set as zero, disable all type of selects */
   if (options->at(Option::SELECT)->getBool() == false) {
@@ -41,7 +40,8 @@ int sum_of_all_options() {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
 
-  bool ddl = options->at(Option::DDL)->getBool();
+  int total = 0;
+  bool ddl = option_bool(DDL);
   for (auto &opt : *options) {
     if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
@@ -53,7 +53,7 @@ int sum_of_all_options() {
 Option::Opt pick_some_option() {
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
-  static bool ddl = options->at(Option::DDL)->getBool();
+  static bool ddl = option_bool(DDL);
   for (auto &opt : *options) {
     if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
@@ -63,7 +63,7 @@ Option::Opt pick_some_option() {
       rd -= opt->getInt();
   }
   return Option::MAX;
-};
+}
 
 /* set seed of current thread */
 int set_seed(Thd1 *thd) {
@@ -157,6 +157,7 @@ int load_from_file = 0;
 std::string partition_string = "_p";
 } // namespace ta
 
+/* return random value of any string */
 std::string Column::rand_value() {
   if (type_ == COLUMN_TYPES::INT)
     return std::to_string(rand_int(100, 4));
@@ -164,7 +165,7 @@ std::string Column::rand_value() {
     return "\'" + rand_string(length) + "\'";
 }
 
-Column::Column(std::string name, Table *table) : name_(name), table_(table){};
+Column::Column(std::string name, Table *table) : name_(name), table_(table){}
 
 Column::Column(std::string name, std::string type, bool is_null, int len,
                Table *table)
@@ -175,7 +176,7 @@ Column::Column(std::string name, std::string type, bool is_null, int len,
       break;
     }
   }
-};
+}
 
 Column::Column(std::string name, Table *table, int type)
     : name_(name), type_(type), table_(table) {
@@ -191,7 +192,7 @@ Column::Column(std::string name, Table *table, int type)
     length = rand_int(Thd1::max_columns_length, 10);
     break;
   }
-};
+}
 
 template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.StartObject();
@@ -239,7 +240,7 @@ Index::~Index() {
     delete id_col;
   }
   delete columns_;
-};
+}
 
 template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.StartObject();
@@ -273,13 +274,13 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.EndObject();
 }
 
-Ind_col::Ind_col(Column *c) : column(c){};
+Ind_col::Ind_col(Column *c) : column(c){}
 
-Ind_col::Ind_col(Column *c, bool d) : column(c), desc(d){};
+Ind_col::Ind_col(Column *c, bool d) : column(c), desc(d){}
 
 Index::Index(std::string n) : name_(n), columns_() {
   columns_ = new std::vector<Ind_col *>;
-};
+}
 
 void Index::AddInternalColumn(Ind_col *column) { columns_->push_back(column); }
 
@@ -287,7 +288,7 @@ Table::Table(std::string n, int max_pk)
     : name_(n), indexes_(), max_pk_value_inserted(max_pk) {
   columns_ = new std::vector<Column *>;
   indexes_ = new std::vector<Index *>;
-};
+}
 
 void Table::DropCreate(Thd1 *thd) {
   if (execute_sql("DROP TABLE " + name_ + ";", thd))
@@ -331,7 +332,7 @@ Table::~Table() {
   }
   delete columns_;
   delete indexes_;
-};
+}
 
 /* create default column */
 void Table::CreateDefaultColumn() {
@@ -525,7 +526,7 @@ void Table::SetEncryption(Thd1 *thd) {
       encryption = false;
     table_mutex.unlock();
   }
-};
+}
 
 /* alter table add column */
 void Table::AddColumn(Thd1 *thd) {
@@ -708,7 +709,7 @@ void alter_tablespace_encryption(Thd1 *thd) {
     sql += ";";
     execute_sql(sql, thd);
   }
-};
+}
 
 void alter_tablespace_rename(Thd1 *thd) {
   if (Thd1::tablespace.size() > 0) {
@@ -721,7 +722,7 @@ void alter_tablespace_rename(Thd1 *thd) {
       sql += " rename to " + tablespace + "_rename;";
     execute_sql(sql, thd);
   }
-};
+}
 
 /* save objects to a file */
 void save_objects_to_file(std::vector<Table *> *all_tables) {

@@ -20,6 +20,8 @@
 #include <getopt.h>
 #include <map>
 #include <string>
+#include <algorithm>
+#include <vector>
 
 struct Option {
   enum Type { BOOL, INT, STRING } type;

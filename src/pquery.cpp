@@ -29,7 +29,7 @@ void set_defaults(struct workerParams &Params) {
   Params.socket = "/tmp/socket.sock";
   Params.password = "";
   Params.infile = "pquery.sql";
-  Params.logdir = "/Users/rahulmalik/pquery/src";
+  Params.logdir = "/home/rahul.malik/pquery/src";
   Params.threads = 2;
   Params.queries_per_thread = 0;
   Params.verbose = false;
