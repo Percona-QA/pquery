@@ -25,9 +25,20 @@ void add_options() {
   opt->setBool(true);
 
   /* Load from file */
-  opt = newOption(Option::BOOL, Option::LOAD_FROM_FILE, "load-from-file");
+  opt = newOption(Option::BOOL, Option::LOAD_METADATA_FROM_FILE,
+                  "load-from-file");
   opt->help = "Load table structures from a json file or created then randomly";
   opt->setBool(false);
+
+  /* Save metadata to file */
+  opt = newOption(Option::STRING, Option::META_DATA_READ_FROM_FILE,
+                  "metadata-write-file");
+  opt->help = "save metadata to file name";
+
+  /* Read metadata from file */
+  opt = newOption(Option::STRING, Option::MEATA_DATA_SAVE_TO_FILE,
+                  "metadata-read-file");
+  opt->help = "read metadata from file ";
 
   /* Intial Seed for test */
   opt = newOption(Option::INT, Option::INITIAL_SEED, "seed");

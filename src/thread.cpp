@@ -101,7 +101,7 @@ void Node::workerThread(int number) {
 
   Thd1 *THD = new Thd1(number, thread_log, conn);
 
-  bool success = false;
+  static bool success = false;
   if (number == 0 ) {
     success = run_default_load(THD);
     default_load = true;

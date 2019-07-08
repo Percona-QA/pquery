@@ -20,7 +20,7 @@ static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
 // static bool g_is_innodb_system_encrypted = false;
 
 static int g_max_columns_length = 100;
-static int g_max_columns_in_table = 15;
+static int g_max_columns_in_table = 7;
 
 static int g_max_indexes_in_table = 3;
 static int g_max_columns_in_index = 2;
@@ -153,7 +153,6 @@ namespace ta {
 int version = 1;
 std::string file_read_path = "data.dll";
 std::string file_write_path = "new_data.dll";
-int load_from_file = 0;
 std::string partition_string = "_p";
 } // namespace ta
 
@@ -848,10 +847,10 @@ void create_database_tablespace(Thd1 *thd) {
     g_tablespace.push_back("tab64k");
   }
 
-  auto load_from_file = opt_bool(LOAD_FROM_FILE);
+  auto load_metadata = opt_bool(LOAD_METADATA_FROM_FILE);
 
   /* drop dabase test*/
-  if (!load_from_file) {
+  if (!load_metadata) {
     execute_sql("DROP DATABASE test;", thd);
     execute_sql("CREATE DATABASE test;", thd);
   }
@@ -877,7 +876,7 @@ void create_database_tablespace(Thd1 *thd) {
     if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
-    if (!load_from_file) {
+    if (!load_metadata) {
       std::cout << sql << endl;
       execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
       execute_sql("DROP TABLESPACE " + tab, thd);
@@ -900,11 +899,11 @@ bool run_default_load(Thd1 *thd) {
 
   logs << " creating defaut tables " << std::endl;
 
-  auto load_from_file = opt_bool(LOAD_FROM_FILE);
-  load_from_file == true ? load_objects_from_file(all_tables)
-                         : create_default_tables(all_tables);
+  auto load_metadata = opt_bool(LOAD_METADATA_FROM_FILE);
+  load_metadata == true ? load_objects_from_file(all_tables)
+                        : create_default_tables(all_tables);
 
-  if (!load_from_file)
+  if (!load_metadata)
     create_database_tablespace(thd);
 
   if (options->at(Option::TABLES)->getInt() <= 0)
@@ -920,7 +919,7 @@ bool run_default_load(Thd1 *thd) {
   }
 
   bool just_ddl = opt_bool(JUST_LOAD_DDL);
-  if (!just_ddl && !load_from_file)
+  if (!just_ddl && !load_metadata)
     load_default_data(all_tables, thd);
   return 1;
 }
