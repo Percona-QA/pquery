@@ -29,7 +29,7 @@ void set_defaults(struct workerParams &Params) {
   Params.socket = "/tmp/socket.sock";
   Params.password = "";
   Params.infile = "pquery.sql";
-  Params.logdir = "/home/rahul.malik/pquery/src";
+  Params.logdir = "/Users/rahulmalik/pquery/src";
   Params.threads = 2;
   Params.queries_per_thread = 0;
   Params.verbose = false;
@@ -265,6 +265,7 @@ static struct option long_options[] = {
   wParams.password = options->at(Option::PASSWORD)->getString();
   wParams.port = options->at(Option::PORT)->getInt();
   wParams.threads = options->at(Option::THREADS)->getInt();
+  wParams.logdir = opt_string(LOGDIR);
 
   if (options->at(Option::CONFIGFILE)->getString().size() > 0)
     confFile = options->at(Option::CONFIGFILE)->getString();

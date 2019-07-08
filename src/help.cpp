@@ -5,7 +5,7 @@
 Opx *options = new Opx;
 
 /* add new options */
-Option *newOption(Option::Type t, Option::Opt o, std::string s) {
+inline Option *newOption(Option::Type t, Option::Opt o, std::string s) {
   auto *opt = new Option(t, o, s);
   options->at(o) = opt;
   return opt;
@@ -34,6 +34,12 @@ void add_options() {
   opt->help = "Initial seed used for the test";
   opt->setInt(1);
 
+  /* Number of General tablespaces */
+  opt =
+      newOption(Option::INT, Option::NUMBER_OF_GENERAL_TABLESPACE, "tbs-count");
+  opt->setInt("1");
+  opt->help = "random number of different general tablespaces ";
+
   /* Engine */
   opt = newOption(Option::STRING, Option::ENGINE, "engine");
   opt->help = "Engine used ";
@@ -50,8 +56,14 @@ void add_options() {
   opt->help = "Use DDL in workload";
   opt->setBool(true);
 
+  /* disable all type of encrytion */
+  opt = newOption(Option::BOOL, Option::NO_ENCRYPTION, "no-encryption");
+  opt->help = "Disable All type of encrytion";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* Initial Table */
-  opt = newOption(Option::INT, Option::TABLE, "tables");
+  opt = newOption(Option::INT, Option::TABLES, "tables");
   opt->help = "Number of initial tables";
   opt->setInt(10);
 
@@ -66,11 +78,16 @@ void add_options() {
   opt->setInt(1000);
 
   /*Encrypt table */
-  opt = newOption(Option::INT, Option::ENCRYPTION, "atsepm");
+  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION, "atsepm");
   opt->help = "Alter table set Encrytion";
   opt->setInt(10);
   opt->setSQL();
   opt->setDDL();
+
+  /* primary key probablity */
+  opt = newOption(Option::INT, Option::PRIMARY_KEY, "ctpkp");
+  opt->help = "Probability of adding primary key in a table";
+  opt->setInt(50);
 
   /* Row Format */
   opt = newOption(Option::STRING, Option::ROW_FORMAT, "ctrf");
@@ -79,14 +96,14 @@ void add_options() {
   opt->setString("all");
 
   /*Tablespace Encrytion */
-  opt = newOption(Option::INT, Option::TABLESPACE_ENCRYPTION, "asepm");
+  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION, "asepm");
   opt->help = "Alter tablespace set Encrytion";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Tablespace Rename */
-  opt = newOption(Option::INT, Option::TABLESPACE_RENAME, "asrpm");
+  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "asrpm");
   opt->help = "Alter tablespace rename";
   opt->setInt(1);
   opt->setSQL();
@@ -193,11 +210,6 @@ void add_options() {
   opt->setSQL();
   opt->setDDL();
 
-  /* HELP */
-  opt = newOption(Option::BOOL, Option::HELP, "help");
-  opt->help = "user asked for help";
-  opt->setArgs(optional_argument);
-
   /* DATABASE */
   opt = newOption(Option::STRING, Option::DATABASE, "database");
   opt->help = "The database to connect to";
@@ -229,20 +241,25 @@ void add_options() {
   opt->help = "Port to use";
   opt->setInt(3306);
 
-  /* User*/
-  opt = newOption(Option::STRING, Option::USER, "user");
-  opt->help = "The MySQL userID to be used";
-  opt->setString("root");
-
   /* Password*/
   opt = newOption(Option::STRING, Option::PASSWORD, "password");
   opt->help = "The MySQL user's password";
   opt->setString("");
 
+  /* HELP */
+  opt = newOption(Option::BOOL, Option::HELP, "help");
+  opt->help = "user asked for help";
+  opt->setArgs(optional_argument);
+
   /* Threads */
   opt = newOption(Option::INT, Option::THREADS, "threads");
   opt->help = "The number of threads to use";
   opt->setInt(1);
+
+  /* User*/
+  opt = newOption(Option::STRING, Option::USER, "user");
+  opt->help = "The MySQL userID to be used";
+  opt->setString("root");
 }
 
 Option::~Option() {}

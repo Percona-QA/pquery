@@ -18,23 +18,19 @@
 #include <vector>
 #include <writer.h>
 #include <atomic>
+#define INNODB_16K_PAGE_SIZE 16
+#define INNODB_8K_PAGE_SIZE 8
+#define INNODB_32K_PAGE_SIZE 32
+#define INNODB_64K_PAGE_SIZE 64
+#define MIN_SEED_SIZE 10000
+#define MAX_SEED_SIZE 100000
+#define MAX_RANDOM_STRING_SIZE 32
 
-enum RANDOM_SQL {
-  ADD_COLUMN = 20,
-  INSERT_RANDOM_ROW,
-  DROP_CREATE,
-  OPTIMIZE,
-  ANALYZE,
-  DELETE_ALL_ROW,
-  DELETE_ROW_USING_PKEY,
-  UPDATE_ROW_USING_PKEY,
-  SELECT_ROW_USING_PKEY,
-  SELECT_ALL_ROW,
-  COLUMN_RENAME,
-  // DELETE_ROW_RANDOM,
-  // UPDATE_ROW_USING_PKEY
-  RANDOM_MAX
-};
+#define opt_int(a) options->at(Option::a)->getInt();
+#define opt_int_set(a, b) options->at(Option::a)->setInt(b);
+#define opt_bool(a) options->at(Option::a)->getBool();
+#define opt_string(a) options->at(Option::a)->getString();
+
 /* Different table type supported by tool */
 enum TABLE_TYPES { PARTITION, NORMAL, TABLE_MAX };
 /* Column Basic Properties */
@@ -82,27 +78,12 @@ struct Index {
 };
 
 struct Thd1 {
-  Thd1(int id, std::ofstream &tl, MYSQL *c, std::vector<Table *> *tab)
-      : thread_id(id), thread_log(tl), conn(c), tables(tab){};
-
+  Thd1(int id, std::ofstream &tl, MYSQL *c)
+      : thread_id(id), thread_log(tl), conn(c){};
   int thread_id;
   std::ofstream &thread_log;
   MYSQL *conn;
-  std::vector<Table *> *tables;
   int seed;
-  static std::vector<std::string> *random_strs;
-  static std::vector<std::string> encryption;
-  static std::vector<std::string> row_format;
-  static std::vector<int> key_block_size;
-  static std::vector<std::string> tablespace;
-  static int pkey_pb_per_table;
-  static int s_len;
-  static bool is_innodb_system_encrypted;
-  static int max_columns_length;
-  static int max_columns_in_table;
-  static int max_indexes_in_table;
-  static int max_columns_in_index;
-  static int innodb_page_size;
 };
 
 
@@ -162,13 +143,13 @@ public:
 
 void create_database_tablespace(Thd1 *thd);
 int set_seed(Thd1 *thd);
-int run_default_load(Thd1 *thd);
+bool run_default_load(Thd1 *thd);
 void run_some_query(Thd1 *thd);
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 int save_dictionary(std::vector<Table *> *all_tables);
 std::string rand_string(int upper, int lower = 0);
-int execute_sql(std::string sql, Thd1 *thd);
+bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd);
 void save_objects_to_file(std::vector<Table *> *all_tables);
 void load_objects_from_file(std::vector<Table *> *all_tables);

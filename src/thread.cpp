@@ -99,10 +99,11 @@ void Node::workerThread(int number) {
     return;
   }
 
-  Thd1 *THD = new Thd1(number, thread_log, conn, tables);
+  Thd1 *THD = new Thd1(number, thread_log, conn);
 
+  bool success = false;
   if (number == 0 ) {
-    run_default_load(THD);
+    success = run_default_load(THD);
     default_load = true;
   }
 
@@ -112,7 +113,11 @@ void Node::workerThread(int number) {
     thread_log << "waiting for defalut load to finish" << std::endl;
   }
 
-  if (!options->at(Option::JUST_LOAD_DDL)->getBool())
+  if (!success)
+    thread_log << " Basic setup failed, Check logs for details " << std::endl;
+  else if (options->at(Option::JUST_LOAD_DDL)->getBool())
+    thread_log << " -jlddl was mention exiting " << std::endl;
+  else
     run_some_query(THD);
   delete THD;
 
@@ -238,19 +243,19 @@ void Node::workerThread(int number) {
       if (result != NULL) {
         mysql_free_result(result);
       }
-    } while (mysql_next_result(conn) == 0); // while
-  }                                         // for loop
+    } while (mysql_next_result(conn) == 0);   // while
+    }                                         // for loop
 
-  if (thread_log.is_open()) {
-    thread_log.close();
+    if (thread_log.is_open()) {
+      thread_log.close();
+    }
+
+    if (client_log.is_open()) {
+      client_log.close();
+    }
+
+    mysql_close(conn);
+    mysql_thread_end();
+    performed_queries_total += total_queries;
+    failed_queries_total += failed_queries;
   }
-
-  if (client_log.is_open()) {
-    client_log.close();
-  }
-
-  mysql_close(conn);
-  mysql_thread_end();
-  performed_queries_total += total_queries;
-  failed_queries_total += failed_queries;
-}

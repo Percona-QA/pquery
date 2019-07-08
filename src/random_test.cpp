@@ -6,20 +6,28 @@ using namespace rapidjson;
 using namespace std;
 std::mt19937 rng;
 
-#define INNODB_16K_PAGE_SIZE 16
-#define INNODB_8K_PAGE_SIZE 8
-#define INNODB_32K_PAGE_SIZE 32
-#define INNODB_64K_PAGE_SIZE 64
-#define MIN_SEED_SIZE 10000
-#define MAX_SEED_SIZE 100000
-
-#define option_int(a) options->at(Option::a)->getInt();
-#define option_bool(a) options->at(Option::a)->getBool();
-
-/* PRIMARY has to be in last */
+/*aPRIMARY has to be in last */
 enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
 const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
                                    "INT PRIMARY KEY AUTO_INCREMENT"};
+
+static std::vector<std::string> g_encryption = {"Y", "N"};
+static std::vector<std::string> g_row_format = {"COMPRESSED", "DYNAMIC",
+                                                "REDUNDANT"};
+static std::vector<std::string> g_tablespace;
+static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
+
+// static bool g_is_innodb_system_encrypted = false;
+
+static int g_max_columns_length = 100;
+static int g_max_columns_in_table = 15;
+
+static int g_max_indexes_in_table = 3;
+static int g_max_columns_in_index = 2;
+
+static int g_innodb_page_size = 16;
+
+static std::vector<Table *> *all_tables = new std::vector<Table *>;
 
 int sum_of_all_options() {
 
@@ -40,8 +48,15 @@ int sum_of_all_options() {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
 
+  /* If no-encryption is set, disable all encryption options */
+  auto enc = opt_bool(NO_ENCRYPTION);
+  if (enc) {
+    opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
+    opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
+  }
+
   int total = 0;
-  bool ddl = option_bool(DDL);
+  bool ddl = opt_bool(DDL);
   for (auto &opt : *options) {
     if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
@@ -53,7 +68,7 @@ int sum_of_all_options() {
 Option::Opt pick_some_option() {
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
-  static bool ddl = option_bool(DDL);
+  static bool ddl = opt_bool(DDL);
   for (auto &opt : *options) {
     if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
@@ -79,21 +94,6 @@ int set_seed(Thd1 *thd) {
   return thd->seed;
 }
 
-std::vector<std::string> Thd1::encryption = {"Y", "N"};
-std::vector<std::string> Thd1::row_format = {"COMPRESSED", "DYNAMIC",
-                                             "REDUNDANT"};
-std::vector<std::string> Thd1::tablespace = {"innodb_system", "tab02k",
-                                             "tab04k", "tab01k"};
-std::vector<int> Thd1::key_block_size = {0, 0, 1, 2, 4};
-
-int Thd1::s_len = 32;
-int Thd1::pkey_pb_per_table = 100;
-bool Thd1::is_innodb_system_encrypted = false;
-int Thd1::max_columns_length = 100;
-int Thd1::max_columns_in_table = 15;
-int Thd1::max_indexes_in_table = 3;
-int Thd1::max_columns_in_index = 2;
-int Thd1::innodb_page_size = 16;
 
 std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz"
@@ -110,8 +110,8 @@ std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   strs->reserve(N_STRS);
   std::generate_n(std::back_inserter(*strs), strs->capacity(), [&] {
     std::string str;
-    str.reserve(Thd1::s_len);
-    std::generate_n(std::back_inserter(str), Thd1::s_len,
+    str.reserve(MAX_RANDOM_STRING_SIZE);
+    std::generate_n(std::back_inserter(str), MAX_RANDOM_STRING_SIZE,
                     [&]() { return alphabet[dist(rng)]; });
 
     return str;
@@ -119,7 +119,7 @@ std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   return strs;
 }
 
-std::vector<std::string> *Thd1::random_strs;
+std::vector<std::string> *random_strs;
 
 int rand_int(int upper, int lower) {
   /*todo change the approach if it is too slow */
@@ -138,12 +138,12 @@ std::string rand_string(int upper, int lower) {
     size *= 1;
 
   while (size > 0) {
-    auto str = Thd1::random_strs->at(rand_int(Thd1::random_strs->size() - 1));
-    if (size > Thd1::s_len)
+    auto str = random_strs->at(rand_int(random_strs->size() - 1));
+    if (size > MAX_RANDOM_STRING_SIZE)
       rs += str;
     else
       rs += str.substr(0, size);
-    size -= Thd1::s_len;
+    size -= MAX_RANDOM_STRING_SIZE;
   }
   return rs;
 }
@@ -189,7 +189,7 @@ Column::Column(std::string name, Table *table, int type)
     break;
   case (COLUMN_TYPES::VARCHAR):
   case (COLUMN_TYPES::CHAR):
-    length = rand_int(Thd1::max_columns_length, 10);
+    length = rand_int(g_max_columns_length, 10);
     break;
   }
 }
@@ -294,19 +294,28 @@ void Table::DropCreate(Thd1 *thd) {
   if (execute_sql("DROP TABLE " + name_ + ";", thd))
     max_pk_value_inserted = 0;
 
-  if (execute_sql(Table_defination(), thd))
+  std::string def = Table_defination();
+  if (execute_sql(def, thd))
     max_pk_value_inserted = 0;
-  else if (tablespace.size() > 0) { // if tablespace is alter //
-    std::string encrypt_sql = Table_defination();
-    encrypt_sql += " ENCRYPTION = ";
+  else if (tablespace.size() > 0) {
+    std::string tbs = " TABLESPACE=" + tablespace + "_rename";
+
+    auto no_encryption = opt_bool(NO_ENCRYPTION);
+
+    std::string encrypt_sql = " ENCRYPTION = ";
     encrypt_sql += (encryption == false ? "'y' " : "'n'");
-    auto tbs = " tablespace=" + tablespace + "_rename";
-    if (execute_sql(encrypt_sql, thd) || execute_sql(encrypt_sql + tbs, thd)) {
+
+    /* If tablespace is rename */
+    if (execute_sql(def + tbs, thd))
+      max_pk_value_inserted = 0;
+
+    /* If tablespace is encrypted, and or tablespace is rename */
+    else if (!no_encryption && (execute_sql(def + encrypt_sql, thd) ||
+                                execute_sql(def + encrypt_sql + tbs, thd))) {
       table_mutex.lock();
       encryption = !encryption;
       table_mutex.unlock();
-    } else {
-      execute_sql(Table_defination() + tbs, thd);
+      max_pk_value_inserted = 0;
     }
   }
 }
@@ -337,11 +346,12 @@ Table::~Table() {
 /* create default column */
 void Table::CreateDefaultColumn() {
 
-  for (int i = 0; i < rand_int(Thd1::max_columns_in_table, 1); i++) {
+  for (int i = 0; i < rand_int(g_max_columns_in_table, 1); i++) {
     std::string name;
     int type;
     /*  if we need to create primary column */
-    if (i == 0 && rand_int(100) < Thd1::pkey_pb_per_table) {
+    static int pkey_pb_per_table = opt_int(PRIMARY_KEY);
+    if (i == 0 && rand_int(100) < pkey_pb_per_table) {
       type = COLUMN_TYPES::PRIMARY;
       name = "pkey";
       has_pk = true;
@@ -357,12 +367,12 @@ void Table::CreateDefaultColumn() {
 /* create default indexes */
 void Table::CreateDefaultIndex() {
 
-  int indexes = rand_int(Thd1::max_indexes_in_table, 1);
+  int indexes = rand_int(g_max_indexes_in_table, 1);
   for (int i = 0; i < indexes; i++) {
 
     Index *id = new Index(name_ + "i" + std::to_string(i));
 
-    int max_columns = rand_int(Thd1::max_columns_in_index, 1);
+    int max_columns = rand_int(g_max_columns_in_index, 1);
 
     int columns = max_columns;
 
@@ -398,31 +408,32 @@ Table *Table::table_id(int choice, int id) {
 
   table->CreateDefaultColumn();
   table->CreateDefaultIndex();
-  if (Thd1::encryption.size() > 0 &&
-      Thd1::encryption[rand_int(Thd1::encryption.size() - 1)].compare("Y") == 0)
+  static auto no_encryption = opt_bool(NO_ENCRYPTION);
+  if (!no_encryption && g_encryption.size() > 0 &&
+      g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
     table->encryption = true;
 
-  if (Thd1::key_block_size.size() > 0)
+  if (g_key_block_size.size() > 0)
     table->key_block_size =
-        Thd1::key_block_size[rand_int(Thd1::key_block_size.size() - 1)];
+        g_key_block_size[rand_int(g_key_block_size.size() - 1)];
 
   if (table->key_block_size > 0 && rand_int(2) == 0) {
     table->row_format = "COMPRESSED";
   }
 
-  if (table->key_block_size == 0 && Thd1::row_format.size() > 0)
-    table->row_format = Thd1::row_format[rand_int(Thd1::row_format.size() - 1)];
+  if (table->key_block_size == 0 && g_row_format.size() > 0)
+    table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
 
   static auto engine = options->at(Option::ENGINE)->getString();
   table->engine = engine;
 
-  if (Thd1::tablespace.size() > 0 && rand_int(2) == 0) {
-    table->tablespace = Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1)];
+  if (g_tablespace.size() > 0 && rand_int(2) == 0) {
+    table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
     table->encryption = false;
     table->row_format.clear();
-    if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE ||
+    if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
         table->tablespace.compare("innodb_system") == 0 ||
-        stoi(table->tablespace.substr(3, 2)) == Thd1::innodb_page_size)
+        stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
       table->key_block_size = 0;
     else
       table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
@@ -479,7 +490,7 @@ std::string Table::Table_defination() {
 }
 /* create default table include all tables now */
 void create_default_tables(std::vector<Table *> *all_tables) {
-  int no_of_tables = options->at(Option::TABLE)->getInt();
+  int no_of_tables = options->at(Option::TABLES)->getInt();
   for (int i = 0; i < no_of_tables; i++) {
     Table *t = Table::table_id(rand_int(TABLE_MAX), i);
     // auto *n = static_cast<Partition_table *>(t);
@@ -487,7 +498,8 @@ void create_default_tables(std::vector<Table *> *all_tables) {
   }
 }
 
-int execute_sql(std::string sql, Thd1 *thd) {
+/* return true if SQL is successful, else return false */
+bool execute_sql(std::string sql, Thd1 *thd) {
   sql += ";";
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
@@ -516,7 +528,7 @@ void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd) {
 
 void Table::SetEncryption(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + " ENCRYPTION = '";
-  std::string enc = thd->encryption[rand_int(thd->encryption.size() - 1)];
+  std::string enc = g_encryption[rand_int(g_encryption.size() - 1)];
   sql += enc + "';";
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
@@ -540,7 +552,6 @@ void Table::AddColumn(Thd1 *thd) {
   sql += name + " " + column_type[tc->type_];
   if (tc->length > 0)
     sql += "(" + std::to_string(tc->length) + ")";
-  sql += ";";
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
@@ -701,20 +712,19 @@ void Table::DropColumn(Thd1 *thd) {
 }
 
 void alter_tablespace_encryption(Thd1 *thd) {
-  if (Thd1::tablespace.size() > 0) {
+  if (g_tablespace.size() > 0) {
     std::string sql = "ALTER tablespace " +
-                      Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1)] +
+                      g_tablespace[rand_int(g_tablespace.size() - 1)] +
                       " ENCRYPTION ";
     sql += (rand_int(1) == 0 ? "'y'" : "'n'");
-    sql += ";";
     execute_sql(sql, thd);
   }
 }
 
 void alter_tablespace_rename(Thd1 *thd) {
-  if (Thd1::tablespace.size() > 0) {
-    auto tablespace = Thd1::tablespace[rand_int(Thd1::tablespace.size() - 1),
-                                       1]; // don't pick innodb_system;
+  if (g_tablespace.size() > 0) {
+    auto tablespace = g_tablespace[rand_int(g_tablespace.size() - 1),
+                                   1]; // don't pick innodb_system;
     std::string sql = "ALTER tablespace " + tablespace;
     if (rand_int(1) == 0)
       sql += "_rename  rename to " + tablespace + ";";
@@ -811,93 +821,119 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
 void clean_up_at_end(std::vector<Table *> *all_tables) {
   for (auto &table : *all_tables)
     delete table;
-
-  delete Thd1::random_strs;
-
+  // delete all_tables;
+  delete random_strs;
 }
 
 /* create new database and tables */
 void create_database_tablespace(Thd1 *thd) {
 
-  if (Thd1::innodb_page_size > INNODB_16K_PAGE_SIZE) {
-    Thd1::row_format.clear();
-    Thd1::key_block_size.clear();
+  g_tablespace = {"innodb_system", "tab02k", "tab04k", "tab01k"};
+
+  if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
+    g_row_format.clear();
+    g_key_block_size.clear();
+  }
+  /* Adjust the tablespaces */
+  if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
+    g_tablespace.push_back("tab08k");
+  }
+  if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
+    g_tablespace.push_back("tab16k");
+  }
+  if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
+    g_tablespace.push_back("tab32k");
+  }
+  if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
+    g_tablespace.push_back("tab64k");
   }
 
-  if (Thd1::innodb_page_size >= INNODB_8K_PAGE_SIZE) {
-    Thd1::tablespace.push_back("tab08k");
-  }
+  auto load_from_file = opt_bool(LOAD_FROM_FILE);
 
-  if (Thd1::innodb_page_size >= INNODB_16K_PAGE_SIZE) {
-    Thd1::tablespace.push_back("tab16k");
+  /* drop dabase test*/
+  if (!load_from_file) {
+    execute_sql("DROP DATABASE test;", thd);
+    execute_sql("CREATE DATABASE test;", thd);
   }
-
-  if (Thd1::innodb_page_size >= INNODB_32K_PAGE_SIZE) {
-    Thd1::tablespace.push_back("tab32k");
-  }
-
-  if (Thd1::innodb_page_size >= INNODB_64K_PAGE_SIZE) {
-    Thd1::tablespace.push_back("tab64k");
-  }
-  execute_sql("DROP DATABASE test;", thd);
-  execute_sql("CREATE DATABASE test;", thd);
   execute_sql("USE test;", thd);
 
-  for (auto &tab : Thd1::tablespace) {
+  /* add addtional tablespace */
+  auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
+  if (tbs_count > 1) {
+    auto current_size = g_tablespace.size();
+    for (size_t i = 0; i < current_size; i++) {
+      if (g_tablespace[i].compare("innodb_system") == 0)
+        continue;
+      for (int j = 1; j <= tbs_count; j++)
+        g_tablespace.push_back(g_tablespace[i] + to_string(j));
+    }
+  }
+
+  for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
       continue;
-
     std::string sql =
-        "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd'";
-
-    if (Thd1::innodb_page_size <= INNODB_16K_PAGE_SIZE) {
-      sql += "FILE_BLOCK_SIZE " + tab.substr(3, 3);
+        "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd' ";
+    if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
+      sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
-
-    sql += ";";
-    execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
-    execute_sql("DROP TABLESPACE " + tab, thd);
-    execute_sql(sql, thd);
+    if (!load_from_file) {
+      std::cout << sql << endl;
+      execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
+      execute_sql("DROP TABLESPACE " + tab, thd);
+      execute_sql(sql, thd);
+    }
   }
 }
 
-int run_default_load(Thd1 *thd) {
-  Thd1::random_strs =
+bool run_default_load(Thd1 *thd) {
+  auto engine = opt_string(ENGINE);
+  /* if engine is Innodb. based on page_size find out the */
+  /*
+  if (engine.compare("INNODB") == 0)
+    ;
+    */
+  random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
-  std::vector<Table *> *all_tables = thd->tables;
   auto &logs = thd->thread_log;
   std::mt19937 rng(options->at(Option::INITIAL_SEED)->getInt());
 
   logs << " creating defaut tables " << std::endl;
 
-  auto load_from_file = option_bool(LOAD_FROM_FILE);
+  auto load_from_file = opt_bool(LOAD_FROM_FILE);
   load_from_file == true ? load_objects_from_file(all_tables)
                          : create_default_tables(all_tables);
 
   if (!load_from_file)
     create_database_tablespace(thd);
 
-  if (options->at(Option::TABLE)->getInt() <= 0)
+  if (options->at(Option::TABLES)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
 
   for (auto &table : *all_tables) {
-    execute_sql(table->Table_defination(), thd);
+    if (!execute_sql(table->Table_defination(), thd)) {
+      std::cout << "Create table failed " << table->name_ << std::endl;
+      std::cout << "check error logs  "
+                << " for more details" << std::endl;
+      return 0;
+    }
   }
-  if (!options->at(Option::JUST_LOAD_DDL)->getBool())
+
+  bool just_ddl = opt_bool(JUST_LOAD_DDL);
+  if (!just_ddl && !load_from_file)
     load_default_data(all_tables, thd);
   return 1;
 }
 
 void run_some_query(Thd1 *thd) {
 
-  auto sec = option_int(NUMBER_OF_SECONDS_WORKLOAD);
+  auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
   auto end =
       std::chrono::system_clock::time_point(begin + std::chrono::seconds(sec));
 
   execute_sql("USE test;", thd);
   std::mt19937 rng(set_seed(thd));
-  auto all_tables = thd->tables;
   Node::parallel_thread_running++;
   while (std::chrono::system_clock::now() < end) {
     auto size = all_tables->size();
@@ -918,13 +954,13 @@ void run_some_query(Thd1 *thd) {
     case Option::DROP_CREATE:
       table->DropCreate(thd);
       break;
-    case Option::ENCRYPTION:
+    case Option::ALTER_TABLE_ENCRYPTION:
       table->SetEncryption(thd);
       break;
-    case Option::TABLESPACE_ENCRYPTION:
+    case Option::ALTER_TABLESPACE_ENCRYPTION:
       alter_tablespace_encryption(thd);
       break;
-    case Option::TABLESPACE_RENAME:
+    case Option::ALTER_TABLESPACE_RENAME:
       alter_tablespace_rename(thd);
       break;
     case Option::SELECT_ALL_ROW:
