@@ -17,28 +17,36 @@ void add_options() {
   Option *opt;
 
   /* Mode of Pquery */
-  opt = newOption(Option::BOOL, Option::MODE_OF_PQUERY, "file-mode");
+  opt = newOption(Option::BOOL, Option::MODE_OF_PQUERY, "mode");
   opt->help =
-      "run sql from a file or Generate them. If set then infile will be "
-      "processed and query would be executed in random order. If set false "
-      "then sql would be generated based on the option provided ";
+      "run load from a SQL file or generate them. If set, then infile will be "
+      "processed and queries would be executed in random order. If set false "
+      "then sql would be generated based on the option provided";
   opt->setBool(true);
 
-  /* Load from file */
-  opt = newOption(Option::BOOL, Option::LOAD_METADATA_FROM_FILE,
-                  "load-from-file");
+  /* Load metadata */
+  opt = newOption(Option::BOOL, Option::METADATA_READ, "metadata-read");
   opt->help = "Load table structures from a json file or created then randomly";
   opt->setBool(false);
 
-  /* Save metadata to file */
-  opt = newOption(Option::STRING, Option::META_DATA_READ_FROM_FILE,
-                  "metadata-write-file");
-  opt->help = "save metadata to file name";
+  /* write metadata */
+  opt = newOption(Option::BOOL, Option::METADATA_WRITE, "metadata-write");
+  opt->help = "write metadata to a file. see option --metadata-write-file and "
+              "--metadata-read-file";
+  opt->setBool(true);
+
+  /* Save metadata to a file */
+  opt = newOption(Option::STRING, Option::METADATA_READ_FILE,
+                  "metadata-read-file");
+  opt->help = "read metadata from file name";
+  opt->setString("/tmp/data.dll");
 
   /* Read metadata from file */
-  opt = newOption(Option::STRING, Option::MEATA_DATA_SAVE_TO_FILE,
-                  "metadata-read-file");
-  opt->help = "read metadata from file ";
+  opt = newOption(Option::STRING, Option::METADATA_WRITE_FILE,
+                  "metadata-write-file");
+  opt->help = "write metadata to a file, see option --metadata-read, "
+              "--metadata-write ";
+  opt->setString("/tmp/new_data.dll");
 
   /* Intial Seed for test */
   opt = newOption(Option::INT, Option::INITIAL_SEED, "seed");

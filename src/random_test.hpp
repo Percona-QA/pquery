@@ -141,8 +141,10 @@ public:
   //  string partiton_type() { return partition_start; }
 };
 
-void create_database_tablespace(Thd1 *thd);
 int set_seed(Thd1 *thd);
+int sum_of_all_options();
+Option::Opt pick_some_option();
+std::vector<std::string> *random_strs_generator(unsigned long int seed);
 bool run_default_load(Thd1 *thd);
 void run_some_query(Thd1 *thd);
 void alter_tablespace_encryption(Thd1 *thd);
@@ -150,12 +152,10 @@ void alter_tablespace_rename(Thd1 *thd);
 int save_dictionary(std::vector<Table *> *all_tables);
 std::string rand_string(int upper, int lower = 0);
 bool execute_sql(std::string sql, Thd1 *thd);
-void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd);
-void save_objects_to_file(std::vector<Table *> *all_tables);
-void load_objects_from_file(std::vector<Table *> *all_tables);
-void create_default_tables(std::vector<Table *> *all_tables);
-void clean_up_at_end(std::vector<Table *> *all_tables);
-int sum_of_all_options();
-Option::Opt pick_some_option();
-std::vector<std::string> *random_strs_generator(unsigned long int seed);
+void load_default_data(Thd1 *thd);
+void save_objects_to_file();
+void load_objects_from_file();
+void create_default_tables();
+void clean_up_at_end();
+void create_database_tablespace(Thd1 *thd);
 #endif

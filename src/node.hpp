@@ -82,7 +82,6 @@ private:
   std::atomic<unsigned long long> failed_queries_total;
 
 public:
-  static std::atomic<int> parallel_thread_running;
   std::atomic<bool> default_load;
 };
 #endif

@@ -11,6 +11,8 @@ enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
 const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
                                    "INT PRIMARY KEY AUTO_INCREMENT"};
 
+const std::string partition_string = "_p";
+const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format = {"COMPRESSED", "DYNAMIC",
                                                 "REDUNDANT"};
@@ -148,13 +150,6 @@ std::string rand_string(int upper, int lower) {
   return rs;
 }
 
-/* table attirbutes */
-namespace ta {
-int version = 1;
-std::string file_read_path = "data.dll";
-std::string file_write_path = "new_data.dll";
-std::string partition_string = "_p";
-} // namespace ta
 
 /* return random value of any string */
 std::string Column::rand_value() {
@@ -400,7 +395,7 @@ Table *Table::table_id(int choice, int id) {
   Table *table;
   std::string name = "tt_" + std::to_string(id);
   if (choice == PARTITION) {
-    table = new Partition_table(name + ta::partition_string, 0);
+    table = new Partition_table(name + partition_string, 0);
   } else {
     table = new Table(name, 0);
   }
@@ -488,7 +483,7 @@ std::string Table::Table_defination() {
   return def;
 }
 /* create default table include all tables now */
-void create_default_tables(std::vector<Table *> *all_tables) {
+void create_default_tables() {
   int no_of_tables = options->at(Option::TABLES)->getInt();
   for (int i = 0; i < no_of_tables; i++) {
     Table *t = Table::table_id(rand_int(TABLE_MAX), i);
@@ -513,7 +508,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   return (res == 0 ? 1 : 0);
 }
 
-void load_default_data(std::vector<Table *> *all_tables, Thd1 *thd) {
+void load_default_data(Thd1 *thd) {
   for (auto i = all_tables->begin(); i != all_tables->end(); i++) {
     auto table = *i;
     static int initial_records =
@@ -734,14 +729,14 @@ void alter_tablespace_rename(Thd1 *thd) {
 }
 
 /* save objects to a file */
-void save_objects_to_file(std::vector<Table *> *all_tables) {
+void save_objects_to_file() {
   //  rapidjson::Writer<Stream> writer(stream);
 
   StringBuffer sb;
   PrettyWriter<StringBuffer> writer(sb);
   writer.StartObject();
   writer.String("version");
-  writer.Uint(ta::version);
+  writer.Uint(version);
 
   writer.String(("tables"));
   writer.StartArray();
@@ -751,16 +746,17 @@ void save_objects_to_file(std::vector<Table *> *all_tables) {
   }
   writer.EndArray();
   writer.EndObject();
-  std::ofstream of(ta::file_write_path);
+  auto file = opt_string(METADATA_WRITE_FILE);
+  std::ofstream of(file);
   of << sb.GetString();
   if (!of.good())
     throw std::runtime_error("Can't write the JSON string to the file!");
 }
 
 /*load objects from a file */
-void load_objects_from_file(std::vector<Table *> *all_tables) {
-  int version = ta::version;
-  FILE *fp = fopen(ta::file_read_path.c_str(), "r");
+void load_objects_from_file() {
+  std::string file_read_path = opt_string(METADATA_READ_FILE);
+  FILE *fp = fopen(file_read_path.c_str(), "r");
   char readBuffer[65536];
   FileReadStream is(fp, readBuffer, sizeof(readBuffer));
   Document d;
@@ -768,7 +764,7 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
   auto v = d["version"].GetInt();
 
   if (d["version"].GetInt() != version)
-    throw std::runtime_error("version mismatch between " + ta::file_read_path +
+    throw std::runtime_error("version mismatch between " + file_read_path +
                              " and codebase " + " file::version is " +
                              std::to_string(v) + " code::version is " +
                              std::to_string(version));
@@ -781,7 +777,7 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
 
     int max_pk = tab["max_pk_value_inserted"].GetInt();
 
-    if (table_type.compare(ta::partition_string) == 0)
+    if (table_type.compare(partition_string) == 0)
       table = new Partition_table(name, max_pk);
     else
       table = new Table(name, max_pk);
@@ -816,11 +812,11 @@ void load_objects_from_file(std::vector<Table *> *all_tables) {
   fclose(fp);
 }
 
-/* clean tables from memory */
-void clean_up_at_end(std::vector<Table *> *all_tables) {
+/* clean tables from memory,random_strs */
+void clean_up_at_end() {
   for (auto &table : *all_tables)
     delete table;
-  // delete all_tables;
+  delete all_tables;
   delete random_strs;
 }
 
@@ -847,7 +843,7 @@ void create_database_tablespace(Thd1 *thd) {
     g_tablespace.push_back("tab64k");
   }
 
-  auto load_metadata = opt_bool(LOAD_METADATA_FROM_FILE);
+  auto load_metadata = opt_bool(METADATA_READ);
 
   /* drop dabase test*/
   if (!load_metadata) {
@@ -899,9 +895,8 @@ bool run_default_load(Thd1 *thd) {
 
   logs << " creating defaut tables " << std::endl;
 
-  auto load_metadata = opt_bool(LOAD_METADATA_FROM_FILE);
-  load_metadata == true ? load_objects_from_file(all_tables)
-                        : create_default_tables(all_tables);
+  auto load_metadata = opt_bool(METADATA_READ);
+  load_metadata == true ? load_objects_from_file() : create_default_tables();
 
   if (!load_metadata)
     create_database_tablespace(thd);
@@ -920,7 +915,7 @@ bool run_default_load(Thd1 *thd) {
 
   bool just_ddl = opt_bool(JUST_LOAD_DDL);
   if (!just_ddl && !load_metadata)
-    load_default_data(all_tables, thd);
+    load_default_data(thd);
   return 1;
 }
 
@@ -931,9 +926,13 @@ void run_some_query(Thd1 *thd) {
   auto end =
       std::chrono::system_clock::time_point(begin + std::chrono::seconds(sec));
 
-  execute_sql("USE test;", thd);
+  auto database = opt_string(DATABASE);
+
+  execute_sql("USE " + database, thd);
+
+  /* set seed for current thread */
   std::mt19937 rng(set_seed(thd));
-  Node::parallel_thread_running++;
+
   while (std::chrono::system_clock::now() < end) {
     auto size = all_tables->size();
     auto table = all_tables->at(rand_int(size - 1));
@@ -993,6 +992,5 @@ void run_some_query(Thd1 *thd) {
       throw std::runtime_error("invalid options");
     }
   }
-  Node::parallel_thread_running--;
 }
 

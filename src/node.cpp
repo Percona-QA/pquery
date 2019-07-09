@@ -21,11 +21,10 @@ Node::~Node() {
     delete querylist;
   }
 
+  /* if mode is query generator*/
   if (tables) {
-    save_objects_to_file(tables);
-    clean_up_at_end(tables);
-    std::cout << "nothing is wrong " << std::endl;
-    delete tables;
+    save_objects_to_file();
+    clean_up_at_end();
   }
 
 }
@@ -102,19 +101,19 @@ int Node::startWork() {
     myParams.queries_per_thread = querylist->size();
   }
   /* END log replaying */
-  workers.resize(myParams.threads);
+  auto threads = opt_int(THREADS);
+  workers.resize(threads);
 
-  for (int i = 0; i < myParams.threads; i++) {
+  for (int i = 0; i < threads; i++) {
     workers[i] = std::thread(&Node::workerThread, this, i);
   }
 
-  for (int i = 0; i < myParams.threads; i++) {
+  for (int i = 0; i < threads; i++) {
     workers[i].join();
   }
   return EXIT_SUCCESS;
 }
 
-std::atomic<int> Node::parallel_thread_running(0);
 
 void Node::tryConnect() {
   MYSQL *conn;
