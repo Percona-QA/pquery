@@ -96,7 +96,6 @@ int set_seed(Thd1 *thd) {
   return thd->seed;
 }
 
-
 std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz"
                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -120,6 +119,9 @@ std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   });
   return strs;
 }
+
+/* return some random table */
+Table *select_random_table() { return all_tables->at(0); }
 
 std::vector<std::string> *random_strs;
 
@@ -150,7 +152,6 @@ std::string rand_string(int upper, int lower) {
   return rs;
 }
 
-
 /* return random value of any string */
 std::string Column::rand_value() {
   if (type_ == COLUMN_TYPES::INT)
@@ -159,7 +160,7 @@ std::string Column::rand_value() {
     return "\'" + rand_string(length) + "\'";
 }
 
-Column::Column(std::string name, Table *table) : name_(name), table_(table){}
+Column::Column(std::string name, Table *table) : name_(name), table_(table) {}
 
 Column::Column(std::string name, std::string type, bool is_null, int len,
                Table *table)
@@ -268,9 +269,9 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.EndObject();
 }
 
-Ind_col::Ind_col(Column *c) : column(c){}
+Ind_col::Ind_col(Column *c) : column(c) {}
 
-Ind_col::Ind_col(Column *c, bool d) : column(c), desc(d){}
+Ind_col::Ind_col(Column *c, bool d) : column(c), desc(d) {}
 
 Index::Index(std::string n) : name_(n), columns_() {
   columns_ = new std::vector<Ind_col *>;
@@ -278,11 +279,13 @@ Index::Index(std::string n) : name_(n), columns_() {
 
 void Index::AddInternalColumn(Ind_col *column) { columns_->push_back(column); }
 
-Table::Table(std::string n, int max_pk)
-    : name_(n), indexes_(), max_pk_value_inserted(max_pk) {
+Table::Table(std::string n) : name_(n), indexes_(), max_pk_value_inserted(0) {
   columns_ = new std::vector<Column *>;
   indexes_ = new std::vector<Index *>;
 }
+Table::Table(std::string n, int max_pk) : Table(n) {
+  max_pk_value_inserted = max_pk;
+};
 
 void Table::DropCreate(Thd1 *thd) {
   if (execute_sql("DROP TABLE " + name_ + ";", thd))
@@ -340,7 +343,8 @@ Table::~Table() {
 /* create default column */
 void Table::CreateDefaultColumn() {
 
-  for (int i = 0; i < rand_int(g_max_columns_in_table, 1); i++) {
+  auto max_columns = rand_int(g_max_columns_in_table, 1);
+  for (int i = 0; i < max_columns; i++) {
     std::string name;
     int type;
     /*  if we need to create primary column */
@@ -391,46 +395,60 @@ void Table::CreateDefaultIndex() {
 }
 
 /* Create new table and pick some attributes */
-Table *Table::table_id(int choice, int id) {
+Table *Table::table_id(TABLE_TYPES type, int id) {
   Table *table;
   std::string name = "tt_" + std::to_string(id);
-  if (choice == PARTITION) {
-    table = new Partition_table(name + partition_string, 0);
-  } else {
-    table = new Table(name, 0);
+  switch (type) {
+  case PARTITION:
+    table = new Partition_table(name + partition_string);
+    break;
+  case NORMAL:
+    table = new Table(name);
+    break;
+  case TEMPORARY:
+    table = new Temporary_table(name + "_t");
+    break;
+  default:
+    std::cout << type << " << FOUND " << std::endl;
+    throw std::runtime_error("Unhandle Table type");
+    break;
   }
+
+  table->type = type;
 
   table->CreateDefaultColumn();
   table->CreateDefaultIndex();
-  static auto no_encryption = opt_bool(NO_ENCRYPTION);
-  if (!no_encryption && g_encryption.size() > 0 &&
-      g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
-    table->encryption = true;
 
-  if (g_key_block_size.size() > 0)
-    table->key_block_size =
-        g_key_block_size[rand_int(g_key_block_size.size() - 1)];
+  if (type != TEMPORARY) {
+    static auto no_encryption = opt_bool(NO_ENCRYPTION);
+    if (!no_encryption && g_encryption.size() > 0 &&
+        g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
+      table->encryption = true;
+    if (g_key_block_size.size() > 0)
+      table->key_block_size =
+          g_key_block_size[rand_int(g_key_block_size.size() - 1)];
 
-  if (table->key_block_size > 0 && rand_int(2) == 0) {
-    table->row_format = "COMPRESSED";
-  }
+    if (table->key_block_size > 0 && rand_int(2) == 0) {
+      table->row_format = "COMPRESSED";
+    }
 
-  if (table->key_block_size == 0 && g_row_format.size() > 0)
-    table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
+    if (table->key_block_size == 0 && g_row_format.size() > 0)
+      table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
 
-  static auto engine = options->at(Option::ENGINE)->getString();
-  table->engine = engine;
+    static auto engine = options->at(Option::ENGINE)->getString();
+    table->engine = engine;
 
-  if (g_tablespace.size() > 0 && rand_int(2) == 0) {
-    table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
-    table->encryption = false;
-    table->row_format.clear();
-    if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
-        table->tablespace.compare("innodb_system") == 0 ||
-        stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
-      table->key_block_size = 0;
-    else
-      table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
+    if (g_tablespace.size() > 0 && rand_int(2) == 0) {
+      table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
+      table->encryption = false;
+      table->row_format.clear();
+      if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
+          table->tablespace.compare("innodb_system") == 0 ||
+          stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
+        table->key_block_size = 0;
+      else
+        table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
+    }
   }
 
   return table;
@@ -438,7 +456,10 @@ Table *Table::table_id(int choice, int id) {
 
 /* prepare table defination */
 std::string Table::Table_defination() {
-  std::string def = "CREATE TABLE  " + name_ + " (";
+  std::string def = "CREATE ";
+  if (type == TABLE_TYPES::TEMPORARY)
+    def += " TEMPORARY";
+  def += " TABLE  " + name_ + " (";
 
   // todo move to method
   for (auto col : *columns_) {
@@ -463,10 +484,12 @@ std::string Table::Table_defination() {
   def.erase(def.length() - 2);
   def += " )";
 
-  if (encryption)
-    def += " ENCRYPTION='Y'";
-  else if (rand_int(3) == 1)
-    def += " ENCRYPTION='N'";
+  if (type != TEMPORARY) {
+    if (encryption)
+      def += " ENCRYPTION='Y'";
+    else if (rand_int(3) == 1)
+      def += " ENCRYPTION='N'";
+  }
 
   if (!tablespace.empty())
     def += " TABLESPACE=" + tablespace;
@@ -486,7 +509,10 @@ std::string Table::Table_defination() {
 void create_default_tables() {
   int no_of_tables = options->at(Option::TABLES)->getInt();
   for (int i = 0; i < no_of_tables; i++) {
-    Table *t = Table::table_id(rand_int(TABLE_MAX), i);
+    auto type = static_cast<TABLE_TYPES>(rand_int(TABLE_TYPES::TABLE_MAX - 2));
+    if (type == TEMPORARY)
+      throw std::runtime_error("can't create temporary table in main loop");
+    Table *t = Table::table_id(type, i);
     // auto *n = static_cast<Partition_table *>(t);
     all_tables->push_back(t);
   }
@@ -920,22 +946,51 @@ bool run_default_load(Thd1 *thd) {
 }
 
 void run_some_query(Thd1 *thd) {
+  auto database = opt_string(DATABASE);
+  execute_sql("USE " + database, thd);
+
+  /* create session temporary tables */
+  std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
+
+  auto tables = opt_int(TABLES);
+  int tt_size = rand_int(tables); // temp_table size
+
+  auto size = all_tables->size();
+
+  int initial_records = opt_int(INITIAL_RECORDS_IN_TABLE);
+  for (int i = 0; i < tt_size; i++) {
+    Table *table = Table::table_id(TEMPORARY, i);
+    if (!execute_sql(table->Table_defination(), thd)) {
+      std::cout << "Create table failed " << table->name_ << std::endl;
+      std::cout << "check error logs  "
+                << " for more details" << std::endl;
+    }
+    /* insert some records */
+    int rec = rand_int(initial_records);
+    for (int j = 0; j < rec; j++) {
+      table->InsertRandomRow(thd, false);
+    }
+    all_temp_tables->push_back(table);
+  }
 
   auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
   auto end =
       std::chrono::system_clock::time_point(begin + std::chrono::seconds(sec));
 
-  auto database = opt_string(DATABASE);
-
-  execute_sql("USE " + database, thd);
-
   /* set seed for current thread */
   std::mt19937 rng(set_seed(thd));
 
+  int total_size = size + tt_size;
+  /* combine all_tables with temp_tables */
+
   while (std::chrono::system_clock::now() < end) {
-    auto size = all_tables->size();
-    auto table = all_tables->at(rand_int(size - 1));
+
+    auto curr = rand_int(total_size - 1);
+
+    auto table = (curr < tt_size) ? all_temp_tables->at(curr)
+                                  : all_tables->at(curr - tt_size);
+
     auto option = pick_some_option();
     thd->thread_log << "option picked is " << options->at(option)->getName()
                     << std::endl;
@@ -992,5 +1047,8 @@ void run_some_query(Thd1 *thd) {
       throw std::runtime_error("invalid options");
     }
   }
+  for (auto &table : *all_temp_tables)
+    delete table;
+  delete all_temp_tables;
 }
 

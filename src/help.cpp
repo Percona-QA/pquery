@@ -245,6 +245,7 @@ void add_options() {
   /* Logdir */
   opt = newOption(Option::STRING, Option::LOGDIR, "logdir");
   opt->help = "Log directory";
+  opt->setString("/tmp");
 
   /* Socket */
   opt = newOption(Option::STRING, Option::SOCKET, "socket");

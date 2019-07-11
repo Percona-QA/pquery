@@ -32,7 +32,8 @@
 #define opt_string(a) options->at(Option::a)->getString();
 
 /* Different table type supported by tool */
-enum TABLE_TYPES { PARTITION, NORMAL, TABLE_MAX };
+/* TEMPORARY has to be last, becase it is not picked by create_default_tables */
+enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 /* Column Basic Properties */
 
 
@@ -45,6 +46,7 @@ struct Column {
   Column(std::string name, std::string type, bool is_null, int len,
          Table *table);
   Column(std::string name, Table *table, int type);
+  Column(const Column &column);
   std::string rand_value();
   template <typename Writer> void Serialize(Writer &writer) const;
   std::string name_;
@@ -90,16 +92,18 @@ struct Thd1 {
 /* Table basic properties */
 struct Table {
 public:
-  TABLE_TYPES table_type;
+  TABLE_TYPES type;
+  Table(std::string n);
   Table(std::string n, int max_pk);
-
-  static Table *table_id(int choice, int id);
+  static Table *table_id(TABLE_TYPES choice, int id);
   std::string Table_defination();
   /* methods to create table of choice */
   void AddInternalColumn(Column *column) { columns_->push_back(column); }
   void AddInternalIndex(Index *index) { indexes_->push_back(index); }
   void CreateDefaultColumn();
   void CreateDefaultIndex();
+  void CopyDefaultColumn(Table *table);
+  void CopyDefaultIndex(Table *table);
   void DropCreate(Thd1 *thd);
   void Optimize(Thd1 *thd);
   void Analyze(Thd1 *thd);
@@ -135,10 +139,18 @@ public:
 /* Partition table */
 struct Partition_table : public Table {
 public:
+  Partition_table(std::string n) : Table(n){};
   Partition_table(std::string n, int max_pk) : Table(n, max_pk){};
   ~Partition_table() {}
   std::string partition_start;
   //  string partiton_type() { return partition_start; }
+};
+
+/* Temporary table */
+struct Temporary_table : public Table {
+public:
+  Temporary_table(std::string n) : Table(n){};
+  Temporary_table(const Temporary_table &table) : Table(table.name_){};
 };
 
 int set_seed(Thd1 *thd);
@@ -158,4 +170,5 @@ void load_objects_from_file();
 void create_default_tables();
 void clean_up_at_end();
 void create_database_tablespace(Thd1 *thd);
+Table *select_random_table();
 #endif
