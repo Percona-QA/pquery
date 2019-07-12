@@ -43,6 +43,7 @@ struct Option {
     ALTER_TABLE_ENCRYPTION,
     PRIMARY_KEY,
     ROW_FORMAT,
+    SET_GLOBAL_VARIABLE,
     ALTER_TABLESPACE_ENCRYPTION,
     ALTER_TABLESPACE_RENAME,
     SELECT,
@@ -62,6 +63,7 @@ struct Option {
     ANALYZE,
     TRUNCATE,
     DROP_CREATE,
+    MYSQLD_SERVER_OPTION,
     DATABASE = 'd',
     ADDRESS = 'a',
     INFILE = 'i',
@@ -119,10 +121,21 @@ struct Option {
   short args = required_argument; // default is required argument
 };
 
+struct Server_Option { // Server_options
+  Server_Option(std::string n) : name(n){};
+  int prob;
+  std::string name;
+  std::vector<std::string> values;
+};
+
+/* delete options and server_options*/
 void delete_options();
 typedef std::vector<Option *> Opx;
+typedef std::vector<Server_Option *> Ser_Opx;
 extern Opx *options;
+extern Ser_Opx *server_options;
 void add_options();
+void add_server_options(std::string str);
 Option *newOption(Option::Type t, Option::Opt o, std::string s);
 
 #endif

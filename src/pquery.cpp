@@ -225,6 +225,11 @@ static struct option long_options[] = {
       std::cout << "> Log client output: ON" << std::endl;
       wParams.log_client_output = true;
       break;
+    case Option::MYSQLD_SERVER_OPTION:
+      std::cout << optarg << std::endl;
+      add_server_options(optarg);
+      std::cout << server_options->at(0)->values[1] << std::endl;
+      break;
     default:
       if (c >= Option::MAX) {
         break;

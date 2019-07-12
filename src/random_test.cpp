@@ -21,10 +21,10 @@ static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
 
 // static bool g_is_innodb_system_encrypted = false;
 
-static int g_max_columns_length = 100;
-static int g_max_columns_in_table = 7;
+static int g_max_columns_length = 30;
+static int g_max_columns_in_table = 4;
 
-static int g_max_indexes_in_table = 3;
+static int g_max_indexes_in_table = 2;
 static int g_max_columns_in_index = 2;
 
 static int g_innodb_page_size = 16;
@@ -63,6 +63,14 @@ int sum_of_all_options() {
     if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
       continue;
     total += opt->getInt();
+  }
+  return total;
+}
+
+int sum_of_all_server_options() {
+  int total = 0;
+  for (auto &opt : *server_options) {
+    total += opt->prob;
   }
   return total;
 }
@@ -409,15 +417,11 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
     table = new Temporary_table(name + "_t");
     break;
   default:
-    std::cout << type << " << FOUND " << std::endl;
     throw std::runtime_error("Unhandle Table type");
     break;
   }
 
   table->type = type;
-
-  table->CreateDefaultColumn();
-  table->CreateDefaultIndex();
 
   if (type != TEMPORARY) {
     static auto no_encryption = opt_bool(NO_ENCRYPTION);
@@ -449,7 +453,12 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
       else
         table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
     }
+  } else {
+    table->encryption = true;
   }
+
+  table->CreateDefaultColumn();
+  table->CreateDefaultIndex();
 
   return table;
 }
@@ -484,12 +493,10 @@ std::string Table::Table_defination() {
   def.erase(def.length() - 2);
   def += " )";
 
-  if (type != TEMPORARY) {
     if (encryption)
       def += " ENCRYPTION='Y'";
-    else if (rand_int(3) == 1)
+    else if (type != TEMPORARY && rand_int(3) == 1)
       def += " ENCRYPTION='N'";
-  }
 
   if (!tablespace.empty())
     def += " TABLESPACE=" + tablespace;
@@ -507,14 +514,10 @@ std::string Table::Table_defination() {
 }
 /* create default table include all tables now */
 void create_default_tables() {
-  int no_of_tables = options->at(Option::TABLES)->getInt();
-  for (int i = 0; i < no_of_tables; i++) {
-    auto type = static_cast<TABLE_TYPES>(rand_int(TABLE_TYPES::TABLE_MAX - 2));
-    if (type == TEMPORARY)
-      throw std::runtime_error("can't create temporary table in main loop");
-    Table *t = Table::table_id(type, i);
-    // auto *n = static_cast<Partition_table *>(t);
-    all_tables->push_back(t);
+  auto tables = opt_int(TABLES);
+  for (int i = 1; i <= tables; i++) {
+    all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i));
+    all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i));
   }
 }
 
@@ -731,6 +734,20 @@ void Table::DropColumn(Thd1 *thd) {
   }
 }
 
+/* set mysqld_variable */
+void set_mysqld_variable(Thd1 *thd) {
+  static int total_probablity = sum_of_all_server_options();
+  int rd = rand_int(total_probablity);
+  for (auto &opt : *server_options) {
+    if (rd <= opt->prob) {
+      std::string sql = "SET GLOBAL " + opt->name + "=" +
+                        opt->values.at(rand_int(opt->values.size() - 1));
+      execute_sql(sql, thd);
+    }
+  }
+}
+
+/* alter tablespace set encryption */
 void alter_tablespace_encryption(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
     std::string sql = "ALTER tablespace " +
@@ -741,6 +758,7 @@ void alter_tablespace_encryption(Thd1 *thd) {
   }
 }
 
+/* alter tablespace rename */
 void alter_tablespace_rename(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
     auto tablespace = g_tablespace[rand_int(g_tablespace.size() - 1),
@@ -899,7 +917,6 @@ void create_database_tablespace(Thd1 *thd) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
     if (!load_metadata) {
-      std::cout << sql << endl;
       execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
       execute_sql("DROP TABLESPACE " + tab, thd);
       execute_sql(sql, thd);
@@ -909,7 +926,7 @@ void create_database_tablespace(Thd1 *thd) {
 
 bool run_default_load(Thd1 *thd) {
   auto engine = opt_string(ENGINE);
-  /* if engine is Innodb. based on page_size find out the */
+  /* if engine is Innodb. based o page_size find out the */
   /*
   if (engine.compare("INNODB") == 0)
     ;
@@ -958,12 +975,13 @@ void run_some_query(Thd1 *thd) {
   auto size = all_tables->size();
 
   int initial_records = opt_int(INITIAL_RECORDS_IN_TABLE);
+
   for (int i = 0; i < tt_size; i++) {
     Table *table = Table::table_id(TEMPORARY, i);
+    std::cout << "creating " << table->Table_defination() << std::endl;
     if (!execute_sql(table->Table_defination(), thd)) {
-      std::cout << "Create table failed " << table->name_ << std::endl;
-      std::cout << "check error logs  "
-                << " for more details" << std::endl;
+      cout << "Create table failed " << table->name_ << std::endl;
+      throw std::runtime_error("invalid options");
     }
     /* insert some records */
     int rec = rand_int(initial_records);
@@ -992,8 +1010,9 @@ void run_some_query(Thd1 *thd) {
                                   : all_tables->at(curr - tt_size);
 
     auto option = pick_some_option();
-    thd->thread_log << "option picked is " << options->at(option)->getName()
-                    << std::endl;
+    thd->thread_log << "option " << options->at(option)->getName() << " table "
+                    << table->name_ << std::endl;
+
     switch (option) {
     case Option::DROP_COLUMN:
       table->DropColumn(thd);
@@ -1009,6 +1028,9 @@ void run_some_query(Thd1 *thd) {
       break;
     case Option::ALTER_TABLE_ENCRYPTION:
       table->SetEncryption(thd);
+      break;
+    case Option::SET_GLOBAL_VARIABLE:
+      set_mysqld_variable(thd);
       break;
     case Option::ALTER_TABLESPACE_ENCRYPTION:
       alter_tablespace_encryption(thd);

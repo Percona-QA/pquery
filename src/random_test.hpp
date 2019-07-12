@@ -32,7 +32,6 @@
 #define opt_string(a) options->at(Option::a)->getString();
 
 /* Different table type supported by tool */
-/* TEMPORARY has to be last, becase it is not picked by create_default_tables */
 enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 /* Column Basic Properties */
 
@@ -155,12 +154,11 @@ public:
 
 int set_seed(Thd1 *thd);
 int sum_of_all_options();
+int sum_of_all_server_options();
 Option::Opt pick_some_option();
 std::vector<std::string> *random_strs_generator(unsigned long int seed);
 bool run_default_load(Thd1 *thd);
 void run_some_query(Thd1 *thd);
-void alter_tablespace_encryption(Thd1 *thd);
-void alter_tablespace_rename(Thd1 *thd);
 int save_dictionary(std::vector<Table *> *all_tables);
 std::string rand_string(int upper, int lower = 0);
 bool execute_sql(std::string sql, Thd1 *thd);
@@ -171,4 +169,7 @@ void create_default_tables();
 void clean_up_at_end();
 void create_database_tablespace(Thd1 *thd);
 Table *select_random_table();
+void alter_tablespace_encryption(Thd1 *thd);
+void alter_tablespace_rename(Thd1 *thd);
+void set_mysqld_variable(Thd1 *thd);
 #endif

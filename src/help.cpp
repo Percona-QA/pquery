@@ -3,6 +3,32 @@
 #include <iostream>
 
 Opx *options = new Opx;
+Ser_Opx *server_options = new Ser_Opx;
+
+/* Process --mso=abc=30=40 to abc,{30,40}*/
+void add_server_options(std::string str) {
+  auto found = str.find_first_of("=", 0);
+  if (found == std::string::npos)
+    throw std::runtime_error("Invalid string, " + str);
+  else {
+
+    std::string name = str.substr(0, found);
+    Server_Option *so = new Server_Option(name);
+    so->prob = 100;
+    server_options->push_back(so);
+    str = str.substr(found + 1, str.size());
+
+    found = str.find_first_of("=");
+    while (found != std::string::npos) {
+      auto val = str.substr(0, found);
+      so->values.push_back(val);
+      str = str.substr(found + 1, str.size());
+      found = str.find_first_of("=");
+    }
+    /* push the last one */
+    so->values.push_back(str);
+  }
+}
 
 /* add new options */
 inline Option *newOption(Option::Type t, Option::Opt o, std::string s) {
@@ -113,6 +139,21 @@ void add_options() {
   opt->help = "Create Table Row Format. It the row format of  table. A "
               "table can have COMPRESSED, DYNAMIC, REDUNDANT, row format. ";
   opt->setString("all");
+
+
+  /* MySQL server option */
+  opt = newOption(Option::STRING, Option::MYSQLD_SERVER_OPTION, "mso");
+  opt->help = "Variables which are set during the load, see "
+              "--set-global. N:option=V1=V2 where N is probabality of picking "
+              "option, V1 and V2 different value that is supported. "
+              "For e.g. --md=20:innodb_temp_tablespace_encrypt=on=off";
+
+  /* Set Global */
+  opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-global");
+  opt->help = "set global variable during the load";
+  opt->setInt(3);
+  opt->setSQL();
+  opt->setDDL();
 
   /*Tablespace Encrytion */
   opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION, "asepm");
@@ -301,11 +342,15 @@ void Option::print_pretty() {
   }
 }
 
-
+/* delete options and server options */
 void delete_options() {
-  for (auto &it : *options)
-    delete it;
+  for (auto &i : *options)
+    delete i;
   delete options;
+  /* delete server options */
+  for (auto &i : *server_options)
+    delete i;
+  delete server_options;
 }
 
 void show_help(Option::Opt option) {
