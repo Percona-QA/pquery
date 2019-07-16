@@ -103,9 +103,11 @@ void Node::workerThread(int number) {
 
   static bool success = false;
   if (number == 0) {
-    success = run_default_load(THD);
+    threads_create_table = 0;
+    success = load_metadata(THD);
     default_load = true;
   }
+  std::cout << "DEFAULT TABLES CREATED" << std::endl;
 
   while (!default_load) {
     std::chrono::seconds dura(3);
@@ -115,10 +117,9 @@ void Node::workerThread(int number) {
 
   if (!success)
     thread_log << " initial setup failed, check logs for details " << std::endl;
-  else if (options->at(Option::JUST_LOAD_DDL)->getBool())
-    thread_log << " --jlddl was mention exiting " << std::endl;
   else
-    run_some_query(THD);
+    run_some_query(THD, threads_create_table);
+
   delete THD;
 
   unsigned long i;

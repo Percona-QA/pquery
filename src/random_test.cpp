@@ -293,7 +293,7 @@ Table::Table(std::string n) : name_(n), indexes_(), max_pk_value_inserted(0) {
 }
 Table::Table(std::string n, int max_pk) : Table(n) {
   max_pk_value_inserted = max_pk;
-};
+}
 
 void Table::DropCreate(Thd1 *thd) {
   if (execute_sql("DROP TABLE " + name_ + ";", thd))
@@ -537,15 +537,13 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   return (res == 0 ? 1 : 0);
 }
 
-void load_default_data(Thd1 *thd) {
-  for (auto i = all_tables->begin(); i != all_tables->end(); i++) {
-    auto table = *i;
-    static int initial_records =
-        options->at(Option::INITIAL_RECORDS_IN_TABLE)->getInt();
-    int rec = rand_int(initial_records);
-    for (int i = 0; i < rec; i++) {
-      table->InsertRandomRow(thd, false);
-    }
+/* load some records in table */
+void load_default_data(Table *table, Thd1 *thd) {
+  static int initial_records =
+      options->at(Option::INITIAL_RECORDS_IN_TABLE)->getInt();
+  int rec = rand_int(initial_records);
+  for (int i = 0; i < rec; i++) {
+    table->InsertRandomRow(thd, false);
   }
 }
 
@@ -615,7 +613,7 @@ void Table::ColumnRename(Thd1 *thd) {
         col->name_ = new_name;
     }
     table_mutex.unlock();
-  };
+  }
 }
 
 void Table::DeleteRandomRow(Thd1 *thd) {
@@ -887,14 +885,13 @@ void create_database_tablespace(Thd1 *thd) {
     g_tablespace.push_back("tab64k");
   }
 
-  auto load_metadata = opt_bool(METADATA_READ);
+  auto load_from_file = opt_bool(METADATA_READ);
 
   /* drop dabase test*/
-  if (!load_metadata) {
+  if (!load_from_file) {
     execute_sql("DROP DATABASE test;", thd);
     execute_sql("CREATE DATABASE test;", thd);
   }
-  execute_sql("USE test;", thd);
 
   /* add addtional tablespace */
   auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
@@ -916,7 +913,7 @@ void create_database_tablespace(Thd1 *thd) {
     if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
-    if (!load_metadata) {
+    if (!load_from_file) {
       execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
       execute_sql("DROP TABLESPACE " + tab, thd);
       execute_sql(sql, thd);
@@ -924,72 +921,80 @@ void create_database_tablespace(Thd1 *thd) {
   }
 }
 
-bool run_default_load(Thd1 *thd) {
+/* load metadata */
+bool load_metadata(Thd1 *thd) {
   auto engine = opt_string(ENGINE);
-  /* if engine is Innodb. based o page_size find out the */
+  /* if engine is Innodb. based on page_size find out the */
   /*
   if (engine.compare("INNODB") == 0)
     ;
     */
+
+  /* Load random string from the tables */
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
   auto &logs = thd->thread_log;
   std::mt19937 rng(options->at(Option::INITIAL_SEED)->getInt());
 
-  logs << " creating defaut tables " << std::endl;
+  logs << " creating tables metadata " << std::endl;
 
-  auto load_metadata = opt_bool(METADATA_READ);
-  load_metadata == true ? load_objects_from_file() : create_default_tables();
+  auto load_from_file = opt_bool(METADATA_READ);
 
-  if (!load_metadata)
+  if (load_from_file) {
+    load_objects_from_file();
+  } else {
     create_database_tablespace(thd);
+    create_default_tables();
+  }
 
   if (options->at(Option::TABLES)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
 
-  for (auto &table : *all_tables) {
-    if (!execute_sql(table->Table_defination(), thd)) {
-      std::cout << "Create table failed " << table->name_ << std::endl;
-      std::cout << "check error logs  "
-                << " for more details" << std::endl;
-      return 0;
-    }
-  }
-
-  bool just_ddl = opt_bool(JUST_LOAD_DDL);
-  if (!just_ddl && !load_metadata)
-    load_default_data(thd);
   return 1;
 }
 
-void run_some_query(Thd1 *thd) {
+void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
+
   auto database = opt_string(DATABASE);
   execute_sql("USE " + database, thd);
 
+  static bool just_ddl = opt_bool(JUST_LOAD_DDL);
+  auto size = all_tables->size();
+  auto no_of_tables = opt_int(TABLES);
+
+  int threads = opt_int(THREADS);
+  for (auto i = thd->thread_id; i <= no_of_tables; i = i + threads) {
+    std::cout << "thread " << thd->thread_id << " using " << i << std::endl;
+    auto table = all_tables->at(i);
+    if (!execute_sql(table->Table_defination(), thd))
+      throw std::runtime_error("Create table failed " + table->name_);
+    static auto load_from_file = opt_bool(METADATA_READ);
+    if (!just_ddl && !load_from_file)
+      load_default_data(table, thd);
+  }
+
+  threads_create_table++;
+  std::atomic<int> initial_threads(threads);
+  while (initial_threads != threads_create_table) {
+    thd->thread_log << "Waiting for all threds to finish initial load "
+                    << std::endl;
+    std::chrono::seconds dura(3);
+    std::this_thread::sleep_for(dura);
+  }
+
   /* create session temporary tables */
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
-
-  auto tables = opt_int(TABLES);
-  int tt_size = rand_int(tables); // temp_table size
-
-  auto size = all_tables->size();
-
-  int initial_records = opt_int(INITIAL_RECORDS_IN_TABLE);
-
-  for (int i = 0; i < tt_size; i++) {
+  for (int i = 0; i < no_of_tables; i++) {
     Table *table = Table::table_id(TEMPORARY, i);
-    std::cout << "creating " << table->Table_defination() << std::endl;
-    if (!execute_sql(table->Table_defination(), thd)) {
-      cout << "Create table failed " << table->name_ << std::endl;
-      throw std::runtime_error("invalid options");
-    }
-    /* insert some records */
-    int rec = rand_int(initial_records);
-    for (int j = 0; j < rec; j++) {
-      table->InsertRandomRow(thd, false);
-    }
+    if (!execute_sql(table->Table_defination(), thd))
+      throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
+    if (!just_ddl)
+      load_default_data(table, thd);
   }
+
+  if (just_ddl)
+    return;
 
   auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
@@ -999,15 +1004,15 @@ void run_some_query(Thd1 *thd) {
   /* set seed for current thread */
   std::mt19937 rng(set_seed(thd));
 
-  int total_size = size + tt_size;
+  int total_size = size + no_of_tables;
   /* combine all_tables with temp_tables */
 
   while (std::chrono::system_clock::now() < end) {
 
     auto curr = rand_int(total_size - 1);
 
-    auto table = (curr < tt_size) ? all_temp_tables->at(curr)
-                                  : all_tables->at(curr - tt_size);
+    auto table = (curr < no_of_tables) ? all_temp_tables->at(curr)
+                                       : all_tables->at(curr - no_of_tables);
 
     auto option = pick_some_option();
     thd->thread_log << "option " << options->at(option)->getName() << " table "

@@ -83,5 +83,6 @@ private:
 
 public:
   std::atomic<bool> default_load;
+  std::atomic<int> threads_create_table;
 };
 #endif
