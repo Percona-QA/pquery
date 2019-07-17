@@ -976,14 +976,6 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       load_default_data(table, thd);
   }
 
-  threads_create_table++;
-  std::atomic<int> initial_threads(threads);
-  while (initial_threads != threads_create_table) {
-    thd->thread_log << "Waiting for all threds to finish initial load "
-                    << std::endl;
-    std::chrono::seconds dura(3);
-    std::this_thread::sleep_for(dura);
-  }
 
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
@@ -995,6 +987,15 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
     all_temp_tables->push_back(table);
     if (!just_ddl)
       load_default_data(table, thd);
+  }
+
+  threads_create_table++;
+  std::atomic<int> initial_threads(threads);
+  while (initial_threads != threads_create_table) {
+    thd->thread_log << "Waiting for all threds to finish initial load "
+                    << std::endl;
+    std::chrono::seconds dura(3);
+    std::this_thread::sleep_for(dura);
   }
 
   if (just_ddl)
