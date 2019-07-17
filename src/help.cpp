@@ -112,6 +112,12 @@ void add_options() {
   opt->help = "Number of initial tables";
   opt->setInt(10);
 
+  /* Only Temporary tables */
+  opt = newOption(Option::BOOL, Option::ONLY_TEMPORARY, "only-temp-tables");
+  opt->help = "Work only on tempoary tables";
+  opt->setArgs(no_argument);
+  opt->setBool(false);
+
   /* Initial Records in table */
   opt = newOption(Option::INT, Option::INITIAL_RECORDS_IN_TABLE, "records");
   opt->help = "Number of initial records in table";

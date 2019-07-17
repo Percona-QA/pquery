@@ -515,9 +515,12 @@ std::string Table::Table_defination() {
 /* create default table include all tables now */
 void create_default_tables() {
   auto tables = opt_int(TABLES);
-  for (int i = 1; i <= tables; i++) {
-    all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i));
-    all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i));
+  auto only_temporary_tables = opt_bool(ONLY_TEMPORARY);
+  if (!only_temporary_tables) {
+    for (int i = 1; i <= tables; i++) {
+      all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i));
+      all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i));
+    }
   }
 }
 
@@ -961,7 +964,6 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
   std::cout << "Total size is " << size << std::endl;
-  auto no_of_tables = opt_int(TABLES);
 
   int threads = opt_int(THREADS);
   for (size_t i = thd->thread_id; i < size; i = i + threads) {
@@ -984,6 +986,7 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   }
 
   /* create session temporary tables */
+  auto no_of_tables = opt_int(TABLES);
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
   for (int i = 0; i < no_of_tables; i++) {
     Table *table = Table::table_id(TEMPORARY, i);
