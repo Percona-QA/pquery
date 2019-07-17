@@ -960,10 +960,11 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
+  std::cout << "Total size is " << size << std::endl;
   auto no_of_tables = opt_int(TABLES);
 
   int threads = opt_int(THREADS);
-  for (auto i = thd->thread_id; i <= no_of_tables; i = i + threads) {
+  for (size_t i = thd->thread_id; i < size; i = i + threads) {
     std::cout << "thread " << thd->thread_id << " using " << i << std::endl;
     auto table = all_tables->at(i);
     if (!execute_sql(table->Table_defination(), thd))
