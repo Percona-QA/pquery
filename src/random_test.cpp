@@ -6,11 +6,6 @@ using namespace rapidjson;
 using namespace std;
 std::mt19937 rng;
 
-/*aPRIMARY has to be in last */
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
-const std::string column_type[] = {"INT", "CHAR", "VARCHAR",
-                                   "INT PRIMARY KEY AUTO_INCREMENT"};
-
 const std::string partition_string = "_p";
 const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
@@ -30,6 +25,38 @@ static int g_max_columns_in_index = 2;
 static int g_innodb_page_size = 16;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
+
+/* return column type from a string */
+COLUMN_TYPES col_type(std::string type) {
+  if (type.compare("INT") == 0)
+    return INT;
+  else if (type.compare("CHAR") == 0)
+    return CHAR;
+  else if (type.compare("VARCHAR") == 0)
+    return VARCHAR;
+  //  else if (type.compare("BOOL") == 0)
+  //   return BOOL;
+  else
+    throw std::runtime_error("unhandled column from string");
+}
+
+/* return string from a column type */
+std::string col_type(COLUMN_TYPES type) {
+  switch (type) {
+  case INT:
+    return "INT";
+  case CHAR:
+    return "CHAR";
+  case VARCHAR:
+    return "VARCHAR";
+  case PRIMARY:
+    return "INT PRIMARY KEY";
+    // case BOOL:
+    //  return "BOOL";
+  default:
+    throw std::runtime_error("unhandled column from column_types");
+  }
+}
 
 int sum_of_all_options() {
 
@@ -173,15 +200,10 @@ Column::Column(std::string name, Table *table) : name_(name), table_(table) {}
 Column::Column(std::string name, std::string type, bool is_null, int len,
                Table *table)
     : name_(name), null(is_null), length(len), table_(table) {
-  for (int i = 0; i < COLUMN_TYPES::MAX; i++) {
-    if (type.compare(column_type[i]) == 0) {
-      type_ = i;
-      break;
-    }
-  }
+  type_ = col_type(type);
 }
 
-Column::Column(std::string name, Table *table, int type)
+Column::Column(std::string name, Table *table, COLUMN_TYPES type)
     : name_(name), type_(type), table_(table) {
   switch (type) {
   case (COLUMN_TYPES::INT):
@@ -194,6 +216,13 @@ Column::Column(std::string name, Table *table, int type)
   case (COLUMN_TYPES::CHAR):
     length = rand_int(g_max_columns_length, 10);
     break;
+  case (COLUMN_TYPES::PRIMARY):
+    break;
+
+  // break;
+  default:
+    std::cout << type << std::endl;
+    throw std::runtime_error("Unhandled new column");
   }
 }
 
@@ -202,9 +231,9 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.String("name");
   writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
   writer.String("type");
-  writer.String(column_type[type_].c_str(),
-                static_cast<SizeType>(column_type[type_].length()));
-  writer.String("null");
+  std::string typ = col_type(type_);
+  writer.String(typ.c_str(), static_cast<SizeType>(typ.length()));
+  writer.String("nll");
   writer.Bool(null);
   writer.String("primary_key");
   writer.Bool(primary_key);
@@ -351,23 +380,42 @@ Table::~Table() {
 /* create default column */
 void Table::CreateDefaultColumn() {
 
+  /* create normal column */
   auto max_columns = rand_int(g_max_columns_in_table, 1);
   for (int i = 0; i < max_columns; i++) {
     std::string name;
-    int type;
+    COLUMN_TYPES type;
     /*  if we need to create primary column */
     static int pkey_pb_per_table = opt_int(PRIMARY_KEY);
+    /* First column can be primary */
     if (i == 0 && rand_int(100) < pkey_pb_per_table) {
       type = COLUMN_TYPES::PRIMARY;
       name = "pkey";
       has_pk = true;
     } else {
       name = "c" + std::to_string(i);
-      type = rand_int(COLUMN_TYPES::MAX - 2); // DON"T PICK Serial
+      auto t = rand_int(COLUMN_TYPES::MAX - 2);
+      std::cout << "value of t " << t << std::endl;
+      switch (t) {
+      case COLUMN_TYPES::CHAR:
+        type = CHAR;
+        break;
+      case COLUMN_TYPES::VARCHAR:
+        type = VARCHAR;
+      case COLUMN_TYPES::INT:
+        type = INT;
+        break;
+      case COLUMN_TYPES::PRIMARY:
+        throw std::runtime_error("Unhandle Table type");
+        break;
+      }
     }
     Column *col = new Column{name, this, type};
     AddInternalColumn(col);
   }
+
+  /* create some generated columns */
+  // std::string name = "g" + to_string(1);
 }
 
 /* create default indexes */
@@ -393,7 +441,7 @@ void Table::CreateDefaultIndex() {
         if (--columns == 0)
           break;
       }
-    }
+          }
 
     /* make sure it has  atleast one column */
     if (columns == max_columns)
@@ -454,7 +502,7 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
         table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
     }
   } else {
-    table->encryption = true;
+    table->encryption = false;
   }
 
   table->CreateDefaultColumn();
@@ -472,7 +520,7 @@ std::string Table::Table_defination() {
 
   // todo move to method
   for (auto col : *columns_) {
-    def += " " + col->name_ + " " + column_type[col->type_];
+    def += " " + col->name_ + " " + col_type(col->type_);
     if (col->length > 0)
       def += "(" + std::to_string(col->length) + ")";
     if (col->null)
@@ -564,16 +612,22 @@ void Table::SetEncryption(Thd1 *thd) {
   }
 }
 
-/* alter table add column */
+/* alter table add random column */
 void Table::AddColumn(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
   std::string name;
   name = "COL" + std::to_string(rand_int(300));
+  COLUMN_TYPES typ;
+  switch (rand_int(COLUMN_TYPES::MAX - 2)) {
+  case INT:
+    typ = INT;
+    break;
+  default:
+    throw std::runtime_error("Unhandled column");
+  }
 
-  auto col = rand_int(COLUMN_TYPES::MAX - 2);
-  Column *tc = new Column(name, this, col);
-
-  sql += name + " " + column_type[tc->type_];
+  Column *tc = new Column(name, this, typ);
+  sql += name + " " + col_type(typ);
   if (tc->length > 0)
     sql += "(" + std::to_string(tc->length) + ")";
 
@@ -741,8 +795,9 @@ void set_mysqld_variable(Thd1 *thd) {
   int rd = rand_int(total_probablity);
   for (auto &opt : *server_options) {
     if (rd <= opt->prob) {
-      std::string sql = "SET GLOBAL " + opt->name + "=" +
-                        opt->values.at(rand_int(opt->values.size() - 1));
+      std::string sql = "SET ";
+      sql = rand_int(3) == 0 ? " SESSION " : " GLOBAL ";
+      sql += opt->name + "=" + opt->values.at(rand_int(opt->values.size() - 1));
       execute_sql(sql, thd);
     }
   }
@@ -751,10 +806,10 @@ void set_mysqld_variable(Thd1 *thd) {
 /* alter tablespace set encryption */
 void alter_tablespace_encryption(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
-    std::string sql = "ALTER tablespace " +
+    std::string sql = "ALTER TABLESPACE " +
                       g_tablespace[rand_int(g_tablespace.size() - 1)] +
                       " ENCRYPTION ";
-    sql += (rand_int(1) == 0 ? "'y'" : "'n'");
+    sql += (rand_int(1) == 0 ? "'Y'" : "'N'");
     execute_sql(sql, thd);
   }
 }
@@ -766,9 +821,9 @@ void alter_tablespace_rename(Thd1 *thd) {
                                    1]; // don't pick innodb_system;
     std::string sql = "ALTER tablespace " + tablespace;
     if (rand_int(1) == 0)
-      sql += "_rename  rename to " + tablespace + ";";
+      sql += "_rename  RENAME TO " + tablespace + ";";
     else
-      sql += " rename to " + tablespace + "_rename;";
+      sql += " RENAME TO " + tablespace + "_rename;";
     execute_sql(sql, thd);
   }
 }
@@ -963,11 +1018,10 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
-  std::cout << "Total size is " << size << std::endl;
 
+  /* create tables in all threads */
   int threads = opt_int(THREADS);
   for (size_t i = thd->thread_id; i < size; i = i + threads) {
-    std::cout << "thread " << thd->thread_id << " using " << i << std::endl;
     auto table = all_tables->at(i);
     if (!execute_sql(table->Table_defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);

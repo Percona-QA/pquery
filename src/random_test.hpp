@@ -35,6 +35,8 @@
 enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 /* Column Basic Properties */
 
+/*PRIMARY has to be in last */
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
 
 int rand_int(int upper, int lower = 0);
 
@@ -44,17 +46,19 @@ struct Column {
   Column(std::string name, Table *table);
   Column(std::string name, std::string type, bool is_null, int len,
          Table *table);
-  Column(std::string name, Table *table, int type);
+  Column(std::string name, Table *table, COLUMN_TYPES type);
   Column(const Column &column);
   std::string rand_value();
   template <typename Writer> void Serialize(Writer &writer) const;
   std::string name_;
-  int type_;
+  COLUMN_TYPES type_;
   bool null = false;
   int length = 0;
   std::string default_value;
-  bool primary_key = false;
-  bool generated = false;
+  bool primary_key = false; // if this column is primary key
+  bool generated = false; // is it a virtual column
+  bool stored = false;    // if it is stored column
+  std::string clause;     // clause of generated column
   Table *table_;
 };
 
@@ -172,4 +176,9 @@ Table *select_random_table();
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 void set_mysqld_variable(Thd1 *thd);
+/* return column type from a string */
+COLUMN_TYPES col_type(std::string type);
+/* return string from a column type */
+std::string col_type(COLUMN_TYPES type);
+
 #endif
