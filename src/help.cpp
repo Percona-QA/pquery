@@ -112,6 +112,18 @@ void add_options() {
   opt->help = "Number of initial tables";
   opt->setInt(10);
 
+  /* autoinc column */
+  opt = newOption(Option::BOOL, Option::NO_AUTO_INC, "no-auto-inc");
+  opt->help = "Disable auto inc columns in table, including pkey";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* desc index support */
+  opt = newOption(Option::BOOL, Option::NO_DESC_INDEX, "no-desc-index");
+  opt->help = "Disable index with desc on tables ";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* Only Temporary tables */
   opt = newOption(Option::BOOL, Option::ONLY_TEMPORARY, "only-temp-tables");
   opt->help = "Work only on tempoary tables";

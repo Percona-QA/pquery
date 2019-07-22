@@ -25,6 +25,7 @@
 #define MIN_SEED_SIZE 10000
 #define MAX_SEED_SIZE 100000
 #define MAX_RANDOM_STRING_SIZE 32
+#define DESC_INDEXES_IN_COLUMN 34
 
 #define opt_int(a) options->at(Option::a)->getInt();
 #define opt_int_set(a, b) options->at(Option::a)->setInt(b);
@@ -35,18 +36,17 @@
 enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 /* Column Basic Properties */
 
-/*PRIMARY has to be in last */
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, PRIMARY, MAX };
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, COLUMN_MAX };
 
 int rand_int(int upper, int lower = 0);
 
 struct Table;
 
 struct Column {
-  Column(std::string name, Table *table);
+  Column(std::string name, Table *table,
+         int type); // type is cast into COLUMN_TYPES
   Column(std::string name, std::string type, bool is_null, int len,
          Table *table);
-  Column(std::string name, Table *table, COLUMN_TYPES type);
   Column(const Column &column);
   std::string rand_value();
   template <typename Writer> void Serialize(Writer &writer) const;
@@ -58,6 +58,7 @@ struct Column {
   bool primary_key = false; // if this column is primary key
   bool generated = false; // is it a virtual column
   bool stored = false;    // if it is stored column
+  bool auto_increment = false; // if it is auto increment column
   std::string clause;     // clause of generated column
   Table *table_;
 };

@@ -49,8 +49,6 @@ std::string col_type(COLUMN_TYPES type) {
     return "CHAR";
   case VARCHAR:
     return "VARCHAR";
-  case PRIMARY:
-    return "INT PRIMARY KEY";
     // case BOOL:
     //  return "BOOL";
   default:
@@ -119,14 +117,12 @@ Option::Opt pick_some_option() {
 
 /* set seed of current thread */
 int set_seed(Thd1 *thd) {
-  auto initial_seed = options->at(Option::INITIAL_SEED)->getInt();
+  auto initial_seed = opt_int(INITIAL_SEED);
+  rng = std::mt19937(initial_seed);
   thd->thread_log << "Initial seed " << initial_seed;
-  std::default_random_engine rng(initial_seed);
-  std::uniform_int_distribution<std::mt19937::result_type> dis(MIN_SEED_SIZE,
-                                                               MAX_SEED_SIZE);
   for (int i = 0; i < thd->thread_id; i++)
-    dis(rng);
-  thd->seed = dis(rng);
+    rand_int(MIN_SEED_SIZE, MAX_SEED_SIZE);
+  thd->seed = rand_int(MAX_SEED_SIZE, MIN_SEED_SIZE);
   thd->thread_log << "CURRENT SEED IS " << thd->seed << std::endl;
   return thd->seed;
 }
@@ -189,41 +185,42 @@ std::string rand_string(int upper, int lower) {
 
 /* return random value of any string */
 std::string Column::rand_value() {
-  if (type_ == COLUMN_TYPES::INT)
-    return std::to_string(rand_int(100, 4));
-  else
+  if (type_ == COLUMN_TYPES::INT) {
+    static auto rec = 100 * opt_int(INITIAL_RECORDS_IN_TABLE);
+    return std::to_string(rand_int(rec, 4));
+  } else
     return "\'" + rand_string(length) + "\'";
 }
 
-Column::Column(std::string name, Table *table) : name_(name), table_(table) {}
-
-Column::Column(std::string name, std::string type, bool is_null, int len,
-               Table *table)
-    : name_(name), null(is_null), length(len), table_(table) {
-  type_ = col_type(type);
-}
-
-Column::Column(std::string name, Table *table, COLUMN_TYPES type)
-    : name_(name), type_(type), table_(table) {
+/* add new column, can be part of create table or Alter table */
+Column::Column(std::string name, Table *table, int type)
+    : name_(name), table_(table) {
   switch (type) {
-  case (COLUMN_TYPES::INT):
+  case COLUMN_TYPES::CHAR:
+    type_ = CHAR;
+    length = rand_int(g_max_columns_length, 10);
+    break;
+  case COLUMN_TYPES::VARCHAR:
+    type_ = VARCHAR;
+    length = rand_int(g_max_columns_length, 10);
+    break;
+  case COLUMN_TYPES::INT:
+    type_ = INT;
     if (rand_int(10) == 1)
       length = rand_int(100, 20);
     else
       length = 0;
     break;
-  case (COLUMN_TYPES::VARCHAR):
-  case (COLUMN_TYPES::CHAR):
-    length = rand_int(g_max_columns_length, 10);
-    break;
-  case (COLUMN_TYPES::PRIMARY):
-    break;
-
-  // break;
   default:
-    std::cout << type << std::endl;
-    throw std::runtime_error("Unhandled new column");
+    throw std::runtime_error("unhandled column found in create table");
   }
+}
+
+/* used to read metadata */
+Column::Column(std::string name, std::string type, bool is_null, int len,
+               Table *table)
+    : name_(name), null(is_null), length(len), table_(table) {
+  type_ = col_type(type);
 }
 
 template <typename Writer> void Column::Serialize(Writer &writer) const {
@@ -237,6 +234,8 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.Bool(null);
   writer.String("primary_key");
   writer.Bool(primary_key);
+  writer.String("auto_increment");
+  writer.Bool(auto_increment);
   writer.String("generated");
   writer.Bool(generated);
   writer.String("lenght");
@@ -379,38 +378,42 @@ Table::~Table() {
 
 /* create default column */
 void Table::CreateDefaultColumn() {
+  auto no_auto_inc = opt_bool(NO_AUTO_INC);
 
   /* create normal column */
   auto max_columns = rand_int(g_max_columns_in_table, 1);
+  bool auto_increment = false;
   for (int i = 0; i < max_columns; i++) {
     std::string name;
     COLUMN_TYPES type;
+    Column *col;
     /*  if we need to create primary column */
     static int pkey_pb_per_table = opt_int(PRIMARY_KEY);
+
     /* First column can be primary */
     if (i == 0 && rand_int(100) < pkey_pb_per_table) {
-      type = COLUMN_TYPES::PRIMARY;
+      type = COLUMN_TYPES::INT;
       name = "pkey";
       has_pk = true;
+      col = new Column{name, this, type};
+      col->primary_key = true;
+      if (!no_auto_inc &&
+          rand_int(3) < 3) { /* 75% of primary key tables are autoinc */
+        col->auto_increment = true;
+        auto_increment = true;
+      }
+
     } else {
       name = "c" + std::to_string(i);
-      auto t = rand_int(COLUMN_TYPES::MAX - 2);
-      std::cout << "value of t " << t << std::endl;
-      switch (t) {
-      case COLUMN_TYPES::CHAR:
-        type = CHAR;
-        break;
-      case COLUMN_TYPES::VARCHAR:
-        type = VARCHAR;
-      case COLUMN_TYPES::INT:
-        type = INT;
-        break;
-      case COLUMN_TYPES::PRIMARY:
-        throw std::runtime_error("Unhandle Table type");
-        break;
+      auto t = rand_int(COLUMN_TYPES::COLUMN_MAX - 1);
+      col = new Column{name, this, t};
+      /* 25% column can have auto_inc */
+      if (col->type_ == INT && !no_auto_inc && auto_increment == false &&
+          rand_int(100) > 25) {
+        col->auto_increment = true;
+        auto_increment = true;
       }
     }
-    Column *col = new Column{name, this, type};
     AddInternalColumn(col);
   }
 
@@ -421,6 +424,8 @@ void Table::CreateDefaultColumn() {
 /* create default indexes */
 void Table::CreateDefaultIndex() {
 
+  /* check if auto incremente column is added */
+  bool auto_inc = false;
   int indexes = rand_int(g_max_indexes_in_table, 1);
   for (int i = 0; i < indexes; i++) {
 
@@ -434,14 +439,21 @@ void Table::CreateDefaultIndex() {
       if (rand_int(3) > 1)
         continue;
       else {
-        if (rand_int(2) == 0)
-          id->AddInternalColumn(new Ind_col(col)); // desc is set false
-        else
-          id->AddInternalColumn(new Ind_col(col, true)); // desc is set as true
+        if (!auto_inc && col->auto_increment)
+          auto_inc = true;
+        static bool no_desc_support = opt_bool(NO_DESC_INDEX);
+        bool column_desc = false;
+        if (!no_desc_support) {
+          column_desc = rand_int(100) < DESC_INDEXES_IN_COLUMN
+                            ? true
+                            : false; // 33 % are desc //
+        }
+        id->AddInternalColumn(
+            new Ind_col(col, column_desc)); // desc is set as true
         if (--columns == 0)
           break;
       }
-          }
+    }
 
     /* make sure it has  atleast one column */
     if (columns == max_columns)
@@ -513,7 +525,7 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
 
 /* prepare table defination */
 std::string Table::Table_defination() {
-  std::string def = "CREATE ";
+  std::string def = "CREATE";
   if (type == TABLE_TYPES::TEMPORARY)
     def += " TEMPORARY";
   def += " TABLE  " + name_ + " (";
@@ -525,7 +537,20 @@ std::string Table::Table_defination() {
       def += "(" + std::to_string(col->length) + ")";
     if (col->null)
       def += " NOT NULL";
+    if (col->auto_increment)
+      def += " AUTO_INCREMENT";
     def += ", ";
+  }
+
+  /* add primary key */
+  if (has_pk) {
+    def += " PRiMARY KEY(";
+    for (auto col : *columns_) {
+      if (col->primary_key)
+        def += col->name_ + ", ";
+    }
+    def.erase(def.length() - 2);
+    def += "), ";
   }
 
   for (auto id : *indexes_) {
@@ -541,10 +566,10 @@ std::string Table::Table_defination() {
   def.erase(def.length() - 2);
   def += " )";
 
-    if (encryption)
-      def += " ENCRYPTION='Y'";
-    else if (type != TEMPORARY && rand_int(3) == 1)
-      def += " ENCRYPTION='N'";
+  if (encryption)
+    def += " ENCRYPTION='Y'";
+  else if (type != TEMPORARY && rand_int(3) == 1)
+    def += " ENCRYPTION='N'";
 
   if (!tablespace.empty())
     def += " TABLESPACE=" + tablespace;
@@ -567,7 +592,9 @@ void create_default_tables() {
   if (!only_temporary_tables) {
     for (int i = 1; i <= tables; i++) {
       all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i));
+      std::cout << all_tables->back()->Table_defination() << std::endl;
       all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i));
+      std::cout << all_tables->back()->Table_defination() << std::endl;
     }
   }
 }
@@ -617,17 +644,9 @@ void Table::AddColumn(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
   std::string name;
   name = "COL" + std::to_string(rand_int(300));
-  COLUMN_TYPES typ;
-  switch (rand_int(COLUMN_TYPES::MAX - 2)) {
-  case INT:
-    typ = INT;
-    break;
-  default:
-    throw std::runtime_error("Unhandled column");
-  }
-
-  Column *tc = new Column(name, this, typ);
-  sql += name + " " + col_type(typ);
+  auto type = rand_int(COLUMN_TYPES::COLUMN_MAX - 1);
+  Column *tc = new Column(name, this, type);
+  sql += name + " " + col_type(tc->type_);
   if (tc->length > 0)
     sql += "(" + std::to_string(tc->length) + ")";
 
@@ -713,8 +732,6 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   std::string vals = "";
   std::string insert = "INSERT INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
-    if (column->type_ == COLUMN_TYPES::PRIMARY)
-      continue;
     insert += column->name_ + " ,";
     vals += " " + column->rand_value() + ",";
   }
@@ -886,6 +903,8 @@ void load_objects_from_file() {
       Column *a =
           new Column(col["name"].GetString(), col["type"].GetString(),
                      col["null"].GetBool(), col["lenght"].GetInt(), table);
+      a->auto_increment = col["auto_increment"].GetBool();
+      a->generated = col["generated"].GetBool();
       table->AddInternalColumn(a);
     }
 
@@ -992,7 +1011,10 @@ bool load_metadata(Thd1 *thd) {
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
   auto &logs = thd->thread_log;
-  std::mt19937 rng(options->at(Option::INITIAL_SEED)->getInt());
+
+  /*set seed for current thread*/
+  auto initial_seed = opt_int(INITIAL_SEED);
+  rng = std::mt19937(initial_seed);
 
   logs << " creating tables metadata " << std::endl;
 
@@ -1030,7 +1052,6 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       load_default_data(table, thd);
   }
 
-
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
@@ -1061,7 +1082,9 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       std::chrono::system_clock::time_point(begin + std::chrono::seconds(sec));
 
   /* set seed for current thread */
-  std::mt19937 rng(set_seed(thd));
+  rng = std::mt19937(set_seed(thd));
+  thd->thread_log << thd->thread_id << " value of rand_int(100) "
+                  << rand_int(100) << std::endl;
 
   int total_size = size + no_of_tables;
   /* combine all_tables with temp_tables */
