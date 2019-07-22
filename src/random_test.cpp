@@ -436,7 +436,8 @@ void Table::CreateDefaultIndex() {
     int columns = max_columns;
 
     for (auto *col : *columns_) {
-      if (rand_int(3) > 1)
+      if (rand_int(3) > 1 && i != indexes - 1 && auto_inc == false &&
+          col->auto_increment == false)
         continue;
       else {
         if (!auto_inc && col->auto_increment)
@@ -456,8 +457,11 @@ void Table::CreateDefaultIndex() {
     }
 
     /* make sure it has  atleast one column */
-    if (columns == max_columns)
-      id->AddInternalColumn(new Ind_col(columns_->at(0)));
+    if (columns == max_columns) {
+      id->AddInternalColumn(
+          new Ind_col(columns_->at(rand_int(columns_->size() - 1))));
+    }
+
     AddInternalIndex(id);
   }
 }
@@ -644,7 +648,9 @@ void Table::AddColumn(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
   std::string name;
   name = "COL" + std::to_string(rand_int(300));
+  /* choose which column to add */
   auto type = rand_int(COLUMN_TYPES::COLUMN_MAX - 1);
+
   Column *tc = new Column(name, this, type);
   sql += name + " " + col_type(tc->type_);
   if (tc->length > 0)
