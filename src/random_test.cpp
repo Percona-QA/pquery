@@ -17,11 +17,6 @@ static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
 // static bool g_is_innodb_system_encrypted = false;
 
 static int g_max_columns_length = 30;
-static int g_max_columns_in_table = 4;
-
-static int g_max_indexes_in_table = 2;
-static int g_max_columns_in_index = 2;
-
 static int g_innodb_page_size = 16;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
@@ -187,6 +182,8 @@ std::string rand_string(int upper, int lower) {
 std::string Column::rand_value() {
   if (type_ == COLUMN_TYPES::INT) {
     static auto rec = 100 * opt_int(INITIAL_RECORDS_IN_TABLE);
+    if (auto_increment == true && rand_int(100) < 10)
+      return "NULL";
     return std::to_string(rand_int(rec, 4));
   } else
     return "\'" + rand_string(length) + "\'";
@@ -381,7 +378,8 @@ void Table::CreateDefaultColumn() {
   auto no_auto_inc = opt_bool(NO_AUTO_INC);
 
   /* create normal column */
-  auto max_columns = rand_int(g_max_columns_in_table, 1);
+  static auto max_col = opt_int(COLUMNS);
+  auto max_columns = rand_int(max_col, 1);
   bool auto_increment = false;
   for (int i = 0; i < max_columns; i++) {
     std::string name;
@@ -423,45 +421,71 @@ void Table::CreateDefaultColumn() {
 
 /* create default indexes */
 void Table::CreateDefaultIndex() {
+  int auto_inc_col = -1;
 
-  /* check if auto incremente column is added */
-  bool auto_inc = false;
-  int indexes = rand_int(g_max_indexes_in_table, 1);
+  /* number of index we are adding */
+  int max_indexes = opt_int(INDEXES);
+  if (max_indexes > (int)columns_->size())
+    max_indexes = columns_->size();
+  int indexes = rand_int(max_indexes, 1);
+
+  /* for auto-inc columns handling, we need to  add auto_inc  as first column */
+  for (size_t i = 0; i < columns_->size(); i++) {
+    if (columns_->at(i)->auto_increment) {
+      std::cout << "auto inc column position " << i << std::endl;
+      auto_inc_col = i;
+    }
+  }
+  int auto_inc_index = rand_int(indexes, 1);
+
+  std::cout << "adding to  table " << name_ << " " << auto_inc_index
+            << std::endl;
+
   for (int i = 0; i < indexes; i++) {
-
     Index *id = new Index(name_ + "i" + std::to_string(i));
 
-    int max_columns = rand_int(g_max_columns_in_index, 1);
+    /* number of columns we are adding in index */
+    size_t max_columns = opt_int(INDEX_COLUMNS);
+    if (max_columns > columns_->size())
+      max_columns = columns_->size();
+    int columns = rand_int(max_columns, 1);
 
-    int columns = max_columns;
+    std::vector<int> col_pos; // position of columns
 
-    for (auto *col : *columns_) {
-      if (rand_int(3) > 1 && i != indexes - 1 && auto_inc == false &&
-          col->auto_increment == false)
+    while (col_pos.size() < (size_t)columns) {
+      std::cout << "Moving to " << auto_inc_col << std::endl;
+      int current = rand_int(columns - 1);
+      bool flag = false;
+
+      /* if auto-inc column */
+      if (auto_inc_col != -1 && auto_inc_index == i + 1 &&
+          col_pos.size() == 0) {
+        col_pos.push_back(auto_inc_col);
         continue;
-      else {
-        if (!auto_inc && col->auto_increment)
-          auto_inc = true;
-        static bool no_desc_support = opt_bool(NO_DESC_INDEX);
-        bool column_desc = false;
-        if (!no_desc_support) {
-          column_desc = rand_int(100) < DESC_INDEXES_IN_COLUMN
-                            ? true
-                            : false; // 33 % are desc //
-        }
-        id->AddInternalColumn(
-            new Ind_col(col, column_desc)); // desc is set as true
-        if (--columns == 0)
-          break;
       }
+
+      for (auto id : col_pos) {
+        if (id == current) {
+          flag = true;
+          break;
+        }
+      }
+      if (flag == false)
+        col_pos.push_back(current);
     }
 
-    /* make sure it has  atleast one column */
-    if (columns == max_columns) {
+    for (auto pos : col_pos) {
+      auto col = columns_->at(pos);
+      static bool no_desc_support = opt_bool(NO_DESC_INDEX);
+      bool column_desc = false;
+      if (!no_desc_support) {
+        column_desc = rand_int(100) < DESC_INDEXES_IN_COLUMN
+                          ? true
+                          : false; // 33 % are desc //
+      }
       id->AddInternalColumn(
-          new Ind_col(columns_->at(rand_int(columns_->size() - 1))));
+          new Ind_col(col, column_desc)); // desc is set as true
     }
-
     AddInternalIndex(id);
   }
 }
@@ -596,9 +620,7 @@ void create_default_tables() {
   if (!only_temporary_tables) {
     for (int i = 1; i <= tables; i++) {
       all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i));
-      std::cout << all_tables->back()->Table_defination() << std::endl;
       all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i));
-      std::cout << all_tables->back()->Table_defination() << std::endl;
     }
   }
 }

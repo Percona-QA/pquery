@@ -112,6 +112,23 @@ void add_options() {
   opt->help = "Number of initial tables";
   opt->setInt(10);
 
+  /* Number of indexes in a table */
+  opt = newOption(Option::INT, Option::INDEXES, "indexes");
+  opt->help = "maximum indexes in a table,default depends on page-size as well";
+  opt->setInt(7);
+
+  /* Number of columns in a table */
+  opt = newOption(Option::INT, Option::COLUMNS, "columns");
+  opt->help =
+      "maximum columns in a table, default depends on page-size as well";
+  opt->setInt(10);
+
+  /* Number of columns in an index of a table */
+  opt = newOption(Option::INT, Option::INDEX_COLUMNS, "index-columns");
+  opt->help = "maximum columns in an index of a table, default depends on "
+              "page-size as well";
+  opt->setInt(10);
+
   /* autoinc column */
   opt = newOption(Option::BOOL, Option::NO_AUTO_INC, "no-auto-inc");
   opt->help = "Disable auto inc columns in table, including pkey";
