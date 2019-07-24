@@ -13,6 +13,7 @@ static std::vector<std::string> g_row_format = {"COMPRESSED", "DYNAMIC",
                                                 "REDUNDANT"};
 static std::vector<std::string> g_tablespace;
 static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
+std::mutex Thd1::ddl_logs_write;
 
 // static bool g_is_innodb_system_encrypted = false;
 
@@ -432,14 +433,11 @@ void Table::CreateDefaultIndex() {
   /* for auto-inc columns handling, we need to  add auto_inc  as first column */
   for (size_t i = 0; i < columns_->size(); i++) {
     if (columns_->at(i)->auto_increment) {
-      std::cout << "auto inc column position " << i << std::endl;
       auto_inc_col = i;
     }
   }
   int auto_inc_index = rand_int(indexes, 1);
 
-  std::cout << "adding to  table " << name_ << " " << auto_inc_index
-            << std::endl;
 
   for (int i = 0; i < indexes; i++) {
     Index *id = new Index(name_ + "i" + std::to_string(i));
@@ -453,11 +451,10 @@ void Table::CreateDefaultIndex() {
     std::vector<int> col_pos; // position of columns
 
     while (col_pos.size() < (size_t)columns) {
-      std::cout << "Moving to " << auto_inc_col << std::endl;
       int current = rand_int(columns - 1);
       bool flag = false;
 
-      /* if auto-inc column */
+      /* auto-inc column should be part of  */
       if (auto_inc_col != -1 && auto_inc_index == i + 1 &&
           col_pos.size() == 0) {
         col_pos.push_back(auto_inc_col);
@@ -630,6 +627,12 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   sql += ";";
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
+
+  if (thd->ddl_query) {
+    thd->ddl_logs_write.lock();
+    thd->ddl_logs << thd->thread_id << " " << sql << std::endl;
+    thd->ddl_logs_write.unlock();
+  }
   if (res == 1) {
     thd->thread_log << "Query => " << sql << std::endl;
     thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
@@ -1073,23 +1076,29 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   int threads = opt_int(THREADS);
   for (size_t i = thd->thread_id; i < size; i = i + threads) {
     auto table = all_tables->at(i);
+    thd->ddl_query = true;
     if (!execute_sql(table->Table_defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     static auto load_from_file = opt_bool(METADATA_READ);
-    if (!just_ddl && !load_from_file)
+    if (!just_ddl && !load_from_file) {
+      thd->ddl_query = false;
       load_default_data(table, thd);
+    }
   }
 
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
   for (int i = 0; i < no_of_tables; i++) {
+    thd->ddl_query = true;
     Table *table = Table::table_id(TEMPORARY, i);
     if (!execute_sql(table->Table_defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
-    if (!just_ddl)
+    if (!just_ddl) {
+      thd->ddl_query = false;
       load_default_data(table, thd);
+    }
   }
 
   threads_create_table++;
@@ -1127,6 +1136,8 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
     auto option = pick_some_option();
     thd->thread_log << "option " << options->at(option)->getName() << " table "
                     << table->name_ << std::endl;
+
+    thd->ddl_query = options->at(option)->ddl == true ? true : false;
 
     switch (option) {
     case Option::DROP_COLUMN:

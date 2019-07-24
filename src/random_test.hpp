@@ -84,10 +84,13 @@ struct Index {
 };
 
 struct Thd1 {
-  Thd1(int id, std::ofstream &tl, MYSQL *c)
-      : thread_id(id), thread_log(tl), conn(c){};
+  Thd1(int id, std::ofstream &tl, std::ofstream &ddl_l, MYSQL *c)
+      : thread_id(id), thread_log(tl), ddl_logs(ddl_l), conn(c){};
   int thread_id;
   std::ofstream &thread_log;
+  static std::mutex ddl_logs_write; // mutex used for writing ddl logs
+  std::ofstream &ddl_logs;
+  bool ddl_query = false; // is the query ddl
   MYSQL *conn;
   int seed;
 };

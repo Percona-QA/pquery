@@ -157,17 +157,17 @@ void add_options() {
   opt->help = "Number of seconds to execute workload";
   opt->setInt(1000);
 
+  /* primary key probablity */
+  opt = newOption(Option::INT, Option::PRIMARY_KEY, "ctpkp");
+  opt->help = "Probability of adding primary key in a table";
+  opt->setInt(50);
+
   /*Encrypt table */
   opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION, "atsepm");
   opt->help = "Alter table set Encrytion";
   opt->setInt(10);
   opt->setSQL();
   opt->setDDL();
-
-  /* primary key probablity */
-  opt = newOption(Option::INT, Option::PRIMARY_KEY, "ctpkp");
-  opt->help = "Probability of adding primary key in a table";
-  opt->setInt(50);
 
   /* Row Format */
   opt = newOption(Option::STRING, Option::ROW_FORMAT, "ctrf");

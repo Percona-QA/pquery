@@ -99,7 +99,7 @@ void Node::workerThread(int number) {
     return;
   }
 
-  Thd1 *THD = new Thd1(number, thread_log, conn);
+  Thd1 *THD = new Thd1(number, thread_log, general_log, conn);
 
   static bool success = false;
   if (number == 0) {
