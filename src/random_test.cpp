@@ -7,15 +7,16 @@ using namespace std;
 std::mt19937 rng;
 
 const std::string partition_string = "_p";
+
 const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format = {"COMPRESSED", "DYNAMIC",
                                                 "REDUNDANT"};
 static std::vector<std::string> g_tablespace;
-static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
-std::mutex Thd1::ddl_logs_write;
 
-// static bool g_is_innodb_system_encrypted = false;
+static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
+
+std::mutex Thd1::ddl_logs_write;
 
 static int g_max_columns_length = 30;
 static int g_innodb_page_size = 16;
@@ -628,11 +629,6 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
 
-  if (thd->ddl_query) {
-    thd->ddl_logs_write.lock();
-    thd->ddl_logs << thd->thread_id << " " << sql << std::endl;
-    thd->ddl_logs_write.unlock();
-  }
   if (res == 1) {
     thd->thread_log << "Query => " << sql << std::endl;
     thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
@@ -640,6 +636,12 @@ bool execute_sql(std::string sql, Thd1 *thd) {
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
     mysql_free_result(result);
+  }
+  if (thd->ddl_query) {
+    thd->ddl_logs_write.lock();
+    thd->ddl_logs << thd->thread_id << " " << sql << " "
+                  << mysql_error(thd->conn) << std::endl;
+    thd->ddl_logs_write.unlock();
   }
   return (res == 0 ? 1 : 0);
 }
@@ -1064,7 +1066,15 @@ bool load_metadata(Thd1 *thd) {
   return 1;
 }
 
+static std::string database_version() {
+  std::string info = mysql_get_client_info();
+  std::cout << FORK << endl;
+
+  return info;
+}
+
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
+  std::cout << "database_Version " << FORK << database_version();
 
   auto database = opt_string(DATABASE);
   execute_sql("USE " + database, thd);

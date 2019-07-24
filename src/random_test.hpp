@@ -26,6 +26,7 @@
 #define MAX_SEED_SIZE 100000
 #define MAX_RANDOM_STRING_SIZE 32
 #define DESC_INDEXES_IN_COLUMN 34
+#define MYSQL_8 8.0
 
 #define opt_int(a) options->at(Option::a)->getInt();
 #define opt_int_set(a, b) options->at(Option::a)->setInt(b);
@@ -159,6 +160,7 @@ public:
   Temporary_table(std::string n) : Table(n){};
   Temporary_table(const Temporary_table &table) : Table(table.name_){};
 };
+
 
 int set_seed(Thd1 *thd);
 int sum_of_all_options();
