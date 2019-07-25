@@ -170,9 +170,13 @@ void add_options() {
   opt->setDDL();
 
   /* Row Format */
-  opt = newOption(Option::STRING, Option::ROW_FORMAT, "ctrf");
-  opt->help = "Create Table Row Format. It the row format of  table. A "
-              "table can have COMPRESSED, DYNAMIC, REDUNDANT, row format. ";
+  opt = newOption(Option::STRING, Option::ROW_FORMAT, "row-format");
+  opt->help =
+      "Create Table Row Format. It is  the row format of  table. A "
+      "table can have compressed, dynamic, redundant row format.\n "
+      "Valid values are :\n all: use compressed, dynamic, redundant. all "
+      "combination key block size will be used. \n uncompressed: Do not use "
+      "compressed row_format, i.e. key block size will not used. \n  ";
   opt->setString("all");
 
 

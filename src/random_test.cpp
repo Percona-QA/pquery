@@ -10,12 +10,10 @@ const std::string partition_string = "_p";
 
 const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
-static std::vector<std::string> g_row_format = {"COMPRESSED", "DYNAMIC",
-                                                "REDUNDANT"};
+static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
 
-static std::vector<int> g_key_block_size = {0, 0, 1, 2, 4};
-
+static std::vector<int> g_key_block_size;
 std::mutex Thd1::ddl_logs_write;
 
 static int g_max_columns_length = 30;
@@ -439,7 +437,6 @@ void Table::CreateDefaultIndex() {
   }
   int auto_inc_index = rand_int(indexes, 1);
 
-
   for (int i = 0; i < indexes; i++) {
     Index *id = new Index(name_ + "i" + std::to_string(i));
 
@@ -510,10 +507,12 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
   table->type = type;
 
   if (type != TEMPORARY) {
+
     static auto no_encryption = opt_bool(NO_ENCRYPTION);
     if (!no_encryption && g_encryption.size() > 0 &&
         g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
       table->encryption = true;
+
     if (g_key_block_size.size() > 0)
       table->key_block_size =
           g_key_block_size[rand_int(g_key_block_size.size() - 1)];
@@ -977,6 +976,20 @@ void create_database_tablespace(Thd1 *thd) {
 
   g_tablespace = {"innodb_system", "tab02k", "tab04k", "tab01k"};
 
+  std::string row_format = opt_string(ROW_FORMAT);
+
+  if (row_format.compare("uncompressed") == 0) {
+    g_row_format = {"DYNAMIC", "REDUNDANT"};
+  } else if (row_format.compare("all") == 0) {
+    g_row_format = {"DYNAMIC", "REDUNDANT", "COMPRESSED"};
+    g_key_block_size = {0, 0, 1, 2, 4};
+
+  } else if (row_format.compare("none") == 0) {
+    thd->thread_log << "row_format is excluted" << std::endl;
+  } else {
+    g_row_format.push_back(row_format);
+  }
+
   if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
     g_row_format.clear();
     g_key_block_size.clear();
@@ -1068,9 +1081,20 @@ bool load_metadata(Thd1 *thd) {
 
 static std::string database_version() {
   std::string info = mysql_get_client_info();
-  std::cout << FORK << endl;
-
-  return info;
+  std::cout << info.substr(0, 4) << std::endl;
+  if (info.substr(0, 3).compare("8.0")) {
+    if (FORK == "MySQL")
+      return "m8";
+    else
+      return "p8";
+  } else if (info.substr(0, 3).compare("5.7")) {
+    if (FORK == "MySQL")
+      return "m7";
+    else
+      return "p7";
+  } else {
+    throw std::runtime_error(FORK + info + " unknown version \n");
+  }
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
