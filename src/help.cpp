@@ -174,9 +174,10 @@ void add_options() {
   opt->help =
       "Create Table Row Format. It is  the row format of  table. A "
       "table can have compressed, dynamic, redundant row format.\n "
-      "Valid values are :\n all: use compressed, dynamic, redundant. all "
+      "Valid values are :\n all: use compressed, dynamic, redundant. All "
       "combination key block size will be used. \n uncompressed: Do not use "
-      "compressed row_format, i.e. key block size will not used. \n  ";
+      "compressed row_format, i.e. key block size will not used. \n  "
+      "none: do not use any encryption";
   opt->setString("all");
 
 
@@ -371,13 +372,13 @@ void Option::print_pretty() {
   std::cout << " default";
   switch (type) {
   case STRING:
-    std::cout << getString() << std::endl;
+    std::cout << ": " << getString() << std::endl;
     break;
   case INT:
     std::cout << "#: " << getInt() << std::endl;
     break;
   case BOOL:
-    std::cout << getBool() << std::endl;
+    std::cout << ": " << getBool() << std::endl;
   }
 }
 
