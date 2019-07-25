@@ -974,7 +974,9 @@ void clean_up_at_end() {
 /* create new database and tables */
 void create_database_tablespace(Thd1 *thd) {
 
-  g_tablespace = {"innodb_system", "tab02k", "tab04k", "tab01k"};
+  auto no_tbs = opt_bool(NO_TABLESPACE);
+  if (!no_tbs)
+    g_tablespace = {"innodb_system", "tab02k", "tab04k", "tab01k"};
 
   std::string row_format = opt_string(ROW_FORMAT);
 
@@ -994,18 +996,20 @@ void create_database_tablespace(Thd1 *thd) {
     g_row_format.clear();
     g_key_block_size.clear();
   }
-  /* Adjust the tablespaces */
-  if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
-    g_tablespace.push_back("tab08k");
-  }
-  if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
-    g_tablespace.push_back("tab16k");
-  }
-  if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
-    g_tablespace.push_back("tab32k");
-  }
-  if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
-    g_tablespace.push_back("tab64k");
+  if (!no_tbs) {
+    /* Adjust the tablespaces */
+    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
+      g_tablespace.push_back("tab08k");
+    }
+    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
+      g_tablespace.push_back("tab16k");
+    }
+    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
+      g_tablespace.push_back("tab32k");
+    }
+    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
+      g_tablespace.push_back("tab64k");
+    }
   }
 
   auto load_from_file = opt_bool(METADATA_READ);
@@ -1082,19 +1086,20 @@ bool load_metadata(Thd1 *thd) {
 static std::string database_version() {
   std::string info = mysql_get_client_info();
   std::cout << info.substr(0, 4) << std::endl;
-  if (info.substr(0, 3).compare("8.0")) {
-    if (FORK == "MySQL")
+  if (info.substr(0, 3).compare("8.0") == 0) {
+    if (strcmp(FORK, "MySQL") == 0)
       return "m8";
     else
       return "p8";
-  } else if (info.substr(0, 3).compare("5.7")) {
-    if (FORK == "MySQL")
+  } else if (info.substr(0, 3).compare("5.7") == 0) {
+    if (strcmp(FORK, "MySQL") == 0)
       return "m7";
     else
       return "p7";
   } else {
     throw std::runtime_error(FORK + info + " unknown version \n");
   }
+  return info;
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {

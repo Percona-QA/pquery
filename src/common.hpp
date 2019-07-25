@@ -37,6 +37,7 @@ struct Option {
     JUST_LOAD_DDL,
     DDL,
     NO_ENCRYPTION,
+    NO_TABLESPACE,
     TABLES,
     INDEXES,
     COLUMNS,
