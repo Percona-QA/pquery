@@ -92,6 +92,7 @@ struct Thd1 {
   static std::mutex ddl_logs_write; // mutex used for writing ddl logs
   std::ofstream &ddl_logs;
   bool ddl_query = false; // is the query ddl
+  static bool connection_lost;
   MYSQL *conn;
   int seed;
 };

@@ -11,6 +11,7 @@ const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
+bool Thd1::connection_lost = false;
 
 static std::vector<int> g_key_block_size;
 std::mutex Thd1::ddl_logs_write;
@@ -631,7 +632,8 @@ bool execute_sql(std::string sql, Thd1 *thd) {
       thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
     }
     if (mysql_errno(thd->conn) == 2006) {
-      throw std::runtime_error("server gone, while processing " + sql);
+      thd->thread_log << "server gone, while processing " + sql;
+      thd->connection_lost = true;
     }
 
   } else {
@@ -1228,6 +1230,10 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       break;
     default:
       throw std::runtime_error("invalid options");
+    }
+
+    if (thd->connection_lost) {
+      break;
     }
   }
   for (auto &table : *all_temp_tables)
