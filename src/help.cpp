@@ -367,6 +367,26 @@ void add_options() {
   opt = newOption(Option::STRING, Option::USER, "user");
   opt->help = "The MySQL userID to be used";
   opt->setString("root");
+
+  /* log all queries */
+  opt = newOption(Option::BOOL, Option::LOG_ALL_QUERIES, "log-all-queries");
+  opt->help = "Log all queries (succeeded and failed)";
+  opt->setBool(true);
+  opt->setArgs(no_argument);
+
+  /* log failed queries */
+  opt =
+      newOption(Option::BOOL, Option::LOG_FAILED_QUERIES, "log-failed-queries");
+  opt->help = "Log all failed queries";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log success queries */
+  opt =
+      newOption(Option::BOOL, Option::LOG_ALL_QUERIES, "log-succeeded-queries");
+  opt->help = "Log succeeded queries";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 }
 
 Option::~Option() {}

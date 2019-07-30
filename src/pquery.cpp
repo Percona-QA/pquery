@@ -34,9 +34,6 @@ void set_defaults(struct workerParams &Params) {
   Params.queries_per_thread = 0;
   Params.verbose = false;
   Params.debug = false;
-  Params.log_all_queries = true;
-  Params.log_succeeded_queries = false;
-  Params.log_failed_queries = false;
   Params.log_query_statistics = false;
   Params.log_query_duration = false;
   Params.log_client_output = false;
@@ -72,12 +69,14 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
   wParams.test_connection =
       reader.GetBoolean(secName, "test-connection", false);
 
+  /*
   wParams.log_all_queries =
       reader.GetBoolean(secName, "log-all-queries", false);
   wParams.log_succeeded_queries =
       reader.GetBoolean(secName, "log-succeded-queries", false);
   wParams.log_failed_queries =
       reader.GetBoolean(secName, "log-failed-queries", false);
+      */
   wParams.log_query_statistics =
       reader.GetBoolean(secName, "log-query-statistics", false);
   wParams.log_query_duration =
@@ -184,18 +183,6 @@ static struct option long_options[] = {
       std::cout << "> Verbose mode: ON" << std::endl;
       show_help("verbose");
       wParams.verbose = true;
-      break;
-    case 'A':
-      std::cout << "> Log all queries: ON" << std::endl;
-      wParams.log_all_queries = true;
-      break;
-    case 'S':
-      std::cout << "> Log succeded queries: ON" << std::endl;
-      wParams.log_succeeded_queries = true;
-      break;
-    case 'F':
-      std::cout << "> Log failed queries: ON" << std::endl;
-      wParams.log_failed_queries = true;
       break;
     case 'E':
       std::cout << "> Debug mode: ON" << std::endl;

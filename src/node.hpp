@@ -26,13 +26,13 @@ struct workerParams {
   unsigned long maxpacket;
   bool verbose;
   bool debug;
-  bool log_all_queries;
-  bool log_failed_queries;
+  //  bool log_all_queries;
+  // bool log_failed_queries;
   bool log_query_statistics;
   bool log_query_duration;
   bool log_client_output;
   bool log_query_numbers;
-  bool log_succeeded_queries;
+  //  bool log_succeeded_queries;
   bool shuffle;
   bool test_connection;
   bool ddl;

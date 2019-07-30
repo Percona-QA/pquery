@@ -44,9 +44,12 @@ void Node::workerThread(int number) {
       return;
     }
   }
+  static auto log_all_queries = opt_bool(LOG_ALL_QUERIES);
+  static auto log_failed_queries = opt_bool(LOG_FAILED_QUERIES);
+  static auto log_succeeded_queries = opt_bool(LOG_SUCCEDED_QUERIES);
 
-  if ((myParams.log_failed_queries) || (myParams.log_all_queries) ||
-      (myParams.log_query_statistics) || (myParams.log_succeeded_queries)) {
+  if ((log_failed_queries) || (log_all_queries) ||
+      (myParams.log_query_statistics) || (log_succeeded_queries)) {
     std::ostringstream os;
     os << myParams.logdir << "/" << myParams.myName << "_thread-" << number
        << ".sql";
@@ -196,10 +199,11 @@ void Node::workerThread(int number) {
         }
       }
 
-      //
+      static auto log_all_queries = opt_bool(LOG_ALL_QUERIES);
+      static auto log_failed_queries = opt_bool(LOG_FAILED_QUERIES);
       if (thread_log.is_open()) {
         if (res == 0) {
-          if ((myParams.log_all_queries) || (myParams.log_query_statistics)) {
+          if ((log_all_queries) || (myParams.log_query_statistics)) {
 
             thread_log << (*querylist)[query_number] << "#NOERROR";
             if (myParams.log_query_statistics) {
@@ -218,7 +222,7 @@ void Node::workerThread(int number) {
             thread_log << "\n";
           }
         } else {
-          if ((myParams.log_failed_queries) || (myParams.log_all_queries) ||
+          if ((log_failed_queries) || (log_all_queries) ||
               (myParams.log_query_statistics)) {
 
             thread_log << (*querylist)[query_number]

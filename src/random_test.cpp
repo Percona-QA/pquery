@@ -7,7 +7,6 @@ using namespace std;
 std::mt19937 rng;
 
 const std::string partition_string = "_p";
-
 const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
@@ -59,13 +58,13 @@ int sum_of_all_options() {
     options->at(Option::SELECT_ROW_USING_PKEY)->setInt(0);
   }
 
-  /* if delete is set as zero, diable all type of deletes */
+  /* if delete is set as zero, disable all type of deletes */
   if (options->at(Option::DELETE)->getBool() == false) {
     options->at(Option::DELETE_ALL_ROW)->setInt(0);
     options->at(Option::DELETE_ROW_USING_PKEY)->setInt(0);
   }
 
-  /* If Update is disable, set all update probability to zero */
+  /* If update is disable, set all update probability to zero */
   if (options->at(Option::UPDATE)->getBool() == false) {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
@@ -506,41 +505,38 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
 
   table->type = type;
 
-  if (type != TEMPORARY) {
+  static auto no_encryption = opt_bool(NO_ENCRYPTION);
 
-    static auto no_encryption = opt_bool(NO_ENCRYPTION);
-    if (!no_encryption && g_encryption.size() > 0 &&
-        g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
-      table->encryption = true;
+  if (table->type != TEMPORARY && !no_encryption && g_encryption.size() > 0 &&
+      g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
+    table->encryption = true;
 
-    if (g_key_block_size.size() > 0)
-      table->key_block_size =
-          g_key_block_size[rand_int(g_key_block_size.size() - 1)];
+  if (g_key_block_size.size() > 0)
+    table->key_block_size =
+        g_key_block_size[rand_int(g_key_block_size.size() - 1)];
 
-    if (table->key_block_size > 0 && rand_int(2) == 0) {
-      table->row_format = "COMPRESSED";
-    }
-
-    if (table->key_block_size == 0 && g_row_format.size() > 0)
-      table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
-
-    static auto engine = options->at(Option::ENGINE)->getString();
-    table->engine = engine;
-
-    if (g_tablespace.size() > 0 && rand_int(2) == 0) {
-      table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
-      table->encryption = false;
-      table->row_format.clear();
-      if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
-          table->tablespace.compare("innodb_system") == 0 ||
-          stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
-        table->key_block_size = 0;
-      else
-        table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
-    }
-  } else {
-    table->encryption = false;
+  if (table->key_block_size > 0 && rand_int(2) == 0) {
+    table->row_format = "COMPRESSED";
   }
+
+  if (table->key_block_size == 0 && g_row_format.size() > 0)
+    table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
+
+  if (table->type != TEMPORARY && g_tablespace.size() > 0 && rand_int(2) == 0) {
+    table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
+    table->encryption =
+        false; // todo add encrypted tablespace in starting if supported //
+    table->row_format.clear();
+    if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
+        table->tablespace.compare("innodb_system") == 0 ||
+        stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
+      table->key_block_size = 0;
+    else
+      table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
+  }
+
+  static auto engine = options->at(Option::ENGINE)->getString();
+  table->engine = engine;
 
   table->CreateDefaultColumn();
   table->CreateDefaultIndex();
@@ -624,16 +620,30 @@ void create_default_tables() {
 
 /* return true if SQL is successful, else return false */
 bool execute_sql(std::string sql, Thd1 *thd) {
+  static auto log_all = opt_bool(LOG_ALL_QUERIES);
+  static auto log_failed = opt_bool(LOG_FAILED_QUERIES);
+  static auto log_sucess = opt_bool(LOG_SUCCEDED_QUERIES);
   sql += ";";
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
 
   if (res == 1) {
-    thd->thread_log << "Query => " << sql << std::endl;
-    thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
+
+    if (log_all || log_failed) {
+      thd->thread_log << "Query => " << sql << std::endl;
+      thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
+    }
+    if (mysql_errno(thd->conn) == 2006) {
+      throw std::runtime_error("server gone, while processing " + sql);
+    }
+
   } else {
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
+    if (log_all || log_sucess) {
+      thd->thread_log << "Query => " << sql
+                      << " rows:" << mysql_num_rows(result) << std::endl;
+    }
     mysql_free_result(result);
   }
   if (thd->ddl_query) {
@@ -642,9 +652,9 @@ bool execute_sql(std::string sql, Thd1 *thd) {
                   << mysql_error(thd->conn) << std::endl;
     thd->ddl_logs_write.unlock();
   }
+
   return (res == 0 ? 1 : 0);
 }
-
 /* load some records in table */
 void load_default_data(Table *table, Thd1 *thd) {
   static int initial_records =
@@ -1051,13 +1061,7 @@ void create_database_tablespace(Thd1 *thd) {
 /* load metadata */
 bool load_metadata(Thd1 *thd) {
   auto engine = opt_string(ENGINE);
-  /* if engine is Innodb. based on page_size find out the */
-  /*
-  if (engine.compare("INNODB") == 0)
-    ;
-    */
 
-  /* Load random string from the tables */
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
   auto &logs = thd->thread_log;
@@ -1065,7 +1069,6 @@ bool load_metadata(Thd1 *thd) {
   /*set seed for current thread*/
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
-
   logs << " creating tables metadata " << std::endl;
 
   auto load_from_file = opt_bool(METADATA_READ);
@@ -1083,27 +1086,7 @@ bool load_metadata(Thd1 *thd) {
   return 1;
 }
 
-static std::string database_version() {
-  std::string info = mysql_get_client_info();
-  std::cout << info.substr(0, 4) << std::endl;
-  if (info.substr(0, 3).compare("8.0") == 0) {
-    if (strcmp(FORK, "MySQL") == 0)
-      return "m8";
-    else
-      return "p8";
-  } else if (info.substr(0, 3).compare("5.7") == 0) {
-    if (strcmp(FORK, "MySQL") == 0)
-      return "m7";
-    else
-      return "p7";
-  } else {
-    throw std::runtime_error(FORK + info + " unknown version \n");
-  }
-  return info;
-}
-
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
-  std::cout << "database_Version " << FORK << database_version();
 
   auto database = opt_string(DATABASE);
   execute_sql("USE " + database, thd);
@@ -1111,17 +1094,21 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
 
-  /* create tables in all threads */
+  auto load_from_file = opt_bool(METADATA_READ);
   int threads = opt_int(THREADS);
-  for (size_t i = thd->thread_id; i < size; i = i + threads) {
-    auto table = all_tables->at(i);
-    thd->ddl_query = true;
-    if (!execute_sql(table->Table_defination(), thd))
-      throw std::runtime_error("Create table failed " + table->name_);
-    static auto load_from_file = opt_bool(METADATA_READ);
-    if (!just_ddl && !load_from_file) {
-      thd->ddl_query = false;
-      load_default_data(table, thd);
+
+  if (!load_from_file) {
+    /* create tables in all threads */
+    for (size_t i = thd->thread_id; i < size; i = i + threads) {
+      auto table = all_tables->at(i);
+      thd->ddl_query = true;
+      if (!execute_sql(table->Table_defination(), thd))
+        throw std::runtime_error("Create table failed " + table->name_);
+      static auto load_from_file = opt_bool(METADATA_READ);
+      if (!just_ddl && !load_from_file) {
+        thd->ddl_query = false;
+        load_default_data(table, thd);
+      }
     }
   }
 

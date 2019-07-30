@@ -81,8 +81,11 @@ struct Option {
     PASSWORD = 'P',
     HELP = 'h',
     THREADS = 't',
+    LOG_ALL_QUERIES = 'A',
+    LOG_FAILED_QUERIES = 'F',
+    LOG_SUCCEDED_QUERIES = 'S',
     USER = 'u',
-    MAX
+    MAX = 'z'
   } option;
   Option(Type t, Opt o, std::string n)
       : type(t), option(o), name(n), sql(false), ddl(false){};
