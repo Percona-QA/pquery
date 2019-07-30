@@ -861,7 +861,7 @@ void set_mysqld_variable(Thd1 *thd) {
   for (auto &opt : *server_options) {
     if (rd <= opt->prob) {
       std::string sql = "SET ";
-      sql = rand_int(3) == 0 ? " SESSION " : " GLOBAL ";
+      sql += rand_int(3) == 0 ? " SESSION " : " GLOBAL ";
       sql += opt->name + "=" + opt->values.at(rand_int(opt->values.size() - 1));
       execute_sql(sql, thd);
     }
