@@ -51,6 +51,12 @@ std::string col_type(COLUMN_TYPES type) {
   }
 }
 
+static std::string db_branch() {
+  std::string branch = mysql_get_client_info();
+  branch = branch.substr(0, 3); // 8.0 or 5.7
+  return branch;
+}
+
 int sum_of_all_options() {
 
   /* if select is set as zero, disable all type of selects */
@@ -503,21 +509,25 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
   table->type = type;
 
   static auto no_encryption = opt_bool(NO_ENCRYPTION);
+  static auto branch = db_branch();
 
   if (table->type != TEMPORARY && !no_encryption && g_encryption.size() > 0 &&
       g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
     table->encryption = true;
 
-  if (g_key_block_size.size() > 0)
-    table->key_block_size =
-        g_key_block_size[rand_int(g_key_block_size.size() - 1)];
+  /* temporary table on 8.0 can't have key block size */
+  if (!(branch.compare("8.0") == 0 && type == TEMPORARY)) {
+    if (g_key_block_size.size() > 0)
+      table->key_block_size =
+          g_key_block_size[rand_int(g_key_block_size.size() - 1)];
 
-  if (table->key_block_size > 0 && rand_int(2) == 0) {
-    table->row_format = "COMPRESSED";
+    if (table->key_block_size > 0 && rand_int(2) == 0) {
+      table->row_format = "COMPRESSED";
+    }
+
+    if (table->key_block_size == 0 && g_row_format.size() > 0)
+      table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
   }
-
-  if (table->key_block_size == 0 && g_row_format.size() > 0)
-    table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
 
   if (table->type != TEMPORARY && g_tablespace.size() > 0 && rand_int(2) == 0) {
     table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
