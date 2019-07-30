@@ -110,7 +110,6 @@ void Node::workerThread(int number) {
     success = load_metadata(THD);
     default_load = true;
   }
-  std::cout << "DEFAULT TABLES CREATED" << std::endl;
 
   while (!default_load) {
     std::chrono::seconds dura(3);

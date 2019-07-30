@@ -320,7 +320,7 @@ Table::Table(std::string n, int max_pk) : Table(n) {
 }
 
 void Table::DropCreate(Thd1 *thd) {
-  if (execute_sql("DROP TABLE " + name_ + ";", thd))
+  if (execute_sql("DROP TABLE " + name_, thd))
     max_pk_value_inserted = 0;
 
   std::string def = Table_defination();
@@ -349,16 +349,12 @@ void Table::DropCreate(Thd1 *thd) {
   }
 }
 
-void Table::Optimize(Thd1 *thd) {
-  execute_sql("OPTIMIZE TABLE " + name_ + ";", thd);
-}
+void Table::Optimize(Thd1 *thd) { execute_sql("OPTIMIZE TABLE " + name_, thd); }
 
-void Table::Analyze(Thd1 *thd) {
-  execute_sql("ANALYZE TABLE " + name_ + ";", thd);
-}
+void Table::Analyze(Thd1 *thd) { execute_sql("ANALYZE TABLE " + name_, thd); }
 
 void Table::Truncate(Thd1 *thd) {
-  if (execute_sql("TRUNCATE TABLE " + name_ + ";", thd))
+  if (execute_sql("TRUNCATE TABLE " + name_, thd))
     max_pk_value_inserted = 0;
 }
 
@@ -622,10 +618,11 @@ void create_default_tables() {
 bool execute_sql(std::string sql, Thd1 *thd) {
   static auto log_all = opt_bool(LOG_ALL_QUERIES);
   static auto log_failed = opt_bool(LOG_FAILED_QUERIES);
-  static auto log_sucess = opt_bool(LOG_SUCCEDED_QUERIES);
+  static auto log_success = opt_bool(LOG_SUCCEDED_QUERIES);
   sql += ";";
   auto query = sql.c_str();
   auto res = mysql_real_query(thd->conn, query, strlen(query));
+
 
   if (res == 1) {
 
@@ -640,9 +637,16 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   } else {
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
-    if (log_all || log_sucess) {
-      thd->thread_log << "Query => " << sql
-                      << " rows:" << mysql_num_rows(result) << std::endl;
+
+    /* log successful query */
+    if (log_all || log_success) {
+      thd->thread_log << "Query is  => " << sql << std::endl;
+      if (!result) {
+        thd->thread_log << std::endl;
+      } else {
+        auto no = mysql_num_rows(result);
+        thd->thread_log << " rows:" << no << std::endl;
+      }
     }
     mysql_free_result(result);
   }
@@ -668,7 +672,7 @@ void load_default_data(Table *table, Thd1 *thd) {
 void Table::SetEncryption(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + " ENCRYPTION = '";
   std::string enc = g_encryption[rand_int(g_encryption.size() - 1)];
-  sql += enc + "';";
+  sql += enc + "'";
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
     if (enc.compare("Y"))
@@ -701,12 +705,12 @@ void Table::AddColumn(Thd1 *thd) {
 }
 
 void Table::DeleteAllRows(Thd1 *thd) {
-  std::string sql = "DELETE FROM " + name_ + ";";
+  std::string sql = "DELETE FROM " + name_;
   execute_sql(sql, thd);
 }
 
 void Table::SelectAllRow(Thd1 *thd) {
-  std::string sql = "SELECT * FROM " + name_ + ";";
+  std::string sql = "SELECT * FROM " + name_;
   execute_sql(sql, thd);
 }
 
@@ -749,7 +753,7 @@ void Table::SelectRandomRow(Thd1 *thd) {
     auto pk = rand_int(max_pk_value_inserted);
     table_mutex.lock();
     std::string sql = "SELECT * FROM " + name_ + " WHERE " +
-                      columns_->at(0)->name_ + "=" + std::to_string(pk) + ";";
+                      columns_->at(0)->name_ + "=" + std::to_string(pk);
     table_mutex.unlock();
     execute_sql(sql, thd);
   }
@@ -783,7 +787,7 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
     insert.pop_back();
   }
   insert += ") VALUES(" + vals;
-  insert += " );";
+  insert += " )";
   if (is_lock)
     table_mutex.unlock();
   if (execute_sql(insert, thd))
@@ -803,7 +807,7 @@ void Table::DropColumn(Thd1 *thd) {
     table_mutex.unlock();
     return;
   }
-  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name + ";";
+  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
   table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {
@@ -880,9 +884,9 @@ void alter_tablespace_rename(Thd1 *thd) {
                                    1]; // don't pick innodb_system;
     std::string sql = "ALTER tablespace " + tablespace;
     if (rand_int(1) == 0)
-      sql += "_rename  RENAME TO " + tablespace + ";";
+      sql += "_rename  RENAME TO " + tablespace;
     else
-      sql += " RENAME TO " + tablespace + "_rename;";
+      sql += " RENAME TO " + tablespace + "_rename";
     execute_sql(sql, thd);
   }
 }
@@ -1026,8 +1030,8 @@ void create_database_tablespace(Thd1 *thd) {
 
   /* drop dabase test*/
   if (!load_from_file) {
-    execute_sql("DROP DATABASE test;", thd);
-    execute_sql("CREATE DATABASE test;", thd);
+    execute_sql("DROP DATABASE test", thd);
+    execute_sql("CREATE DATABASE test", thd);
   }
 
   /* add addtional tablespace */
@@ -1041,6 +1045,7 @@ void create_database_tablespace(Thd1 *thd) {
         g_tablespace.push_back(g_tablespace[i] + to_string(j));
     }
   }
+
 
   for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
@@ -1056,6 +1061,7 @@ void create_database_tablespace(Thd1 *thd) {
       execute_sql(sql, thd);
     }
   }
+  thd->thread_log << "default tablespaces created" << std::endl;
 }
 
 /* load metadata */
@@ -1076,6 +1082,7 @@ bool load_metadata(Thd1 *thd) {
   if (load_from_file) {
     load_objects_from_file();
   } else {
+    thd->ddl_query = true;
     create_database_tablespace(thd);
     create_default_tables();
   }
@@ -1087,6 +1094,8 @@ bool load_metadata(Thd1 *thd) {
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
+
+  thd->ddl_query = true;
 
   auto database = opt_string(DATABASE);
   execute_sql("USE " + database, thd);

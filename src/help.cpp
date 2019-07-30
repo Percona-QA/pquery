@@ -382,8 +382,8 @@ void add_options() {
   opt->setArgs(no_argument);
 
   /* log success queries */
-  opt =
-      newOption(Option::BOOL, Option::LOG_ALL_QUERIES, "log-succeeded-queries");
+  opt = newOption(Option::BOOL, Option::LOG_SUCCEDED_QUERIES,
+                  "log-succeeded-queries");
   opt->help = "Log succeeded queries";
   opt->setBool(false);
   opt->setArgs(no_argument);
