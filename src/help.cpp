@@ -7,25 +7,33 @@ Ser_Opx *server_options = new Ser_Opx;
 
 /* Process --mso=abc=30=40 to abc,{30,40}*/
 void add_server_options(std::string str) {
-  auto found = str.find_first_of("=", 0);
+  auto found = str.find_first_of(":", 0);
+  int probablity = 100;
+  if (found != std::string::npos) {
+    probablity = std::stoi(str.substr(0, found));
+    str = str.substr(found + 1, str.size());
+  }
+
+  /* extract probability */
+  found = str.find_first_of("=", 0);
   if (found == std::string::npos)
     throw std::runtime_error("Invalid string, " + str);
 
-    std::string name = str.substr(0, found);
-    Server_Option *so = new Server_Option(name);
-    so->prob = 100;
-    server_options->push_back(so);
-    str = str.substr(found + 1, str.size());
+  std::string name = str.substr(0, found);
+  Server_Option *so = new Server_Option(name);
+  so->prob = probablity;
+  server_options->push_back(so);
+  str = str.substr(found + 1, str.size());
 
+  found = str.find_first_of("=");
+  while (found != std::string::npos) {
+    auto val = str.substr(0, found);
+    so->values.push_back(val);
+    str = str.substr(found + 1, str.size());
     found = str.find_first_of("=");
-    while (found != std::string::npos) {
-      auto val = str.substr(0, found);
-      so->values.push_back(val);
-      str = str.substr(found + 1, str.size());
-      found = str.find_first_of("=");
-    }
-    /* push the last one */
-    so->values.push_back(str);
+  }
+  /* push the last one */
+  so->values.push_back(str);
 }
 
 /* process file. and push to mysqld server options */
