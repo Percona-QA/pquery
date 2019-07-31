@@ -10,7 +10,6 @@ void add_server_options(std::string str) {
   auto found = str.find_first_of("=", 0);
   if (found == std::string::npos)
     throw std::runtime_error("Invalid string, " + str);
-  else {
 
     std::string name = str.substr(0, found);
     Server_Option *so = new Server_Option(name);
@@ -27,7 +26,19 @@ void add_server_options(std::string str) {
     }
     /* push the last one */
     so->values.push_back(str);
-  }
+}
+
+/* process file. and push to mysqld server options */
+void add_server_options_file(std::string file_name) {
+  std::cout << "file_name " << file_name << std::endl;
+  std::ifstream f1;
+  f1.open(file_name);
+  if (!f1)
+    throw std::runtime_error("unable to open " + file_name);
+  std::string option;
+  while (f1 >> option)
+    add_server_options(option);
+  f1.close();
 }
 
 /* add new options */
@@ -178,10 +189,10 @@ void add_options() {
   /* Row Format */
   opt = newOption(Option::STRING, Option::ROW_FORMAT, "row-format");
   opt->help =
-      "Create Table Row Format. It is  the row format of  table. A "
+      "create table row format. it is  the row format of  table. a "
       "table can have compressed, dynamic, redundant row format.\n "
-      "Valid values are :\n all: use compressed, dynamic, redundant. All "
-      "combination key block size will be used. \n uncompressed: Do not use "
+      "valid values are :\n all: use compressed, dynamic, redundant. all "
+      "combination key block size will be used. \n uncompressed: do not use "
       "compressed row_format, i.e. key block size will not used. \n  "
       "none: do not use any encryption";
   opt->setString("all");
@@ -189,10 +200,19 @@ void add_options() {
 
   /* MySQL server option */
   opt = newOption(Option::STRING, Option::MYSQLD_SERVER_OPTION, "mso");
-  opt->help = "Variables which are set during the load, see "
-              "--set-global. N:option=V1=V2 where N is probabality of picking "
-              "option, V1 and V2 different value that is supported. "
-              "For e.g. --md=20:innodb_temp_tablespace_encrypt=on=off";
+  opt->help =
+      "mysqld server options variables which are set during the load, see "
+      "--set-global. n:option=v1=v2 where n is probabality of picking "
+      "option, v1 and v2 different value that is supported. "
+      "for e.g. --md=20:innodb_temp_tablespace_encrypt=on=off";
+
+  opt = newOption(Option::STRING, Option::SERVER_OPTION_FILE, "sof");
+  opt->help = "server options file, MySQL server options file, picks some of "
+              "the mysqld options, "
+              "and try to set them during the load , using set global and set "
+              "session.\n see --set-global.\n File should contain lines like\n "
+              "20:innodb_temp_tablespace_encrypt=on=off\n, means 20% chances "
+              "that it would be processed. ";
 
   /* Set Global */
   opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-global");

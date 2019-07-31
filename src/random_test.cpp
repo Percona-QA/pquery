@@ -511,9 +511,10 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
   static auto no_encryption = opt_bool(NO_ENCRYPTION);
   static auto branch = db_branch();
 
-  if (table->type != TEMPORARY && !no_encryption && g_encryption.size() > 0 &&
-      g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
-    table->encryption = true;
+      if (table->type != TEMPORARY && !no_encryption &&
+          g_encryption.size() > 0 &&
+          g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
+          table->encryption = true;
 
   /* temporary table on 8.0 can't have key block size */
   if (!(branch.compare("8.0") == 0 && type == TEMPORARY)) {
@@ -613,6 +614,7 @@ std::string Table::Table_defination() {
 
   return def;
 }
+
 /* create default table include all tables now */
 void create_default_tables() {
   auto tables = opt_int(TABLES);
@@ -627,28 +629,35 @@ void create_default_tables() {
 
 /* return true if SQL is successful, else return false */
 bool execute_sql(std::string sql, Thd1 *thd) {
+  auto query = sql.c_str();
+  auto res = mysql_real_query(thd->conn, query, strlen(query));
   static auto log_all = opt_bool(LOG_ALL_QUERIES);
   static auto log_failed = opt_bool(LOG_FAILED_QUERIES);
   static auto log_success = opt_bool(LOG_SUCCEDED_QUERIES);
   sql += ";";
-  auto query = sql.c_str();
-  auto res = mysql_real_query(thd->conn, query, strlen(query));
-
 
   if (res == 1) {
-
+    /* log failed query */
     if (log_all || log_failed) {
-      thd->thread_log << "Query => " << sql << std::endl;
+      thd->thread_log << "Query => " << sql;
       thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
     }
     if (mysql_errno(thd->conn) == 2006) {
       thd->thread_log << "server gone, while processing " + sql;
       thd->connection_lost = true;
     }
-
   } else {
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
+
+    /* log result */
+    if (thd->store_result) {
+      if (!result)
+        throw std::runtime_error(sql + " doest not return result set");
+      auto row = mysql_fetch_row(result);
+      thd->result = row[0];
+      thd->store_result = false;
+    }
 
     /* log successful query */
     if (log_all || log_success) {
@@ -662,15 +671,25 @@ bool execute_sql(std::string sql, Thd1 *thd) {
     }
     mysql_free_result(result);
   }
+
   if (thd->ddl_query) {
     thd->ddl_logs_write.lock();
     thd->ddl_logs << thd->thread_id << " " << sql << " "
                   << mysql_error(thd->conn) << std::endl;
     thd->ddl_logs_write.unlock();
   }
-
   return (res == 0 ? 1 : 0);
 }
+
+/* get result of sql */
+static std::string get_result(std::string sql, Thd1 *thd) {
+  thd->store_result = true;
+  execute_sql(sql, thd);
+  auto result = thd->result;
+  thd->result = "";
+  return result;
+}
+
 /* load some records in table */
 void load_default_data(Table *table, Thd1 *thd) {
   static int initial_records =
@@ -1106,6 +1125,7 @@ bool load_metadata(Thd1 *thd) {
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
+  std::cout << get_result("show databases", thd);
 
   thd->ddl_query = true;
 
@@ -1135,6 +1155,10 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
+  no_of_tables /= threads * 2;
+  thd->thread_log << "Creating " << no_of_tables << " temp tables "
+                  << std::endl;
+
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
   for (int i = 0; i < no_of_tables; i++) {
     thd->ddl_query = true;

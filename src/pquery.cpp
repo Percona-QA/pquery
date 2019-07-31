@@ -121,26 +121,17 @@ int main(int argc, char *argv[]) {
     struct option long_options[Option::MAX];
     /*
 static struct option long_options[] = {
-  // help options
   {"config-help", no_argument, 0, 'I'},
   {"cli-help", no_argument, 0, 'C'},
-  // single-node options
   {"queries-per-thread", required_argument, 0, 'q'},
   {"verbose", no_argument, 0, 'v'},
   {"debug", no_argument, 0, 'E'},
-  {"log-all-queries", no_argument, 0, 'A'},
-  {"log-succeded-queries", no_argument, 0, 'S'},
-  {"log-failed-queries", no_argument, 0, 'F'},
   {"no-shuffle", no_argument, 0, 'n'},
   {"log-query-statistics", no_argument, 0, 'L'},
   {"log-query-duration", no_argument, 0, 'D'},
   {"test-connection", no_argument, 0, 'T'},
   {"log-query-numbers", no_argument, 0, 'N'},
   {"log-client-output", no_argument, 0, 'O'},
-  {"tables", required_argument, 0, Option::TABLE},
-  // finally
-  {0, 0, 0, 0}};
-
   */
     int option_index = 0;
 
@@ -213,8 +204,10 @@ static struct option long_options[] = {
       wParams.log_client_output = true;
       break;
     case Option::MYSQLD_SERVER_OPTION:
-      std::cout << optarg << std::endl;
       add_server_options(optarg);
+      break;
+    case Option::SERVER_OPTION_FILE:
+      add_server_options_file(optarg);
       break;
     default:
       if (c >= Option::MAX) {

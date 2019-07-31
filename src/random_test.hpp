@@ -92,6 +92,8 @@ struct Thd1 {
   static std::mutex ddl_logs_write; // mutex used for writing ddl logs
   std::ofstream &ddl_logs;
   bool ddl_query = false; // is the query ddl
+  bool store_result = false;
+  std::string result;
   static bool connection_lost;
   MYSQL *conn;
   int seed;
@@ -187,5 +189,6 @@ void set_mysqld_variable(Thd1 *thd);
 COLUMN_TYPES col_type(std::string type);
 /* return string from a column type */
 std::string col_type(COLUMN_TYPES type);
+void add_server_options(std::string str);
 
 #endif

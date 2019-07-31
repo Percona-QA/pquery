@@ -50,6 +50,7 @@ struct Option {
     ALTER_TABLE_ENCRYPTION,
     PRIMARY_KEY,
     ROW_FORMAT,
+    SERVER_OPTION_FILE,
     SET_GLOBAL_VARIABLE,
     ALTER_TABLESPACE_ENCRYPTION,
     ALTER_TABLESPACE_RENAME,
@@ -146,6 +147,7 @@ extern Opx *options;
 extern Ser_Opx *server_options;
 void add_options();
 void add_server_options(std::string str);
+void add_server_options_file(std::string file_name);
 Option *newOption(Option::Type t, Option::Opt o, std::string s);
 
 #endif
