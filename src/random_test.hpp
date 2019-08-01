@@ -106,7 +106,7 @@ public:
   TABLE_TYPES type;
   Table(std::string n);
   Table(std::string n, int max_pk);
-  static Table *table_id(TABLE_TYPES choice, int id);
+  static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
   std::string Table_defination();
   /* methods to create table of choice */
   void AddInternalColumn(Column *column) { columns_->push_back(column); }
@@ -178,7 +178,7 @@ bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(Table *table, Thd1 *thd);
 void save_objects_to_file();
 void load_objects_from_file();
-void create_default_tables();
+void create_default_tables(Thd1 *thd);
 void clean_up_at_end();
 void create_database_tablespace(Thd1 *thd);
 Table *select_random_table();

@@ -21,6 +21,15 @@ static int g_innodb_page_size = 16;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
 
+/* get result of sql */
+static std::string get_result(std::string sql, Thd1 *thd) {
+  thd->store_result = true;
+  execute_sql(sql, thd);
+  auto result = thd->result;
+  thd->result = "";
+  return result;
+}
+
 /* return column type from a string */
 COLUMN_TYPES col_type(std::string type) {
   if (type.compare("INT") == 0)
@@ -488,7 +497,7 @@ void Table::CreateDefaultIndex() {
 }
 
 /* Create new table and pick some attributes */
-Table *Table::table_id(TABLE_TYPES type, int id) {
+Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   Table *table;
   std::string name = "tt_" + std::to_string(id);
   switch (type) {
@@ -530,6 +539,7 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
       table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
   }
 
+  /* temporary table can't have tablespace */
   if (table->type != TEMPORARY && g_tablespace.size() > 0 && rand_int(2) == 0) {
     table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
     table->encryption =
@@ -541,6 +551,23 @@ Table *Table::table_id(TABLE_TYPES type, int id) {
       table->key_block_size = 0;
     else
       table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
+  }
+
+  /* if temporary table encrypt variable set create encrypt table */
+  static auto temp_table_encrypt =
+      get_result("select @@innodb_temp_tablespace_encrypt", thd);
+  if (strcmp(FORK, "Percona-Server") == 0 && table->type == TEMPORARY &&
+      temp_table_encrypt.compare("1") == 0)
+    table->encryption = true;
+
+  /* if innodb system is encrypt , create ecrypt table */
+  static auto system_table_encrypt =
+      get_result("select @@innodb_sys_tablespace_encrypt", thd);
+  if (strcmp(FORK, "Percona-Server") == 0 && table->tablespace.size() > 0 &&
+      table->tablespace.compare("innodb_system") == 0 &&
+      system_table_encrypt.compare("1") == 0) {
+    std::cout << table->name_ << std::endl;
+    table->encryption = true;
   }
 
   static auto engine = options->at(Option::ENGINE)->getString();
@@ -616,13 +643,13 @@ std::string Table::Table_defination() {
 }
 
 /* create default table include all tables now */
-void create_default_tables() {
+void create_default_tables(Thd1 *thd) {
   auto tables = opt_int(TABLES);
   auto only_temporary_tables = opt_bool(ONLY_TEMPORARY);
   if (!only_temporary_tables) {
     for (int i = 1; i <= tables; i++) {
-      all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i));
-      all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i));
+      all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i, thd));
+      all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i, thd));
     }
   }
 }
@@ -679,15 +706,6 @@ bool execute_sql(std::string sql, Thd1 *thd) {
     thd->ddl_logs_write.unlock();
   }
   return (res == 0 ? 1 : 0);
-}
-
-/* get result of sql */
-static std::string get_result(std::string sql, Thd1 *thd) {
-  thd->store_result = true;
-  execute_sql(sql, thd);
-  auto result = thd->result;
-  thd->result = "";
-  return result;
 }
 
 /* load some records in table */
@@ -1115,7 +1133,7 @@ bool load_metadata(Thd1 *thd) {
   } else {
     thd->ddl_query = true;
     create_database_tablespace(thd);
-    create_default_tables();
+    create_default_tables(thd);
   }
 
   if (options->at(Option::TABLES)->getInt() <= 0)
@@ -1125,7 +1143,6 @@ bool load_metadata(Thd1 *thd) {
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
-  std::cout << get_result("show databases", thd);
 
   thd->ddl_query = true;
 
@@ -1162,7 +1179,7 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
   for (int i = 0; i < no_of_tables; i++) {
     thd->ddl_query = true;
-    Table *table = Table::table_id(TEMPORARY, i);
+    Table *table = Table::table_id(TEMPORARY, i, thd);
     if (!execute_sql(table->Table_defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
