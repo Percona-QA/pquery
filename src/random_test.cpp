@@ -90,6 +90,7 @@ int sum_of_all_options() {
   if (enc) {
     opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
+    opt_int_set(ALTER_MASTER_KEY, 0);
   }
 
   int total = 0;
@@ -666,7 +667,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   if (res == 1) {
     /* log failed query */
     if (log_all || log_failed) {
-      thd->thread_log << "Query => " << sql;
+      thd->thread_log << "Query =>" << sql << std::endl;
       thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
     }
     if (mysql_errno(thd->conn) == 2006) {
@@ -688,7 +689,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
 
     /* log successful query */
     if (log_all || log_success) {
-      thd->thread_log << "Query is  => " << sql << std::endl;
+      thd->thread_log << "Query  =>" << sql << std::endl;
       if (!result) {
         thd->thread_log << std::endl;
       } else {
@@ -1222,8 +1223,6 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
                                        : all_tables->at(curr - no_of_tables);
 
     auto option = pick_some_option();
-    thd->thread_log << "option " << options->at(option)->getName() << " table "
-                    << table->name_ << std::endl;
 
     thd->ddl_query = options->at(option)->ddl == true ? true : false;
 
@@ -1278,6 +1277,9 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       break;
     case Option::RENAME_COLUMN:
       table->ColumnRename(thd);
+      break;
+    case Option::ALTER_MASTER_KEY:
+      execute_sql("ALTER INSTANCE ROTATE INNODB MASTER KEY", thd);
       break;
     default:
       throw std::runtime_error("invalid options");

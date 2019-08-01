@@ -229,6 +229,13 @@ void add_options() {
   opt->setSQL();
   opt->setDDL();
 
+  /* alter instance rotate innodb master key */
+  opt = newOption(Option::INT, Option::ALTER_MASTER_KEY, "rotate-master-key");
+  opt->help = "probablity of running. alter instance rotate innodb master key";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
   /*Tablespace Encrytion */
   opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION, "asepm");
   opt->help = "Alter tablespace set Encrytion";
@@ -320,19 +327,19 @@ void add_options() {
 
   /* Analyze Table */
   opt = newOption(Option::INT, Option::ANALYZE, "tapm");
-  opt->help = "Analyze Table";
+  opt->help = "analyze table";
   opt->setInt(1);
   opt->setSQL();
 
   /* Optimize Table */
   opt = newOption(Option::INT, Option::OPTIMIZE, "topm");
-  opt->help = "Optimize Table";
+  opt->help = "optimize table";
   opt->setInt(3);
   opt->setSQL();
 
   /* Truncate table */
   opt = newOption(Option::INT, Option::TRUNCATE, "ttpm");
-  opt->help = "Truncate table";
+  opt->help = "truncate table";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
