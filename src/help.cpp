@@ -330,12 +330,14 @@ void add_options() {
   opt->help = "analyze table";
   opt->setInt(1);
   opt->setSQL();
+  opt->setDDL();
 
   /* Optimize Table */
   opt = newOption(Option::INT, Option::OPTIMIZE, "topm");
   opt->help = "optimize table";
   opt->setInt(3);
   opt->setSQL();
+  opt->setDDL();
 
   /* Truncate table */
   opt = newOption(Option::INT, Option::TRUNCATE, "ttpm");
