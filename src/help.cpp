@@ -73,6 +73,7 @@ void add_options() {
   opt = newOption(Option::BOOL, Option::METADATA_READ, "metadata-read");
   opt->help = "Load table structures from a json file or created then randomly";
   opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* write metadata */
   opt = newOption(Option::BOOL, Option::METADATA_WRITE, "metadata-write");
@@ -84,14 +85,14 @@ void add_options() {
   opt = newOption(Option::STRING, Option::METADATA_READ_FILE,
                   "metadata-read-file");
   opt->help = "read metadata from file name";
-  opt->setString("/tmp/data.dll");
+  opt->setString("data.dll");
 
   /* Read metadata from file */
   opt = newOption(Option::STRING, Option::METADATA_WRITE_FILE,
                   "metadata-write-file");
   opt->help = "write metadata to a file, see option --metadata-read, "
               "--metadata-write ";
-  opt->setString("/tmp/new_data.dll");
+  opt->setString("new_data.dll");
 
   /* Intial Seed for test */
   opt = newOption(Option::INT, Option::INITIAL_SEED, "seed");
@@ -273,9 +274,10 @@ void add_options() {
   /* Select all row */
   opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "stapm");
   opt->help = "Selecting Tables All data probablity";
-  opt->setInt(80);
+  opt->setInt(8);
   opt->setSQL();
 
+  opt = newOption(Option::INT, Option::SELECT_ROW_USING_PKEY, "stppm");
   opt->help = "Select table row using pkey probablity";
   opt->setInt(800);
   opt->setSQL();
@@ -348,7 +350,7 @@ void add_options() {
 
   /* Drop and recreate table */
   opt = newOption(Option::INT, Option::DROP_CREATE, "tdcpm");
-  opt->help = "Drop and recreate table";
+  opt->help = "drop and recreate table";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();

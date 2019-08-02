@@ -7,7 +7,7 @@ using namespace std;
 std::mt19937 rng;
 
 const std::string partition_string = "_p";
-const int version = 1;
+const int version = 2;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
@@ -53,8 +53,8 @@ std::string col_type(COLUMN_TYPES type) {
     return "CHAR";
   case VARCHAR:
     return "VARCHAR";
-    // case BOOL:
-    //  return "BOOL";
+  // case BOOL:
+  //  return "BOOL";
   default:
     throw std::runtime_error("unhandled column from column_types");
   }
@@ -85,6 +85,11 @@ int sum_of_all_options() {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
 
+  /* if insert is disable, set all insert probability to zero */
+  if (options->at(Option::INSERT)->getBool() == false) {
+    opt_int_set(INSERT_RANDOM_ROW, 0);
+  }
+
   /* If no-encryption is set, disable all encryption options */
   auto enc = opt_bool(NO_ENCRYPTION);
   if (enc) {
@@ -92,6 +97,10 @@ int sum_of_all_options() {
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
     opt_int_set(ALTER_MASTER_KEY, 0);
   }
+
+  /* for 5.7 disable tablespace rename */
+  if (db_branch().compare("5.7") == 0)
+    opt_int_set(ALTER_TABLESPACE_RENAME, 0);
 
   int total = 0;
   bool ddl = opt_bool(DDL);
@@ -243,7 +252,7 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.String("type");
   std::string typ = col_type(type_);
   writer.String(typ.c_str(), static_cast<SizeType>(typ.length()));
-  writer.String("nll");
+  writer.String("null");
   writer.Bool(null);
   writer.String("primary_key");
   writer.Bool(primary_key);
@@ -288,28 +297,50 @@ Index::~Index() {
 
 template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.StartObject();
+
   writer.String("name");
-#if RAPIDJSON_HAS_STDSTRING
-  writer.String(name_);
-#else
   writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
-#endif
+
+  writer.String("engine");
+  if (!engine.empty())
+    writer.String(engine.c_str(), static_cast<SizeType>(engine.length()));
+  else
+    writer.String("default");
+
+  writer.String("row_format");
+  if (!row_format.empty())
+    writer.String(row_format.c_str(),
+                  static_cast<SizeType>(row_format.length()));
+  else
+    writer.String("default");
+
+  writer.String("tablespace");
+  if (!tablespace.empty())
+    writer.String(tablespace.c_str(),
+                  static_cast<SizeType>(tablespace.length()));
+  else
+    writer.String("file_per_table");
+
+  writer.String("has_pk");
+  writer.Bool(has_pk);
+
   if (has_pk) {
     writer.String("max_pk_value_inserted");
     writer.Int(max_pk_value_inserted);
   }
 
-  if (!tablespace.empty()) {
-    writer.String("tablespace");
-    writer.String(tablespace.c_str(),
-                  static_cast<SizeType>(tablespace.length()));
-  }
+  writer.String("encryption");
+  writer.Bool(encryption);
+
+  writer.String("key_block_size");
+  writer.Int(key_block_size);
 
   writer.String(("columns"));
   writer.StartArray();
   for (auto &col : *columns_)
     col->Serialize(writer);
   writer.EndArray();
+
   writer.String(("indexes"));
   writer.StartArray();
   for (auto *ind : *indexes_)
@@ -328,12 +359,9 @@ Index::Index(std::string n) : name_(n), columns_() {
 
 void Index::AddInternalColumn(Ind_col *column) { columns_->push_back(column); }
 
-Table::Table(std::string n) : name_(n), indexes_(), max_pk_value_inserted(0) {
+Table::Table(std::string n) : name_(n), max_pk_value_inserted(0), indexes_() {
   columns_ = new std::vector<Column *>;
   indexes_ = new std::vector<Index *>;
-}
-Table::Table(std::string n, int max_pk) : Table(n) {
-  max_pk_value_inserted = max_pk;
 }
 
 void Table::DropCreate(Thd1 *thd) {
@@ -521,10 +549,9 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   static auto no_encryption = opt_bool(NO_ENCRYPTION);
   static auto branch = db_branch();
 
-      if (table->type != TEMPORARY && !no_encryption &&
-          g_encryption.size() > 0 &&
-          g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
-          table->encryption = true;
+  if (table->type != TEMPORARY && !no_encryption && g_encryption.size() > 0 &&
+      g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
+    table->encryption = true;
 
   /* temporary table on 8.0 can't have key block size */
   if (!(branch.compare("8.0") == 0 && type == TEMPORARY)) {
@@ -963,12 +990,15 @@ void save_objects_to_file() {
   std::ofstream of(file);
   of << sb.GetString();
   if (!of.good())
-    throw std::runtime_error("Can't write the JSON string to the file!");
+    throw std::runtime_error("can't write the JSON string to the file!");
 }
 
 /*load objects from a file */
-void load_objects_from_file() {
-  std::string file_read_path = opt_string(METADATA_READ_FILE);
+void load_objects_from_file(Thd1 *thd) {
+  std::string file_read_path = opt_string(LOGDIR);
+  file_read_path += "/" + opt_string(METADATA_READ_FILE);
+  thd->thread_log << "reading metadata from file " << file_read_path
+                  << std::endl;
   FILE *fp = fopen(file_read_path.c_str(), "r");
   char readBuffer[65536];
   FileReadStream is(fp, readBuffer, sizeof(readBuffer));
@@ -984,16 +1014,40 @@ void load_objects_from_file() {
 
   for (auto &tab : d["tables"].GetArray()) {
     Table *table;
-
     std::string name = tab["name"].GetString();
+
     std::string table_type = name.substr(name.size() - 2, 2);
 
-    int max_pk = tab["max_pk_value_inserted"].GetInt();
 
     if (table_type.compare(partition_string) == 0)
-      table = new Partition_table(name, max_pk);
+      table = new Partition_table(name);
     else
-      table = new Table(name, max_pk);
+      table = new Table(name);
+
+    std::string engine = tab["engine"].GetString();
+    if (engine.compare("default") != 0) {
+      table->engine = engine;
+    }
+
+    std::string row_format = tab["row_format"].GetString();
+    if (row_format.compare("default") != 0) {
+      table->row_format = row_format;
+    }
+
+    std::string tablespace = tab["tablespace"].GetString();
+    if (tablespace.compare("file_per_table") != 0) {
+      table->tablespace = tablespace;
+    }
+
+    bool has_pk = tab["has_pk"].GetBool();
+    table->has_pk = has_pk;
+
+    if (has_pk)
+      table->max_pk_value_inserted = tab["max_pk_value_inserted"].GetInt();
+
+    table->encryption = tab["encryption"].GetBool();
+
+    table->key_block_size = tab["key_block_size"].GetInt();
 
     for (auto &col : tab["columns"].GetArray()) {
       Column *a =
@@ -1001,6 +1055,7 @@ void load_objects_from_file() {
                      col["null"].GetBool(), col["lenght"].GetInt(), table);
       a->auto_increment = col["auto_increment"].GetBool();
       a->generated = col["generated"].GetBool();
+      a->primary_key = col["primary_key"].GetBool();
       table->AddInternalColumn(a);
     }
 
@@ -1096,7 +1151,6 @@ void create_database_tablespace(Thd1 *thd) {
     }
   }
 
-
   for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
       continue;
@@ -1106,7 +1160,9 @@ void create_database_tablespace(Thd1 *thd) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
     if (!load_from_file) {
-      execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
+      if (db_branch().compare("5.7") != 0)
+        execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab,
+                    thd);
       execute_sql("DROP TABLESPACE " + tab, thd);
       execute_sql(sql, thd);
     }
@@ -1130,7 +1186,7 @@ bool load_metadata(Thd1 *thd) {
   auto load_from_file = opt_bool(METADATA_READ);
 
   if (load_from_file) {
-    load_objects_from_file();
+    load_objects_from_file(thd);
   } else {
     thd->ddl_query = true;
     create_database_tablespace(thd);

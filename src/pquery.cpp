@@ -23,7 +23,7 @@ pid_t childPID, wPID;
 int status;
 void set_defaults(struct workerParams &Params) {
   // initialize all fields with default values
-  Params.myName = "default.node.tld";
+  Params.myName = "p";
   Params.database = "";
   Params.address = "localhost";
   Params.socket = "/tmp/socket.sock";
@@ -214,7 +214,7 @@ static struct option long_options[] = {
         break;
       }
       if (options->at(c) == nullptr) {
-        std::cout << "INVALID OPTION" << std::endl;
+        throw std::runtime_error("INVALID OPTION");
         break;
       }
       auto op = options->at(c);

@@ -105,7 +105,6 @@ struct Table {
 public:
   TABLE_TYPES type;
   Table(std::string n);
-  Table(std::string n, int max_pk);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
   std::string Table_defination();
   /* methods to create table of choice */
@@ -134,24 +133,23 @@ public:
   virtual ~Table();
 
   std::string name_;
-  bool encryption = false;
-  int key_block_size = 0;
-  std::string data_directory;
+  std::string engine;
   std::string row_format;
   std::string tablespace;
+  bool has_pk = false;
+  std::atomic<int> max_pk_value_inserted;
+  bool encryption = false;
+  int key_block_size = 0;
+  // std::string data_directory; todo add corressponding code
   std::vector<Column *> *columns_;
   std::vector<Index *> *indexes_;
-  bool has_pk = false;
   std::mutex table_mutex;
-  std::atomic<int> max_pk_value_inserted;
-  std::string engine;
 };
 
 /* Partition table */
 struct Partition_table : public Table {
 public:
   Partition_table(std::string n) : Table(n){};
-  Partition_table(std::string n, int max_pk) : Table(n, max_pk){};
   ~Partition_table() {}
   std::string partition_start;
   //  string partiton_type() { return partition_start; }
@@ -177,7 +175,7 @@ std::string rand_string(int upper, int lower = 0);
 bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(Table *table, Thd1 *thd);
 void save_objects_to_file();
-void load_objects_from_file();
+void load_objects_from_file(Thd1 *thd);
 void create_default_tables(Thd1 *thd);
 void clean_up_at_end();
 void create_database_tablespace(Thd1 *thd);
