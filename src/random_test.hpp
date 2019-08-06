@@ -129,6 +129,7 @@ public:
   void SelectAllRow(Thd1 *thd);
   void DeleteAllRows(Thd1 *thd);
   void ColumnRename(Thd1 *thd);
+  int pick_column_for_delete(); /* pick column for delete */
   /* end */
   template <typename Writer> void Serialize(Writer &writer) const;
   virtual ~Table();

@@ -209,9 +209,7 @@ std::string Column::rand_value() {
   switch (type_) {
   case (COLUMN_TYPES::INT):
     static auto rec = 100 * opt_int(INITIAL_RECORDS_IN_TABLE);
-    if (auto_increment == true && rand_int(100) < 10)
-      return "NULL";
-    return std::to_string(rand_int(rec, 4));
+    return std::to_string(rand_int(rec));
     break;
   case (COLUMN_TYPES::VARCHAR):
   case (COLUMN_TYPES::CHAR):
@@ -836,38 +834,67 @@ void Table::ColumnRename(Thd1 *thd) {
   }
 }
 
-void Table::DeleteRandomRow(Thd1 *thd) {
-  if (has_pk) {
-    auto pk = rand_int(max_pk_value_inserted);
-    auto column = columns_->at(0);
-    std::string sql = "DELETE FROM " + name_ + " WHERE " + column->name_ + "=" +
-                      std::to_string(pk);
-    execute_sql(sql, thd);
+/* pick random columns for delete */
+inline int Table::pick_column_for_delete() {
+  auto column = rand_int(columns_->size() - 1);
+
+  bool only_bool = true;
+  /* if tables has pkey try to use that in where clause */
+  if (has_pk && rand_int(100) <= 50)
+    return 0;
+
+  for (auto &col : *columns_) {
+    if (col->type_ != BOOL) {
+      only_bool = false;
+      break;
+    }
   }
+
+  if (columns_->at(column)->type_ == BOOL && rand_int(100) == 1)
+    return column;
+
+  if (columns_->at(column)->type_ == BOOL && only_bool == false)
+    return pick_column_for_delete();
+
+  return column;
+}
+
+void Table::DeleteRandomRow(Thd1 *thd) {
+  table_mutex.lock();
+  auto where = pick_column_for_delete();
+
+
+  std::string sql = "DELETE FROM " + name_ + " WHERE " +
+                    columns_->at(where)->name_ + "=" +
+                    columns_->at(where)->rand_value();
+  table_mutex.unlock();
+  execute_sql(sql, thd);
 }
 
 void Table::SelectRandomRow(Thd1 *thd) {
-  if (has_pk) {
-    auto pk = rand_int(max_pk_value_inserted);
     table_mutex.lock();
+    auto where = rand_int(columns_->size() - 1);
     std::string sql = "SELECT * FROM " + name_ + " WHERE " +
-                      columns_->at(0)->name_ + "=" + std::to_string(pk);
+                      columns_->at(where)->name_ + "=" +
+                      columns_->at(where)->rand_value();
     table_mutex.unlock();
     execute_sql(sql, thd);
-  }
 }
 void Table::UpdateRandomROW(Thd1 *thd) {
-  if (has_pk) {
-    if (max_pk_value_inserted == 0)
-      return;
-    auto pk = rand_int(max_pk_value_inserted);
     table_mutex.lock();
-    std::string sql = "UPDATE " + name_ + " SET " + columns_->at(0)->name_ +
-                      "=" + std::to_string(-pk) + " WHERE " +
-                      columns_->at(0)->name_ + "=" + std::to_string(pk);
+    auto set = rand_int(columns_->size() - 1);
+    auto where = rand_int(columns_->size() - 1);
+
+    /* if tables has pkey try to use that in where clause */
+    if (has_pk && rand_int(100) <= 50)
+      where = 0;
+
+      std::string sql = "UPDATE " + name_ + " SET " + columns_->at(set)->name_ +
+                        "=" + columns_->at(set)->rand_value() + " WHERE " +
+                        columns_->at(where)->name_ + "=" +
+                        columns_->at(where)->rand_value();
     table_mutex.unlock();
     execute_sql(sql, thd);
-  }
 }
 
 void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
@@ -877,7 +904,10 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   std::string insert = "INSERT INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
     insert += column->name_ + " ,";
-    vals += " " + column->rand_value() + ",";
+    auto val = column->rand_value();
+    if (column->auto_increment == true && rand_int(100) < 10)
+      val = "NULL";
+    vals += " " + val + ",";
   }
 
   if (vals.size() > 0) {
@@ -1217,7 +1247,6 @@ bool load_metadata(Thd1 *thd) {
   if (options->at(Option::TABLES)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
 
-  std::cout << thd->store_result << std::endl;
 
   return 1;
 }

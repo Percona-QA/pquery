@@ -285,13 +285,13 @@ void add_options() {
   /* Insert random row */
   opt = newOption(Option::INT, Option::INSERT_RANDOM_ROW, "itrpm");
   opt->help = "insert random row";
-  opt->setInt(800);
+  opt->setInt(600);
   opt->setSQL();
 
   /* Update row using pkey */
   opt = newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "utppm");
   opt->help = "Update row using pkey";
-  opt->setInt(40);
+  opt->setInt(200);
   opt->setSQL();
 
   /* Delete all rows */
@@ -303,7 +303,7 @@ void add_options() {
   /* Delete row using pkey */
   opt = newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
   opt->help = "delete row using pkey";
-  opt->setInt(40);
+  opt->setInt(200);
   opt->setSQL();
 
   /* Drop column */
