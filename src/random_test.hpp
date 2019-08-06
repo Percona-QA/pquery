@@ -37,7 +37,7 @@
 enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 /* Column Basic Properties */
 
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, COLUMN_MAX };
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, BOOL, COLUMN_MAX };
 
 int rand_int(int upper, int lower = 0);
 
@@ -86,17 +86,18 @@ struct Index {
 
 struct Thd1 {
   Thd1(int id, std::ofstream &tl, std::ofstream &ddl_l, MYSQL *c)
-      : thread_id(id), thread_log(tl), ddl_logs(ddl_l), conn(c){};
+      : thread_id(id), thread_log(tl), ddl_logs(ddl_l), conn(c),
+        store_result(false){};
   int thread_id;
   std::ofstream &thread_log;
   static std::mutex ddl_logs_write; // mutex used for writing ddl logs
   std::ofstream &ddl_logs;
   bool ddl_query = false; // is the query ddl
-  bool store_result = false;
   std::string result;
   static bool connection_lost;
   MYSQL *conn;
   int seed;
+  bool store_result = false;
 };
 
 

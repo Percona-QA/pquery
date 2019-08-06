@@ -27,6 +27,7 @@ static std::string get_result(std::string sql, Thd1 *thd) {
   execute_sql(sql, thd);
   auto result = thd->result;
   thd->result = "";
+  thd->store_result = false;
   return result;
 }
 
@@ -38,8 +39,8 @@ COLUMN_TYPES col_type(std::string type) {
     return CHAR;
   else if (type.compare("VARCHAR") == 0)
     return VARCHAR;
-  //  else if (type.compare("BOOL") == 0)
-  //   return BOOL;
+  else if (type.compare("BOOL") == 0)
+    return BOOL;
   else
     throw std::runtime_error("unhandled column from string");
 }
@@ -53,8 +54,8 @@ std::string col_type(COLUMN_TYPES type) {
     return "CHAR";
   case VARCHAR:
     return "VARCHAR";
-  // case BOOL:
-  //  return "BOOL";
+  case BOOL:
+    return "BOOL";
   default:
     throw std::runtime_error("unhandled column from column_types");
   }
@@ -205,16 +206,27 @@ std::string rand_string(int upper, int lower) {
 
 /* return random value of any string */
 std::string Column::rand_value() {
-  if (type_ == COLUMN_TYPES::INT) {
+  switch (type_) {
+  case (COLUMN_TYPES::INT):
     static auto rec = 100 * opt_int(INITIAL_RECORDS_IN_TABLE);
     if (auto_increment == true && rand_int(100) < 10)
       return "NULL";
     return std::to_string(rand_int(rec, 4));
-  } else
+    break;
+  case (COLUMN_TYPES::VARCHAR):
+  case (COLUMN_TYPES::CHAR):
     return "\'" + rand_string(length) + "\'";
+    break;
+  case (BOOL):
+    return (rand_int(1) == 1 ? "true" : "false");
+    break;
+  default:
+    throw std::runtime_error("unhandled column in rand_value " +
+                             col_type(type_));
+  }
 }
 
-/* add new column, can be part of create table or Alter table */
+/* add new column, part of create table or Alter table */
 Column::Column(std::string name, Table *table, int type)
     : name_(name), table_(table) {
   switch (type) {
@@ -232,6 +244,9 @@ Column::Column(std::string name, Table *table, int type)
       length = rand_int(100, 20);
     else
       length = 0;
+    break;
+  case COLUMN_TYPES::BOOL:
+    type_ = BOOL;
     break;
   default:
     throw std::runtime_error("unhandled column found in create table");
@@ -567,8 +582,13 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
       table->row_format = g_row_format[rand_int(g_row_format.size() - 1)];
   }
 
+  /* with more number of tablespace there are more chances to have table in
+   * tablespaces */
+  static int tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
+
   /* temporary table can't have tablespace */
-  if (table->type != TEMPORARY && g_tablespace.size() > 0 && rand_int(2) == 0) {
+  if (table->type != TEMPORARY && g_tablespace.size() > 0 &&
+      rand_int(tbs_count) != 0) {
     table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
     table->encryption =
         false; // todo add encrypted tablespace in starting if supported //
@@ -584,6 +604,8 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   /* if temporary table encrypt variable set create encrypt table */
   static auto temp_table_encrypt =
       get_result("select @@innodb_temp_tablespace_encrypt", thd);
+
+  // todo use #ifdefine FORK
   if (strcmp(FORK, "Percona-Server") == 0 && table->type == TEMPORARY &&
       temp_table_encrypt.compare("1") == 0)
     table->encryption = true;
@@ -591,10 +613,10 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   /* if innodb system is encrypt , create ecrypt table */
   static auto system_table_encrypt =
       get_result("select @@innodb_sys_tablespace_encrypt", thd);
+
   if (strcmp(FORK, "Percona-Server") == 0 && table->tablespace.size() > 0 &&
       table->tablespace.compare("innodb_system") == 0 &&
       system_table_encrypt.compare("1") == 0) {
-    std::cout << table->name_ << std::endl;
     table->encryption = true;
   }
 
@@ -711,7 +733,6 @@ bool execute_sql(std::string sql, Thd1 *thd) {
         throw std::runtime_error(sql + " doest not return result set");
       auto row = mysql_fetch_row(result);
       thd->result = row[0];
-      thd->store_result = false;
     }
 
     /* log successful query */
@@ -1196,16 +1217,18 @@ bool load_metadata(Thd1 *thd) {
   if (options->at(Option::TABLES)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
 
+  std::cout << thd->store_result << std::endl;
+
   return 1;
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
-  thd->ddl_query = true;
 
   auto database = opt_string(DATABASE);
   execute_sql("USE " + database, thd);
 
+  thd->ddl_query = true;
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
 
