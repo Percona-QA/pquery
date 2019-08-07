@@ -13,6 +13,7 @@
 #ifndef FORK
 #define FORK "MySQL"
 #endif
+#endif
 
 #ifndef PQREVISION
 #define PQREVISION "unknown"
@@ -35,7 +36,7 @@ struct Option {
     NUMBER_OF_GENERAL_TABLESPACE,
     ENGINE,
     JUST_LOAD_DDL,
-    DDL,
+    NO_DDL,
     NO_ENCRYPTION,
     NO_TABLESPACE,
     TABLES,

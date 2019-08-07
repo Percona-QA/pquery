@@ -67,6 +67,7 @@ static std::string db_branch() {
   return branch;
 }
 
+/* disable some feature based on user request/ branch/ fork */
 int sum_of_all_options() {
 
   /* if select is set as zero, disable all type of selects */
@@ -104,9 +105,9 @@ int sum_of_all_options() {
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
 
   int total = 0;
-  bool ddl = opt_bool(DDL);
+  bool noddl = opt_bool(NO_DDL);
   for (auto &opt : *options) {
-    if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
+    if (opt == nullptr || !opt->sql || (noddl && opt->ddl))
       continue;
     total += opt->getInt();
   }
@@ -124,9 +125,9 @@ int sum_of_all_server_options() {
 Option::Opt pick_some_option() {
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
-  static bool ddl = opt_bool(DDL);
+  static bool noddl = opt_bool(NO_DDL);
   for (auto &opt : *options) {
-    if (opt == nullptr || !opt->sql || (!ddl && opt->ddl))
+    if (opt == nullptr || !opt->sql || (noddl && opt->ddl))
       continue;
     if (rd <= opt->getInt())
       return opt->getOption();
@@ -1128,7 +1129,7 @@ void load_objects_from_file(Thd1 *thd) {
     }
 
     all_tables->push_back(table);
-    options->at(Option::DDL)->setInt(all_tables->size());
+    options->at(Option::TABLES)->setInt(all_tables->size());
   }
   fclose(fp);
 }
@@ -1252,7 +1253,6 @@ bool load_metadata(Thd1 *thd) {
 }
 
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
-
 
   auto database = opt_string(DATABASE);
   execute_sql("USE " + database, thd);

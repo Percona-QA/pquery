@@ -117,9 +117,10 @@ void add_options() {
   opt->setArgs(no_argument);
 
   /* DDL option */
-  opt = newOption(Option::BOOL, Option::DDL, "ddl");
-  opt->help = "Use DDL in workload";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_DDL, "noddl");
+  opt->help = "do not use ddl in workload";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* disable all type of encrytion */
   opt = newOption(Option::BOOL, Option::NO_ENCRYPTION, "no-encryption");
