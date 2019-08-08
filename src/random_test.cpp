@@ -12,6 +12,7 @@ static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
 bool Thd1::connection_lost = false;
+static int sum_of_all_opts = 0;
 
 static std::vector<int> g_key_block_size;
 std::mutex Thd1::ddl_logs_write;
@@ -68,7 +69,7 @@ static std::string db_branch() {
 }
 
 /* disable some feature based on user request/ branch/ fork */
-int sum_of_all_options() {
+int sum_of_all_options(Thd1 *thd) {
 
   /* if select is set as zero, disable all type of selects */
   if (options->at(Option::SELECT)->getBool() == false) {
@@ -104,16 +105,15 @@ int sum_of_all_options() {
   if (db_branch().compare("5.7") == 0)
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
 
-  /* for 8.0 default columns */
-  if (db_branch().compare("8.0") == 0) {
-    auto opt = options->at(Option::COLUMNS);
-    if (!opt->cl)
-      opt->setInt(10);
-  }
-
   auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
   auto only_cl_sql = opt_bool(ONLY_CL_SQL);
   auto no_ddl = opt_bool(NO_DDL);
+
+  /* for 8.0 default columns */
+  if (db_branch().compare("8.0") == 0) {
+    if (!options->at(Option::COLUMNS)->cl)
+      options->at(Option::COLUMNS)->setInt(7);
+  }
 
   /* only-cl-sql, if set then disable all other DDL */
   if (only_cl_sql) {
@@ -144,18 +144,18 @@ int sum_of_all_options() {
 
   int total = 0;
   for (auto &opt : *options) {
-    if (opt == nullptr || !opt->sql)
+    if (opt == nullptr)
       continue;
-    std::cout << opt->getName() << " " << opt->getInt() << std::endl;
+    thd->thread_log << opt->getName() << "=>" << opt->getInt() << std::endl;
+    if (!opt->sql)
+      continue;
     total += opt->getInt();
   }
-  std::cout << "RETURNING" << std::endl;
   return total;
 }
-
+/* return some options */
 Option::Opt pick_some_option() {
-  static int total_probablity = sum_of_all_options();
-  int rd = rand_int(total_probablity, 1);
+  int rd = rand_int(sum_of_all_opts, 1);
   for (auto &opt : *options) {
     if (opt == nullptr || !opt->sql)
       continue;
@@ -1259,6 +1259,7 @@ void create_database_tablespace(Thd1 *thd) {
 
 /* load metadata */
 bool load_metadata(Thd1 *thd) {
+  sum_of_all_opts = sum_of_all_options(thd);
   auto engine = opt_string(ENGINE);
 
   random_strs =
