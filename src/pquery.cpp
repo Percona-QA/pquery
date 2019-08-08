@@ -218,6 +218,12 @@ static struct option long_options[] = {
         break;
       }
       auto op = options->at(c);
+
+      if (op->ddl)
+        op->set_cl_ddl();
+      if (op->sql)
+        op->set_cl_sql();
+
       if (op->getArgs() == required_argument) {
         switch (op->getType()) {
         case Option::INT:

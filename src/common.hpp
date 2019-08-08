@@ -13,7 +13,6 @@
 #ifndef FORK
 #define FORK "MySQL"
 #endif
-#endif
 
 #ifndef PQREVISION
 #define PQREVISION "unknown"
@@ -37,6 +36,8 @@ struct Option {
     ENGINE,
     JUST_LOAD_DDL,
     NO_DDL,
+    ONLY_CL_DDL,
+    ONLY_CL_SQL,
     NO_ENCRYPTION,
     NO_TABLESPACE,
     TABLES,
@@ -92,18 +93,17 @@ struct Option {
   } option;
   Option(Type t, Opt o, std::string n)
       : type(t), option(o), name(n), sql(false), ddl(false){};
-  void print_pretty();
+  ~Option();
 
+  void print_pretty();
   Type getType() { return type; };
   Opt getOption() { return option; };
-
   const char *getName() { return name.c_str(); };
   bool getBool() { return default_bool; }
   int getInt() { return default_int; }
   std::string getString() { return default_value; }
   short getArgs() { return args; }
   void setArgs(short s) { args = s; };
-
   void setBool(std::string s) {
     std::transform(s.begin(), s.end(), s.begin(), ::toupper);
     if (s.compare("ON") == 0 || s.compare("TRUE") == 0 || s.compare("1") == 0)
@@ -116,21 +116,32 @@ struct Option {
     }
   }
 
-  void setBool(bool in) { default_bool = in; }
-  void setInt(std::string n) { default_int = stoi(n); }
-  void setInt(int n) { default_int = n; }
-  void setString(std::string n) { default_value = n; };
+  void setBool(bool in) {
+    default_bool = in;
+  }
+  void setInt(std::string n) {
+    default_int = stoi(n);
+  }
+  void setInt(int n) {
+    default_int = n;
+  }
+  void setString(std::string n) {
+    default_value = n;
+  };
   void setSQL() { sql = true; };
   void setDDL() { ddl = true; };
+  void set_cl_ddl() { cl_ddl = true; }
+  void set_cl_sql() { cl_sql = true; }
 
   std::string name;
   std::string help;
   std::string default_value;
-  int default_int;
-  bool default_bool;
+  int default_int; // if default value is integer
+  bool default_bool; // if default value is bool
   bool sql; // true if option is SQL, False if others
   bool ddl; // If SQL is DDL, or false if it is not
-  ~Option();
+  bool cl_ddl = false; // enable if only_cl_ddl
+  bool cl_sql = false; // set if we want only command line sql
   short args = required_argument; // default is required argument
 };
 

@@ -104,30 +104,53 @@ int sum_of_all_options() {
   if (db_branch().compare("5.7") == 0)
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
 
+  auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
+  auto only_cl_sql = opt_bool(ONLY_CL_SQL);
+  auto no_ddl = opt_bool(NO_DDL);
+
+  /* only-cl-sql, if set then disable all other DDL */
+  if (only_cl_sql) {
+    for (auto &opt : *options) {
+      if (opt != nullptr && opt->sql && !opt->cl_sql)
+        opt->setInt(0);
+    }
+  }
+
+  /* only-cl-ddl, if set then disable all other DDL */
+  if (only_cl_ddl) {
+    for (auto &opt : *options) {
+      if (opt != nullptr && opt->ddl && !opt->cl_ddl)
+        opt->setInt(0);
+    }
+  }
+
+  if (only_cl_ddl && no_ddl)
+    throw std::runtime_error("noddl && only-cl-ddl can't be passed together");
+
+  /* if no ddl is set disable all ddl */
+  if (no_ddl) {
+    for (auto &opt : *options) {
+      if (opt != nullptr && opt->sql && opt->ddl)
+        opt->setInt(0);
+    }
+  }
+
   int total = 0;
-  bool noddl = opt_bool(NO_DDL);
   for (auto &opt : *options) {
-    if (opt == nullptr || !opt->sql || (noddl && opt->ddl))
+    if (opt == nullptr || !opt->sql)
       continue;
+    std::cout << opt->getName() << " " << opt->getInt() << std::endl;
     total += opt->getInt();
   }
-  return total;
-}
-
-int sum_of_all_server_options() {
-  int total = 0;
-  for (auto &opt : *server_options) {
-    total += opt->prob;
-  }
+  std::cout << "RETURNING" << std::endl;
   return total;
 }
 
 Option::Opt pick_some_option() {
   static int total_probablity = sum_of_all_options();
   int rd = rand_int(total_probablity, 1);
-  static bool noddl = opt_bool(NO_DDL);
   for (auto &opt : *options) {
-    if (opt == nullptr || !opt->sql || (noddl && opt->ddl))
+    if (opt == nullptr || !opt->sql)
       continue;
     if (rd <= opt->getInt())
       return opt->getOption();
@@ -135,6 +158,13 @@ Option::Opt pick_some_option() {
       rd -= opt->getInt();
   }
   return Option::MAX;
+}
+int sum_of_all_server_options() {
+  int total = 0;
+  for (auto &opt : *server_options) {
+    total += opt->prob;
+  }
+  return total;
 }
 
 /* set seed of current thread */
@@ -864,7 +894,6 @@ void Table::DeleteRandomRow(Thd1 *thd) {
   table_mutex.lock();
   auto where = pick_column_for_delete();
 
-
   std::string sql = "DELETE FROM " + name_ + " WHERE " +
                     columns_->at(where)->name_ + "=" +
                     columns_->at(where)->rand_value();
@@ -873,29 +902,29 @@ void Table::DeleteRandomRow(Thd1 *thd) {
 }
 
 void Table::SelectRandomRow(Thd1 *thd) {
-    table_mutex.lock();
-    auto where = rand_int(columns_->size() - 1);
-    std::string sql = "SELECT * FROM " + name_ + " WHERE " +
-                      columns_->at(where)->name_ + "=" +
-                      columns_->at(where)->rand_value();
-    table_mutex.unlock();
-    execute_sql(sql, thd);
+  table_mutex.lock();
+  auto where = rand_int(columns_->size() - 1);
+  std::string sql = "SELECT * FROM " + name_ + " WHERE " +
+                    columns_->at(where)->name_ + "=" +
+                    columns_->at(where)->rand_value();
+  table_mutex.unlock();
+  execute_sql(sql, thd);
 }
 void Table::UpdateRandomROW(Thd1 *thd) {
-    table_mutex.lock();
-    auto set = rand_int(columns_->size() - 1);
-    auto where = rand_int(columns_->size() - 1);
+  table_mutex.lock();
+  auto set = rand_int(columns_->size() - 1);
+  auto where = rand_int(columns_->size() - 1);
 
-    /* if tables has pkey try to use that in where clause */
-    if (has_pk && rand_int(100) <= 50)
-      where = 0;
+  /* if tables has pkey try to use that in where clause */
+  if (has_pk && rand_int(100) <= 50)
+    where = 0;
 
-      std::string sql = "UPDATE " + name_ + " SET " + columns_->at(set)->name_ +
-                        "=" + columns_->at(set)->rand_value() + " WHERE " +
-                        columns_->at(where)->name_ + "=" +
-                        columns_->at(where)->rand_value();
-    table_mutex.unlock();
-    execute_sql(sql, thd);
+  std::string sql = "UPDATE " + name_ + " SET " + columns_->at(set)->name_ +
+                    "=" + columns_->at(set)->rand_value() + " WHERE " +
+                    columns_->at(where)->name_ + "=" +
+                    columns_->at(where)->rand_value();
+  table_mutex.unlock();
+  execute_sql(sql, thd);
 }
 
 void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
@@ -1069,7 +1098,6 @@ void load_objects_from_file(Thd1 *thd) {
     std::string name = tab["name"].GetString();
 
     std::string table_type = name.substr(name.size() - 2, 2);
-
 
     if (table_type.compare(partition_string) == 0)
       table = new Partition_table(name);
@@ -1247,7 +1275,6 @@ bool load_metadata(Thd1 *thd) {
 
   if (options->at(Option::TABLES)->getInt() <= 0)
     throw std::runtime_error("no table to work on \n");
-
 
   return 1;
 }

@@ -122,6 +122,18 @@ void add_options() {
   opt->setBool(false);
   opt->setArgs(no_argument);
 
+  /* Only command line sql option */
+  opt = newOption(Option::BOOL, Option::ONLY_CL_SQL, "only-cl-sql");
+  opt->help = "only run command line sql. other sql will be disable";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* Only command line ddl option */
+  opt = newOption(Option::BOOL, Option::ONLY_CL_DDL, "only-cl-ddl");
+  opt->help = "only run command line ddl. other ddl will be disable";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* disable all type of encrytion */
   opt = newOption(Option::BOOL, Option::NO_ENCRYPTION, "no-encryption");
   opt->help = "Disable All type of encrytion";
@@ -229,7 +241,6 @@ void add_options() {
   opt->help = "set global variable during the load";
   opt->setInt(3);
   opt->setSQL();
-  opt->setDDL();
 
   /* alter instance rotate innodb master key */
   opt = newOption(Option::INT, Option::ALTER_MASTER_KEY, "rotate-master-key");
