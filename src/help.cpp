@@ -158,8 +158,8 @@ void add_options() {
 
   /* Number of columns in a table */
   opt = newOption(Option::INT, Option::COLUMNS, "columns");
-  opt->help =
-      "maximum columns in a table, default depends on page-size as well";
+  opt->help = "maximum columns in a table, default depends on page-size, "
+              "branch. for 8.0 it is 7 for 5.7 it 10";
   opt->setInt(10);
 
   /* Number of columns in an index of a table */

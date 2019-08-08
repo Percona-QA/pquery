@@ -37,7 +37,7 @@
 enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 /* Column Basic Properties */
 
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, BOOL, GENERATED_VIRTUAL, COLUMN_MAX };
+enum COLUMN_TYPES { INT, CHAR, VARCHAR, BOOL, COLUMN_MAX };
 
 int rand_int(int upper, int lower = 0);
 

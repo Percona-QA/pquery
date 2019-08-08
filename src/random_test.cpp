@@ -104,6 +104,13 @@ int sum_of_all_options() {
   if (db_branch().compare("5.7") == 0)
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
 
+  /* for 8.0 default columns */
+  if (db_branch().compare("8.0") == 0) {
+    auto opt = options->at(Option::COLUMNS);
+    if (!opt->cl)
+      opt->setInt(10);
+  }
+
   auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
   auto only_cl_sql = opt_bool(ONLY_CL_SQL);
   auto no_ddl = opt_bool(NO_DDL);
@@ -111,7 +118,7 @@ int sum_of_all_options() {
   /* only-cl-sql, if set then disable all other DDL */
   if (only_cl_sql) {
     for (auto &opt : *options) {
-      if (opt != nullptr && opt->sql && !opt->cl_sql)
+      if (opt != nullptr && opt->sql && !opt->cl)
         opt->setInt(0);
     }
   }
@@ -119,7 +126,7 @@ int sum_of_all_options() {
   /* only-cl-ddl, if set then disable all other DDL */
   if (only_cl_ddl) {
     for (auto &opt : *options) {
-      if (opt != nullptr && opt->ddl && !opt->cl_ddl)
+      if (opt != nullptr && opt->ddl && !opt->cl)
         opt->setInt(0);
     }
   }

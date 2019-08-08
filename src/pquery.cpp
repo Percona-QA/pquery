@@ -219,10 +219,7 @@ static struct option long_options[] = {
       }
       auto op = options->at(c);
 
-      if (op->ddl)
-        op->set_cl_ddl();
-      if (op->sql)
-        op->set_cl_sql();
+      op->set_cl();
 
       if (op->getArgs() == required_argument) {
         switch (op->getType()) {

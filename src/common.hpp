@@ -130,8 +130,7 @@ struct Option {
   };
   void setSQL() { sql = true; };
   void setDDL() { ddl = true; };
-  void set_cl_ddl() { cl_ddl = true; }
-  void set_cl_sql() { cl_sql = true; }
+  void set_cl() { cl = true; }
 
   std::string name;
   std::string help;
@@ -140,8 +139,7 @@ struct Option {
   bool default_bool; // if default value is bool
   bool sql; // true if option is SQL, False if others
   bool ddl; // If SQL is DDL, or false if it is not
-  bool cl_ddl = false; // enable if only_cl_ddl
-  bool cl_sql = false; // set if we want only command line sql
+  bool cl = false;                // set if it was pass trough command line
   short args = required_argument; // default is required argument
 };
 
