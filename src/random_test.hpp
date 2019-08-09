@@ -190,5 +190,6 @@ COLUMN_TYPES col_type(std::string type);
 /* return string from a column type */
 std::string col_type(COLUMN_TYPES type);
 void add_server_options(std::string str);
+void alter_database_encryption(Thd1 *thd);
 
 #endif

@@ -99,6 +99,7 @@ int sum_of_all_options(Thd1 *thd) {
     opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
     opt_int_set(ALTER_MASTER_KEY, 0);
+    opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
   }
 
   /* for 5.7 disable tablespace rename */
@@ -716,7 +717,7 @@ std::string Table::Table_defination() {
   if (!tablespace.empty())
     def += " TABLESPACE=" + tablespace;
 
-  if (key_block_size > 0)
+  if (key_block_size > 1)
     def += " KEY_BLOCK_SIZE=" + std::to_string(key_block_size);
 
   if (row_format.size() > 0)
@@ -1042,6 +1043,13 @@ void alter_tablespace_encryption(Thd1 *thd) {
   }
 }
 
+/* alter database set encryption */
+void alter_database_encryption(Thd1 *thd) {
+  std::string sql = "ALTER DATABASE test ENCRYPTION ";
+  sql += (rand_int(1) == 0 ? "'Y'" : "'N'");
+  execute_sql(sql, thd);
+}
+
 /* alter tablespace rename */
 void alter_tablespace_rename(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
@@ -1182,7 +1190,7 @@ void create_database_tablespace(Thd1 *thd) {
 
   auto no_tbs = opt_bool(NO_TABLESPACE);
   if (!no_tbs)
-    g_tablespace = {"innodb_system", "tab02k", "tab04k", "tab01k"};
+    g_tablespace = {"innodb_system", "tab02k", "tab04k"};
 
   std::string row_format = opt_string(ROW_FORMAT);
 
@@ -1423,6 +1431,9 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       break;
     case Option::ALTER_MASTER_KEY:
       execute_sql("ALTER INSTANCE ROTATE INNODB MASTER KEY", thd);
+      break;
+    case Option::ALTER_DATABASE_ENCRYPTION:
+      alter_database_encryption(thd);
       break;
     default:
       throw std::runtime_error("invalid options");

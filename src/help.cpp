@@ -256,6 +256,13 @@ void add_options() {
   opt->setSQL();
   opt->setDDL();
 
+  /*Database Encryption */
+  opt = newOption(Option::INT, Option::ALTER_DATABASE_ENCRYPTION, "ade");
+  opt->help = "Alter Database Encryption mode to Y/N";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
   /* Tablespace Rename */
   opt = newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "asrpm");
   opt->help = "Alter tablespace rename";
