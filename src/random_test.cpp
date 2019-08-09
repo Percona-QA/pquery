@@ -33,7 +33,7 @@ static std::string get_result(std::string sql, Thd1 *thd) {
 }
 
 /* return column type from a string */
-COLUMN_TYPES col_type(std::string type) {
+Column::COLUMN_TYPES Column::col_type(std::string type) {
   if (type.compare("INT") == 0)
     return INT;
   else if (type.compare("CHAR") == 0)
@@ -42,13 +42,15 @@ COLUMN_TYPES col_type(std::string type) {
     return VARCHAR;
   else if (type.compare("BOOL") == 0)
     return BOOL;
+  else if (type.compare("GENERATED") == 0)
+    return GENERATED;
   else
-    throw std::runtime_error("unhandled column from string");
+    throw std::runtime_error("unhandled column in col_type");
 }
 
 /* return string from a column type */
-std::string col_type(COLUMN_TYPES type) {
-  switch (type) {
+const std::string Column::col_type_to_string() const {
+  switch (type_) {
   case INT:
     return "INT";
   case CHAR:
@@ -57,6 +59,8 @@ std::string col_type(COLUMN_TYPES type) {
     return "VARCHAR";
   case BOOL:
     return "BOOL";
+  case GENERATED:
+    return "GENERATED";
   default:
     throw std::runtime_error("unhandled column from column_types");
   }
@@ -257,44 +261,79 @@ std::string Column::rand_value() {
   case (BOOL):
     return (rand_int(1) == 1 ? "true" : "false");
     break;
+  case (GENERATED):
+    return "default";
   default:
     throw std::runtime_error("unhandled column in rand_value " +
-                             col_type(type_));
+                             col_type_to_string());
   }
 }
 
+/* return table defination */
+std::string Column::defination() {
+  std::string def = name_ + " " + clause();
+  if (length > 0)
+    def += "(" + std::to_string(length) + ")";
+  if (null)
+    def += " NOT NULL";
+  if (auto_increment)
+    def += " AUTO_INCREMENT";
+  return def;
+}
+
 /* add new column, part of create table or Alter table */
-Column::Column(std::string name, Table *table, int type)
+Column::Column(std::string name, Table *table, COLUMN_TYPES type)
     : name_(name), table_(table) {
-  switch (type) {
-  case COLUMN_TYPES::CHAR:
-    type_ = CHAR;
+  type_ = type;
+  if (type == CHAR || type == VARCHAR)
     length = rand_int(g_max_columns_length, 10);
-    break;
-  case COLUMN_TYPES::VARCHAR:
-    type_ = VARCHAR;
-    length = rand_int(g_max_columns_length, 10);
-    break;
-  case COLUMN_TYPES::INT:
-    type_ = INT;
+  else if (type == INT) {
     if (rand_int(10) == 1)
       length = rand_int(100, 20);
     else
       length = 0;
-    break;
-  case COLUMN_TYPES::BOOL:
-    type_ = BOOL;
-    break;
-  default:
-    throw std::runtime_error("unhandled column found in create table");
   }
 }
 
-/* used to read metadata */
-Column::Column(std::string name, std::string type, bool is_null, int len,
-               Table *table)
-    : name_(name), null(is_null), length(len), table_(table) {
-  type_ = col_type(type);
+/* Generated column  constructor. Table has to be locked before Calling this
+ * method */
+Generated_Column::Generated_Column(std::string name, Table *table)
+    : Column(name, table, Column::GENERATED) {
+  std::cout << table->name_ << std::endl;
+  std::string type = "INT";
+  str = " " + type + " AS(";
+
+  /*
+  auto x = rand_int(10);
+  if (x < 4)
+    type = "INT";
+  else if (x < 8)
+    type = "VARHAR";
+  else
+    type = "CHAR";
+    */
+  size_t columns = rand_int(.6 * table->columns_->size()) + 1;
+
+  std::vector<size_t> col_pos; // position of columns
+  while (col_pos.size() < columns) {
+    size_t col = rand_int(table->columns_->size() - 1);
+    if (!table->columns_->at(col)->auto_increment)
+      col_pos.push_back(col);
+  }
+
+  if (type.compare("INT") == 0) {
+    for (auto pos : col_pos) {
+      auto col = table->columns_->at(pos);
+      if (col->type_ == VARCHAR || col->type_ == CHAR)
+        str += " LENGTH(" + col->name_ + ")+";
+      else if (col->type_ == INT || col->type_ == BOOL)
+        str += " " + col->name_ + "+";
+      else
+        throw std::runtime_error("unhandled " + to_string(__LINE__));
+    }
+  }
+  str.pop_back();
+  str += ")";
 }
 
 template <typename Writer> void Column::Serialize(Writer &writer) const {
@@ -302,7 +341,7 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.String("name");
   writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
   writer.String("type");
-  std::string typ = col_type(type_);
+  std::string typ = col_type_to_string();
   writer.String(typ.c_str(), static_cast<SizeType>(typ.length()));
   writer.String("null");
   writer.Bool(null);
@@ -310,8 +349,6 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.Bool(primary_key);
   writer.String("auto_increment");
   writer.Bool(auto_increment);
-  writer.String("generated");
-  writer.Bool(generated);
   writer.String("lenght");
   writer.Int(length);
   writer.EndObject();
@@ -411,6 +448,20 @@ Index::Index(std::string n) : name_(n), columns_() {
 
 void Index::AddInternalColumn(Ind_col *column) { columns_->push_back(column); }
 
+/* index defination */
+std::string Index::defination() {
+  std::string def;
+  def += "INDEX " + name_ + "(";
+  for (auto idc : *columns_) {
+    def += idc->column->name_;
+    def += (idc->desc ? " DESC" : (rand_int(3) ? "" : " ASC"));
+    def += ", ";
+  }
+  def.erase(def.length() - 2);
+  def += "), ";
+  return def;
+}
+
 Table::Table(std::string n) : name_(n), max_pk_value_inserted(0), indexes_() {
   columns_ = new std::vector<Column *>;
   indexes_ = new std::vector<Index *>;
@@ -420,7 +471,7 @@ void Table::DropCreate(Thd1 *thd) {
   if (execute_sql("DROP TABLE " + name_, thd))
     max_pk_value_inserted = 0;
 
-  std::string def = Table_defination();
+  std::string def = defination();
   if (execute_sql(def, thd))
     max_pk_value_inserted = 0;
   else if (tablespace.size() > 0) {
@@ -471,18 +522,20 @@ void Table::CreateDefaultColumn() {
 
   /* create normal column */
   static auto max_col = opt_int(COLUMNS);
+
   auto max_columns = rand_int(max_col, 1);
   bool auto_increment = false;
+
   for (int i = 0; i < max_columns; i++) {
     std::string name;
-    COLUMN_TYPES type;
+    Column::COLUMN_TYPES type;
     Column *col;
     /*  if we need to create primary column */
     static int pkey_pb_per_table = opt_int(PRIMARY_KEY);
 
     /* First column can be primary */
     if (i == 0 && rand_int(100) < pkey_pb_per_table) {
-      type = COLUMN_TYPES::INT;
+      type = Column::INT;
       name = "pkey";
       has_pk = true;
       col = new Column{name, this, type};
@@ -495,20 +548,37 @@ void Table::CreateDefaultColumn() {
 
     } else {
       name = "c" + std::to_string(i);
-      auto t = rand_int(COLUMN_TYPES::COLUMN_MAX - 1);
-      col = new Column{name, this, t};
+
+      Column::COLUMN_TYPES col_type;
+      static auto no_virtual_col = opt_bool(NO_VIRTUAL_COLUMNS);
+
+      /* intial columns can't be generated columns */
+      auto tx = rand_int(10);
+      if (!no_virtual_col && i >= .8 * max_columns && tx < 1)
+        col_type = Column::GENERATED;
+      else if (tx < 4)
+        col_type = Column::INT;
+      else if (tx < 7)
+        col_type = Column::VARCHAR;
+      else if (tx < 10)
+        col_type = Column::CHAR;
+      else
+        col_type = Column::BOOL;
+
+      if (col_type != Column::GENERATED)
+        col = new Column(name, this, col_type);
+      else
+        col = new Generated_Column(name, this);
+
       /* 25% column can have auto_inc */
-      if (col->type_ == INT && !no_auto_inc && auto_increment == false &&
-          rand_int(100) > 25) {
+      if (col->type_ == Column::INT && !no_auto_inc &&
+          auto_increment == false && rand_int(100) > 25) {
         col->auto_increment = true;
         auto_increment = true;
       }
     }
     AddInternalColumn(col);
   }
-
-  /* create some generated columns */
-  // std::string name = "g" + to_string(1);
 }
 
 /* create default indexes */
@@ -667,25 +737,16 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
 }
 
 /* prepare table defination */
-std::string Table::Table_defination() {
+std::string Table::defination() {
   std::string def = "CREATE";
   if (type == TABLE_TYPES::TEMPORARY)
     def += " TEMPORARY";
   def += " TABLE  " + name_ + " (";
 
-  // todo move to method
   for (auto col : *columns_) {
-    def += " " + col->name_ + " " + col_type(col->type_);
-    if (col->length > 0)
-      def += "(" + std::to_string(col->length) + ")";
-    if (col->null)
-      def += " NOT NULL";
-    if (col->auto_increment)
-      def += " AUTO_INCREMENT";
-    def += ", ";
+    def += col->defination() + ", ";
   }
 
-  /* add primary key */
   if (has_pk) {
     def += " PRiMARY KEY(";
     for (auto col : *columns_) {
@@ -697,15 +758,9 @@ std::string Table::Table_defination() {
   }
 
   for (auto id : *indexes_) {
-    def += "INDEX " + id->name_ + "(";
-    for (auto idc : *id->columns_) {
-      def += idc->column->name_;
-      def += (idc->desc ? " DESC" : (rand_int(3) ? "" : " ASC"));
-      def += ", ";
-    }
-    def.erase(def.length() - 2);
-    def += "), ";
+    def += id->defination();
   }
+
   def.erase(def.length() - 2);
   def += " )";
 
@@ -823,11 +878,40 @@ void Table::AddColumn(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
   std::string name;
   name = "COL" + std::to_string(rand_int(300));
-  /* choose which column to add */
-  auto type = rand_int(COLUMN_TYPES::COLUMN_MAX - 1);
+  sql += name;
 
-  Column *tc = new Column(name, this, type);
-  sql += name + " " + col_type(tc->type_);
+  Column::COLUMN_TYPES col_type;
+
+  auto flag = true;
+  static auto no_use_virtual = opt_bool(NO_VIRTUAL_COLUMNS);
+  table_mutex.lock();
+  if (!no_use_virtual ||
+      (columns_->size() == 1 && columns_->at(0)->auto_increment == true))
+    flag = false;
+
+  auto tx = rand_int(flag ? 10 : 8);
+
+  if (tx >= 9)
+    col_type = Column::GENERATED;
+  else if (tx > 5)
+    col_type = Column::INT;
+  else if (tx > 2)
+    col_type = Column::VARCHAR;
+  else if (tx > 1)
+    col_type = Column::CHAR;
+  else
+    col_type = Column::BOOL;
+
+  Column *tc;
+  if (col_type != Column::GENERATED)
+    tc = new Column(name, this, col_type);
+  else
+    tc = new Generated_Column(name, this);
+
+  table_mutex.unlock();
+
+  sql += tc->clause();
+
   if (tc->length > 0)
     sql += "(" + std::to_string(tc->length) + ")";
 
@@ -883,16 +967,16 @@ inline int Table::pick_column_for_delete() {
     return 0;
 
   for (auto &col : *columns_) {
-    if (col->type_ != BOOL) {
+    if (col->type_ != Column::BOOL) {
       only_bool = false;
       break;
     }
   }
 
-  if (columns_->at(column)->type_ == BOOL && rand_int(100) == 1)
+  if (columns_->at(column)->type_ == Column::BOOL && rand_int(100) == 1)
     return column;
 
-  if (columns_->at(column)->type_ == BOOL && only_bool == false)
+  if (columns_->at(column)->type_ == Column::BOOL && only_bool == false)
     return pick_column_for_delete();
 
   return column;
@@ -1146,10 +1230,10 @@ void load_objects_from_file(Thd1 *thd) {
 
     for (auto &col : tab["columns"].GetArray()) {
       Column *a =
-          new Column(col["name"].GetString(), col["type"].GetString(),
-                     col["null"].GetBool(), col["lenght"].GetInt(), table);
+          new Column(col["name"].GetString(), col["type"].GetString(), table);
+      a->null = col["null"].GetBool();
       a->auto_increment = col["auto_increment"].GetBool();
-      a->generated = col["generated"].GetBool();
+      a->length = col["lenght"].GetInt(),
       a->primary_key = col["primary_key"].GetBool();
       table->AddInternalColumn(a);
     }
@@ -1312,7 +1396,7 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
     for (size_t i = thd->thread_id; i < size; i = i + threads) {
       auto table = all_tables->at(i);
       thd->ddl_query = true;
-      if (!execute_sql(table->Table_defination(), thd))
+      if (!execute_sql(table->defination(), thd))
         throw std::runtime_error("Create table failed " + table->name_);
       static auto load_from_file = opt_bool(METADATA_READ);
       if (!just_ddl && !load_from_file) {
@@ -1332,7 +1416,7 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   for (int i = 0; i < no_of_tables; i++) {
     thd->ddl_query = true;
     Table *table = Table::table_id(TEMPORARY, i, thd);
-    if (!execute_sql(table->Table_defination(), thd))
+    if (!execute_sql(table->defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
     if (!just_ddl) {

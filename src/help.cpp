@@ -140,6 +140,12 @@ void add_options() {
   opt->setBool(false);
   opt->setArgs(no_argument);
 
+  /* disable virtual columns*/
+  opt = newOption(Option::BOOL, Option::NO_VIRTUAL_COLUMNS, "no-virtual");
+  opt->help = "Disable virtual columns";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* disable all type of encrytion */
   opt = newOption(Option::BOOL, Option::NO_TABLESPACE, "no-tbs");
   opt->help = "disable all type of tablespace including the general tablespace";

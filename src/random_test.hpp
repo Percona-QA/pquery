@@ -35,33 +35,52 @@
 
 /* Different table type supported by tool */
 enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
-/* Column Basic Properties */
-
-enum COLUMN_TYPES { INT, CHAR, VARCHAR, BOOL, COLUMN_MAX };
 
 int rand_int(int upper, int lower = 0);
 
 struct Table;
 
 struct Column {
-  Column(std::string name, Table *table,
-         int type); // type is cast into COLUMN_TYPES
-  Column(std::string name, std::string type, bool is_null, int len,
-         Table *table);
-  Column(const Column &column);
+  enum COLUMN_TYPES {
+    INT,
+    CHAR,
+    VARCHAR,
+    BOOL,
+    GENERATED,
+    COLUMN_MAX // should be last
+  } type_;
+  /* used for create new table/alter table add column*/
+  Column(std::string name, Table *table, COLUMN_TYPES type);
+  /* used for read meta data */
+  Column(std::string name, std::string type, Table *table)
+      : type_(col_type(type)), name_(name), table_(table){};
+  /* table defination */
+  std::string defination();
+  /* return random value of that column */
   std::string rand_value();
+  /* return string to call type */
+  const std::string col_type_to_string() const;
+  /* return column type from a string */
+  COLUMN_TYPES col_type(std::string type);
+  /* used to create_metadata */
   template <typename Writer> void Serialize(Writer &writer) const;
+  /* return the caluse of create table */
+  virtual std::string clause() { return col_type_to_string(); };
+  virtual ~Column(){};
   std::string name_;
-  COLUMN_TYPES type_;
   bool null = false;
   int length = 0;
   std::string default_value;
-  bool primary_key = false; // if this column is primary key
-  bool generated = false; // is it a virtual column
-  bool stored = false;    // if it is stored column
-  bool auto_increment = false; // if it is auto increment column
-  std::string clause;     // clause of generated column
+  bool primary_key = false;
+  bool auto_increment = false;
   Table *table_;
+};
+
+struct Generated_Column : public Column {
+  Generated_Column(std::string name, Table *table);
+  std::string str;
+  std::string clause() { return str; };
+  ~Generated_Column(){};
 };
 
 struct Ind_col {
@@ -79,6 +98,8 @@ struct Index {
   void AddInternalColumn(Ind_col *column);
   template <typename Writer> void Serialize(Writer &writer) const;
   ~Index();
+
+  std::string defination();
 
   std::string name_;
   std::vector<Ind_col *> *columns_;
@@ -107,7 +128,7 @@ public:
   TABLE_TYPES type;
   Table(std::string n);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
-  std::string Table_defination();
+  std::string defination();
   /* methods to create table of choice */
   void AddInternalColumn(Column *column) { columns_->push_back(column); }
   void AddInternalIndex(Index *index) { indexes_->push_back(index); }
@@ -185,10 +206,6 @@ Table *select_random_table();
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 void set_mysqld_variable(Thd1 *thd);
-/* return column type from a string */
-COLUMN_TYPES col_type(std::string type);
-/* return string from a column type */
-std::string col_type(COLUMN_TYPES type);
 void add_server_options(std::string str);
 void alter_database_encryption(Thd1 *thd);
 
