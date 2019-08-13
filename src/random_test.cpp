@@ -295,33 +295,33 @@ Column::Column(std::string name, Table *table, COLUMN_TYPES type)
   }
 }
 
-/* Generated column  constructor. Table has to be locked before Calling this
- * method */
+/* Generated column  constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
     : Column(name, table, Column::GENERATED) {
-  std::cout << table->name_ << std::endl;
   std::string type = "INT";
-  str = " " + type + " AS(";
 
-  /*
   auto x = rand_int(10);
   if (x < 4)
     type = "INT";
-  else if (x < 8)
-    type = "VARHAR";
+  else // if (x < 8)
+    type = "VARCHAR";
+  /*
   else
     type = "CHAR";
     */
+
   size_t columns = rand_int(.6 * table->columns_->size()) + 1;
 
   std::vector<size_t> col_pos; // position of columns
   while (col_pos.size() < columns) {
     size_t col = rand_int(table->columns_->size() - 1);
-    if (!table->columns_->at(col)->auto_increment)
+    if (!table->columns_->at(col)->auto_increment &&
+        table->columns_->at(col)->type_ != GENERATED)
       col_pos.push_back(col);
   }
 
   if (type.compare("INT") == 0) {
+    str = " " + type + " AS(";
     for (auto pos : col_pos) {
       auto col = table->columns_->at(pos);
       if (col->type_ == VARCHAR || col->type_ == CHAR)
@@ -331,8 +331,43 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       else
         throw std::runtime_error("unhandled " + to_string(__LINE__));
     }
+    str.pop_back();
+  } else if (type.compare("VARCHAR") == 0) {
+    auto size = rand_int(g_max_columns_length, col_pos.size());
+    int actual_size = 0;
+    string gen_sql;
+    for (auto pos : col_pos) {
+      auto col = table->columns_->at(pos);
+      auto current_size = rand_int((int)size / col_pos.size() * 2, 1);
+      int column_size = 0;
+      switch (col->type_) {
+      case INT:
+        column_size = 10; // interger max string size is 10
+        break;
+      case BOOL:
+        column_size = 1;
+        break;
+      case VARCHAR:
+      case CHAR:
+        column_size = col->length;
+        break;
+      default:
+        throw std::runtime_error("unhandled " + to_string(__LINE__));
+      }
+      if (column_size > current_size) {
+        actual_size += current_size;
+        gen_sql +=
+            "SUBSTRING(" + col->name_ + ",1," + to_string(current_size) + "),";
+      } else {
+        actual_size += column_size;
+        gen_sql += col->name_ + ",";
+      }
+    }
+    gen_sql.pop_back();
+    str = " " + type + "(" + to_string(actual_size) + ") AS" + " (CONCAT(";
+    str += gen_sql;
+    str += ")";
   }
-  str.pop_back();
   str += ")";
 }
 
@@ -554,7 +589,8 @@ void Table::CreateDefaultColumn() {
 
       /* intial columns can't be generated columns */
       auto tx = rand_int(10);
-      if (!no_virtual_col && i >= .8 * max_columns && tx < 1)
+      /* only 33% of  tables last columns  are virtuals */
+      if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
         col_type = Column::GENERATED;
       else if (tx < 4)
         col_type = Column::INT;
@@ -748,7 +784,7 @@ std::string Table::defination() {
   }
 
   if (has_pk) {
-    def += " PRiMARY KEY(";
+    def += " PRIMARY KEY(";
     for (auto col : *columns_) {
       if (col->primary_key)
         def += col->name_ + ", ";
@@ -885,11 +921,13 @@ void Table::AddColumn(Thd1 *thd) {
   auto flag = true;
   static auto no_use_virtual = opt_bool(NO_VIRTUAL_COLUMNS);
   table_mutex.lock();
-  if (!no_use_virtual ||
+  if (no_use_virtual ||
       (columns_->size() == 1 && columns_->at(0)->auto_increment == true))
     flag = false;
 
   auto tx = rand_int(flag ? 10 : 8);
+  if (tx >= 9)
+    std::cout << "value of tx " << sql << std::endl;
 
   if (tx >= 9)
     col_type = Column::GENERATED;
@@ -910,7 +948,7 @@ void Table::AddColumn(Thd1 *thd) {
 
   table_mutex.unlock();
 
-  sql += tc->clause();
+  sql += " " + tc->clause();
 
   if (tc->length > 0)
     sql += "(" + std::to_string(tc->length) + ")";
