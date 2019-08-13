@@ -269,6 +269,28 @@ void add_options() {
   opt->setSQL();
   opt->setDDL();
 
+  /* Create Undo Tablespace */
+  opt = newOption(Option::INT, Option::CREATE_UNDO_TABLESPACE, "undo_tbsp");
+  opt->help = "Create undo tablespaces";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+
+  /* Alter Undo Tablespace */
+  opt = newOption(Option::INT, Option::ALTER_UNDO_TABLESPACE, "alter_undo");
+  opt->help = "Alter undo tablespace to active or inactive";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Drop Undo Tablespace */
+  opt = newOption(Option::INT, Option::DROP_UNDO_TABLESPACE, "drop_undo");
+  opt->help = "Drop undo tablespace";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
   /* Tablespace Rename */
   opt = newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "asrpm");
   opt->help = "Alter tablespace rename";

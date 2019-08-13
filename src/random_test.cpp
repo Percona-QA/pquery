@@ -11,6 +11,7 @@ const int version = 2;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
+static std::vector<std::string> g_undo_tablespace;
 bool Thd1::connection_lost = false;
 static int sum_of_all_opts = 0;
 
@@ -107,8 +108,12 @@ int sum_of_all_options(Thd1 *thd) {
   }
 
   /* for 5.7 disable tablespace rename */
-  if (db_branch().compare("5.7") == 0)
+  if (db_branch().compare("5.7") == 0) {
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
+    opt_int_set(CREATE_UNDO_TABLESPACE, 0);
+    opt_int_set(ALTER_UNDO_TABLESPACE, 0);
+    opt_int_set(DROP_UNDO_TABLESPACE, 0);
+  }
 
   auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
   auto only_cl_sql = opt_bool(ONLY_CL_SQL);
@@ -1172,6 +1177,30 @@ void alter_database_encryption(Thd1 *thd) {
   execute_sql(sql, thd);
 }
 
+/* Create undo tablespaces */
+void create_undo_tablespace(Thd1 *thd) {
+  for (auto &name : g_undo_tablespace) {
+    std::string sql = "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
+    execute_sql(sql, thd);
+  }
+}
+
+/* alter undo tablespace active/inactive */
+void alter_undo_tablespace(Thd1 *thd) {
+  std::string sql = "ALTER UNDO TABLESPACE " +
+                    g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)] +
+                    " SET ";
+  sql += (rand_int(1) == 0 ? "ACTIVE" : "INACTIVE");
+  execute_sql(sql, thd);
+}
+
+/* drop undo tablespace */
+void drop_undo_tablespace(Thd1 *thd) {
+  std::string sql = "DROP UNDO TABLESPACE " +
+                    g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)];
+  execute_sql(sql, thd);
+}
+
 /* alter tablespace rename */
 void alter_tablespace_rename(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
@@ -1314,6 +1343,9 @@ void create_database_tablespace(Thd1 *thd) {
   if (!no_tbs)
     g_tablespace = {"innodb_system", "tab02k", "tab04k"};
 
+  for (int i=1; i<=options->at(Option::CREATE_UNDO_TABLESPACE)->getInt(); i++) {
+    g_undo_tablespace.push_back("undo_00" + to_string(i));
+  }
   std::string row_format = opt_string(ROW_FORMAT);
 
   if (row_format.compare("uncompressed") == 0) {
@@ -1384,6 +1416,7 @@ void create_database_tablespace(Thd1 *thd) {
       execute_sql(sql, thd);
     }
   }
+
   thd->thread_log << "default tablespaces created" << std::endl;
 }
 
@@ -1556,6 +1589,15 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       break;
     case Option::ALTER_DATABASE_ENCRYPTION:
       alter_database_encryption(thd);
+      break;
+    case Option::CREATE_UNDO_TABLESPACE:
+      create_undo_tablespace(thd);
+      break;
+    case Option::ALTER_UNDO_TABLESPACE:
+      alter_undo_tablespace(thd);
+      break;
+    case Option::DROP_UNDO_TABLESPACE:
+      drop_undo_tablespace(thd);
       break;
     default:
       throw std::runtime_error("invalid options");

@@ -208,5 +208,8 @@ void alter_tablespace_rename(Thd1 *thd);
 void set_mysqld_variable(Thd1 *thd);
 void add_server_options(std::string str);
 void alter_database_encryption(Thd1 *thd);
+void create_undo_tablespace(Thd1 *thd);
+void alter_undo_tablespace(Thd1 *thd);
+void drop_undo_tablespace(Thd1 *thd);
 
 #endif
