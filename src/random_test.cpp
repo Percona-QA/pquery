@@ -285,13 +285,20 @@ std::string Column::defination() {
 Column::Column(std::string name, Table *table, COLUMN_TYPES type)
     : name_(name), table_(table) {
   type_ = type;
-  if (type == CHAR || type == VARCHAR)
+  switch (type) {
+  case CHAR:
+  case VARCHAR:
     length = rand_int(g_max_columns_length, 10);
-  else if (type == INT) {
+    break;
+  case INT:
     if (rand_int(10) == 1)
       length = rand_int(100, 20);
-    else
-      length = 0;
+    break;
+  case BOOL:
+    break;
+  default:
+    throw std::runtime_error("unhandled " + col_type_to_string() + " at line " +
+                             to_string(__LINE__));
   }
 }
 
@@ -300,16 +307,16 @@ Generated_Column::Generated_Column(std::string name, Table *table)
     : Column(name, table, Column::GENERATED) {
   std::string type = "INT";
 
-  auto x = rand_int(10);
-  if (x < 4)
+  /* Generated columns are 2:2:1 (INT:VARCHAR:CHAR) */
+  auto x = rand_int(5);
+  if (x < 2)
     type = "INT";
-  else // if (x < 8)
+  if (x < 4)
     type = "VARCHAR";
-  /*
   else
     type = "CHAR";
-    */
 
+  /*number of columns in generated columns */
   size_t columns = rand_int(.6 * table->columns_->size()) + 1;
 
   std::vector<size_t> col_pos; // position of columns
@@ -332,7 +339,7 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         throw std::runtime_error("unhandled " + to_string(__LINE__));
     }
     str.pop_back();
-  } else if (type.compare("VARCHAR") == 0) {
+  } else if (type.compare("VARCHAR") == 0 || type.compare("CHAR") == 0) {
     auto size = rand_int(g_max_columns_length, col_pos.size());
     int actual_size = 0;
     string gen_sql;
@@ -352,7 +359,8 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         column_size = col->length;
         break;
       default:
-        throw std::runtime_error("unhandled " + to_string(__LINE__));
+        throw std::runtime_error("unhandled " + col_type_to_string() +
+                                 " at line " + to_string(__LINE__));
       }
       if (column_size > current_size) {
         actual_size += current_size;
@@ -820,7 +828,7 @@ std::string Table::defination() {
   return def;
 }
 
-/* create default table include all tables now */
+/* create default table includes all tables now */
 void create_default_tables(Thd1 *thd) {
   auto tables = opt_int(TABLES);
   auto only_temporary_tables = opt_bool(ONLY_TEMPORARY);
@@ -926,9 +934,6 @@ void Table::AddColumn(Thd1 *thd) {
     flag = false;
 
   auto tx = rand_int(flag ? 10 : 8);
-  if (tx >= 9)
-    std::cout << "value of tx " << sql << std::endl;
-
   if (tx >= 9)
     col_type = Column::GENERATED;
   else if (tx > 5)
@@ -1211,6 +1216,59 @@ void save_objects_to_file() {
     throw std::runtime_error("can't write the JSON string to the file!");
 }
 
+/* create in memory data */
+void create_in_memory_data() {
+  auto no_tbs = opt_bool(NO_TABLESPACE);
+  if (!no_tbs)
+    g_tablespace = {"innodb_system", "tab02k", "tab04k"};
+
+  std::string row_format = opt_string(ROW_FORMAT);
+  if (row_format.compare("uncompressed") == 0) {
+    g_row_format = {"DYNAMIC", "REDUNDANT"};
+  } else if (row_format.compare("all") == 0) {
+    g_row_format = {"DYNAMIC", "REDUNDANT", "COMPRESSED"};
+    g_key_block_size = {0, 0, 1, 2, 4};
+  } else if (row_format.compare("none") == 0) {
+    g_key_block_size.empty();
+  } else {
+    g_row_format.push_back(row_format);
+  }
+
+  if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
+    g_row_format.clear();
+    g_key_block_size.clear();
+  }
+
+  if (!no_tbs) {
+    /* Adjust the tablespaces */
+    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
+      g_tablespace.push_back("tab08k");
+    }
+    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
+      g_tablespace.push_back("tab16k");
+    }
+    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
+      g_tablespace.push_back("tab32k");
+    }
+    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
+      g_tablespace.push_back("tab64k");
+    }
+  }
+
+  /* add addtional tablespace */
+  auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
+  if (tbs_count > 1) {
+    auto current_size = g_tablespace.size();
+    for (size_t i = 0; i < current_size; i++) {
+      if (g_tablespace[i].compare("innodb_system") == 0)
+        continue;
+      for (int j = 1; j <= tbs_count; j++)
+        g_tablespace.push_back(g_tablespace[i] + to_string(j));
+    }
+  }
+
+}
+
 /*load objects from a file */
 void load_objects_from_file(Thd1 *thd) {
   std::string file_read_path = opt_string(LOGDIR);
@@ -1307,90 +1365,33 @@ void clean_up_at_end() {
   delete random_strs;
 }
 
-/* create new database and tables */
+/* create new database and tablespace */
 void create_database_tablespace(Thd1 *thd) {
 
-  auto no_tbs = opt_bool(NO_TABLESPACE);
-  if (!no_tbs)
-    g_tablespace = {"innodb_system", "tab02k", "tab04k"};
-
-  std::string row_format = opt_string(ROW_FORMAT);
-
-  if (row_format.compare("uncompressed") == 0) {
-    g_row_format = {"DYNAMIC", "REDUNDANT"};
-  } else if (row_format.compare("all") == 0) {
-    g_row_format = {"DYNAMIC", "REDUNDANT", "COMPRESSED"};
-    g_key_block_size = {0, 0, 1, 2, 4};
-
-  } else if (row_format.compare("none") == 0) {
-    thd->thread_log << "row_format is excluted" << std::endl;
-  } else {
-    g_row_format.push_back(row_format);
-  }
-
-  if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
-    g_row_format.clear();
-    g_key_block_size.clear();
-  }
-  if (!no_tbs) {
-    /* Adjust the tablespaces */
-    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
-      g_tablespace.push_back("tab08k");
-    }
-    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
-      g_tablespace.push_back("tab16k");
-    }
-    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
-      g_tablespace.push_back("tab32k");
-    }
-    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
-      g_tablespace.push_back("tab64k");
-    }
-  }
-
-  auto load_from_file = opt_bool(METADATA_READ);
-
-  /* drop dabase test*/
-  if (!load_from_file) {
-    execute_sql("DROP DATABASE test", thd);
-    execute_sql("CREATE DATABASE test", thd);
-  }
-
-  /* add addtional tablespace */
-  auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
-  if (tbs_count > 1) {
-    auto current_size = g_tablespace.size();
-    for (size_t i = 0; i < current_size; i++) {
-      if (g_tablespace[i].compare("innodb_system") == 0)
-        continue;
-      for (int j = 1; j <= tbs_count; j++)
-        g_tablespace.push_back(g_tablespace[i] + to_string(j));
-    }
-  }
+  /* drop database test*/
+  execute_sql("DROP DATABASE test", thd);
+  execute_sql("CREATE DATABASE test", thd);
 
   for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
       continue;
     std::string sql =
         "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd' ";
+
     if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
-    if (!load_from_file) {
-      if (db_branch().compare("5.7") != 0)
-        execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab,
-                    thd);
-      execute_sql("DROP TABLESPACE " + tab, thd);
-      execute_sql(sql, thd);
-    }
+
+    if (db_branch().compare("5.7") != 0)
+      execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
+    execute_sql("DROP TABLESPACE " + tab, thd);
+    execute_sql(sql, thd);
   }
-  thd->thread_log << "default tablespaces created" << std::endl;
 }
 
 /* load metadata */
 bool load_metadata(Thd1 *thd) {
   sum_of_all_opts = sum_of_all_options(thd);
-  auto engine = opt_string(ENGINE);
 
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
@@ -1399,14 +1400,17 @@ bool load_metadata(Thd1 *thd) {
   /*set seed for current thread*/
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
+
   logs << " creating tables metadata " << std::endl;
 
   auto load_from_file = opt_bool(METADATA_READ);
 
+  /* create in-memory data for general tablespaces */
+  create_in_memory_data();
+
   if (load_from_file) {
     load_objects_from_file(thd);
   } else {
-    thd->ddl_query = true;
     create_database_tablespace(thd);
     create_default_tables(thd);
   }

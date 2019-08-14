@@ -199,14 +199,15 @@ bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(Table *table, Thd1 *thd);
 void save_objects_to_file();
 void load_objects_from_file(Thd1 *thd);
-void create_default_tables(Thd1 *thd);
 void clean_up_at_end();
-void create_database_tablespace(Thd1 *thd);
 Table *select_random_table();
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 void set_mysqld_variable(Thd1 *thd);
 void add_server_options(std::string str);
 void alter_database_encryption(Thd1 *thd);
+void create_in_memory_data();
+void create_default_tables(Thd1 *thd);
+void create_database_tablespace(Thd1 *thd);
 
 #endif
