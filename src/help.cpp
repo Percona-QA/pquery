@@ -486,10 +486,9 @@ void add_options() {
 
   /* queries per thread */
   opt =
-      newOption(Option::BOOL, Option::QUERIES_PER_THREAD, "queries-per-thread");
+      newOption(Option::INT, Option::QUERIES_PER_THREAD, "queries-per-thread");
   opt->help = "The number of queries per thread";
-  opt->setBool(false);
-  opt->setArgs(no_argument);
+  opt->setInt(1);
 
   /* test connection */
   opt = newOption(Option::BOOL, Option::TEST_CONNECTION, "test-connection");

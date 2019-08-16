@@ -145,6 +145,9 @@ int main(int argc, char *argv[]) {
     case 'I':
       show_config_help();
       exit(EXIT_FAILURE);
+    case 'i':
+      wParams.infile = optarg;
+      break;
     case 'C':
       show_cli_help();
       exit(EXIT_FAILURE);
