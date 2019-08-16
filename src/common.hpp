@@ -86,10 +86,17 @@ struct Option {
     PORT = 'p',
     PASSWORD = 'P',
     HELP = 'h',
+    NO_SHUFFLE = 'n',
     THREADS = 't',
     LOG_ALL_QUERIES = 'A',
     LOG_FAILED_QUERIES = 'F',
     LOG_SUCCEDED_QUERIES = 'S',
+    LOG_QUERY_STATISTICS = 'L',
+    LOG_QUERY_DURATION = 'D',
+    LOG_QUERY_NUMBERS = 'N',
+    LOG_CLIENT_OUTPUT = 'O',
+    TEST_CONNECTION = 'T',
+    QUERIES_PER_THREAD = 'q',
     USER = 'u',
     MAX = 'z'
   } option;

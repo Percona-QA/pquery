@@ -295,6 +295,7 @@ Column::Column(std::string name, Table *table, COLUMN_TYPES type)
       length = rand_int(100, 20);
     break;
   case BOOL:
+  case GENERATED:
     break;
   default:
     throw std::runtime_error("unhandled " + col_type_to_string() + " at line " +
@@ -609,9 +610,9 @@ void Table::CreateDefaultColumn() {
       else
         col_type = Column::BOOL;
 
-      if (col_type != Column::GENERATED)
+      if (col_type != Column::GENERATED) {
         col = new Column(name, this, col_type);
-      else
+      } else
         col = new Generated_Column(name, this);
 
       /* 25% column can have auto_inc */
@@ -1266,7 +1267,6 @@ void create_in_memory_data() {
         g_tablespace.push_back(g_tablespace[i] + to_string(j));
     }
   }
-
 }
 
 /*load objects from a file */

@@ -23,23 +23,15 @@ pid_t childPID, wPID;
 int status;
 void set_defaults(struct workerParams &Params) {
   // initialize all fields with default values
-  Params.myName = "p";
-  Params.database = "";
+  Params.myName = "default";
   Params.address = "localhost";
   Params.socket = "/tmp/socket.sock";
   Params.password = "";
   Params.infile = "pquery.sql";
   Params.logdir = "/Users/rahulmalik/pquery/src";
   Params.threads = 2;
-  Params.queries_per_thread = 0;
   Params.verbose = false;
   Params.debug = false;
-  Params.log_query_statistics = false;
-  Params.log_query_duration = false;
-  Params.log_client_output = false;
-  Params.log_query_numbers = false;
-  Params.shuffle = true;
-  Params.test_connection = false;
 }
 
 void read_section_settings(struct workerParams &wParams, std::string secName,
@@ -51,32 +43,30 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
   wParams.username = reader.Get(secName, "user", "test");
   wParams.password = reader.Get(secName, "password", "");
   wParams.socket = reader.Get(secName, "socket", "/tmp/my.sock");
-  wParams.database = reader.Get(secName, "database", "");
+  // wParams.database = reader.Get(secName, "database", "");
 
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);
-  wParams.queries_per_thread =
-      reader.GetInteger(secName, "queries-per-thread", 10000);
 #ifdef MAXPACKET
   wParams.maxpacket =
       reader.GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
 #endif
   wParams.verbose = reader.GetBoolean(secName, "verbose", false);
   wParams.debug = reader.GetBoolean(secName, "debug", false);
-  wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
   wParams.infile = reader.Get(secName, "infile", "pquery.sql");
   wParams.logdir = reader.Get(secName, "logdir", "/tmp");
+  /*
+  wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
+  wParams.queries_per_thread =
+      reader.GetInteger(secName, "queries-per-thread", 10000);
   wParams.test_connection =
       reader.GetBoolean(secName, "test-connection", false);
-
-  /*
   wParams.log_all_queries =
       reader.GetBoolean(secName, "log-all-queries", false);
   wParams.log_succeeded_queries =
       reader.GetBoolean(secName, "log-succeded-queries", false);
   wParams.log_failed_queries =
       reader.GetBoolean(secName, "log-failed-queries", false);
-      */
   wParams.log_query_statistics =
       reader.GetBoolean(secName, "log-query-statistics", false);
   wParams.log_query_duration =
@@ -85,6 +75,7 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
       reader.GetBoolean(secName, "log-client-output", false);
   wParams.log_query_numbers =
       reader.GetBoolean(secName, "log-query-numbers", false);
+  */
 }
 
 void create_worker(struct workerParams &Params) {
@@ -117,22 +108,13 @@ int main(int argc, char *argv[]) {
   add_options();
   int c;
   while (true) {
-
     struct option long_options[Option::MAX];
-    /*
-static struct option long_options[] = {
-  {"config-help", no_argument, 0, 'I'},
-  {"cli-help", no_argument, 0, 'C'},
-  {"queries-per-thread", required_argument, 0, 'q'},
-  {"verbose", no_argument, 0, 'v'},
-  {"debug", no_argument, 0, 'E'},
-  {"no-shuffle", no_argument, 0, 'n'},
-  {"log-query-statistics", no_argument, 0, 'L'},
-  {"log-query-duration", no_argument, 0, 'D'},
-  {"test-connection", no_argument, 0, 'T'},
-  {"log-query-numbers", no_argument, 0, 'N'},
-  {"log-client-output", no_argument, 0, 'O'},
-  */
+    /* static struct option long_options[] =
+          {"config-help", no_argument, 0, 'I'},
+          {"cli-help", no_argument, 0, 'C'},
+          {"verbose", no_argument, 0, 'v'},
+          {"debug", no_argument, 0, 'E'},
+    */
     int option_index = 0;
 
     int i = 0;
@@ -166,10 +148,6 @@ static struct option long_options[] = {
     case 'C':
       show_cli_help();
       exit(EXIT_FAILURE);
-    case 'q':
-      std::cout << "> Queries per thread: " << optarg << std::endl;
-      wParams.queries_per_thread = atoi(optarg);
-      break;
     case 'v':
       std::cout << "> Verbose mode: ON" << std::endl;
       show_help("verbose");
@@ -178,30 +156,6 @@ static struct option long_options[] = {
     case 'E':
       std::cout << "> Debug mode: ON" << std::endl;
       wParams.debug = true;
-      break;
-    case 'n':
-      std::cout << "> Shuffle mode: OFF" << std::endl;
-      wParams.shuffle = false;
-      break;
-    case 'L':
-      std::cout << "> Log query statistics: ON" << std::endl;
-      wParams.log_query_statistics = true;
-      break;
-    case 'D':
-      std::cout << "> Log query duration: ON" << std::endl;
-      wParams.log_query_duration = true;
-      break;
-    case 'T':
-      std::cout << "> Test connection and exit: ON" << std::endl;
-      wParams.test_connection = true;
-      break;
-    case 'N':
-      std::cout << "> Log query numbers: ON" << std::endl;
-      wParams.log_query_numbers = true;
-      break;
-    case 'O':
-      std::cout << "> Log client output: ON" << std::endl;
-      wParams.log_client_output = true;
       break;
     case Option::MYSQLD_SERVER_OPTION:
       add_server_options(optarg);
@@ -219,6 +173,7 @@ static struct option long_options[] = {
       }
       auto op = options->at(c);
 
+      /* set command line */
       op->set_cl();
 
       if (op->getArgs() == required_argument) {

@@ -438,6 +438,38 @@ void add_options() {
   opt->setBool(true);
   opt->setArgs(no_argument);
 
+  /* execute sql sequentially */
+  opt = newOption(Option::BOOL, Option::NO_SHUFFLE, "no-shuffle");
+  opt->help = "execute SQL sequentially | randomly\n";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log query statistics */
+  opt = newOption(Option::BOOL, Option::LOG_QUERY_STATISTICS,
+                  "log-query-statistics");
+  opt->help = "extended output of query result";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log client output*/
+  opt = newOption(Option::BOOL, Option::LOG_CLIENT_OUTPUT, "log-client-output");
+  opt->help = "Log query output to separate file";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log query number*/
+  opt = newOption(Option::BOOL, Option::LOG_QUERY_NUMBERS, "log-query-numbers");
+  opt->help = "write query # to logs";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log query duration */
+  opt =
+      newOption(Option::BOOL, Option::LOG_QUERY_DURATION, "log-query-duration");
+  opt->help = "Log query duration in milliseconds";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* log failed queries */
   opt =
       newOption(Option::BOOL, Option::LOG_FAILED_QUERIES, "log-failed-queries");
@@ -449,6 +481,19 @@ void add_options() {
   opt = newOption(Option::BOOL, Option::LOG_SUCCEDED_QUERIES,
                   "log-succeeded-queries");
   opt->help = "Log succeeded queries";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* queries per thread */
+  opt =
+      newOption(Option::BOOL, Option::QUERIES_PER_THREAD, "queries-per-thread");
+  opt->help = "The number of queries per thread";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* test connection */
+  opt = newOption(Option::BOOL, Option::TEST_CONNECTION, "test-connection");
+  opt->help = "Test connection to server and exit";
   opt->setBool(false);
   opt->setArgs(no_argument);
 }
@@ -580,10 +625,6 @@ void show_help(std::string help) {
            "       | no\n"
         << "--no-shuffle           | Execute SQL sequentially              "
            "       | randomly\n"
-        << "--log-query-statistics | Extended output of query result       "
-           "       | no\n"
-        << "--log-query-duration   | Log query duration in milliseconds    "
-           "       | no\n"
         << "--test-connection      | Test connection to server and exit    "
            "       | no\n"
         << "--log-query-number     | Write query # to logs                 "
@@ -640,12 +681,6 @@ void show_help(std::string help) {
         << "log-succeeded-queries = No\n"
         << "# Log failed queries\n"
         << "log-failed-queries = No\n"
-        << "# Execute SQL randomly\n"
-        << "shuffle = Yes\n"
-        << "# Extended output of query result\n"
-           "log-query-statistics = No\n"
-        << "# Log query duration in milliseconds\n"
-        << "log-query-duration = No\n"
         << "# Log output from executed query (separate log)\n"
         << "log-client-output = No\n"
         << "# Log query numbers along the query results and statistics\n"
