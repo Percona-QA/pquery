@@ -250,7 +250,7 @@ void add_options() {
 
   /* alter instance rotate innodb master key */
   opt = newOption(Option::INT, Option::ALTER_MASTER_KEY, "rotate-master-key");
-  opt->help = "probablity of running. alter instance rotate innodb master key";
+  opt->help = "Alter instance rotate innodb master key";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();

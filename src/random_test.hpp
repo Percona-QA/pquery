@@ -33,8 +33,6 @@
 #define opt_bool(a) options->at(Option::a)->getBool();
 #define opt_string(a) options->at(Option::a)->getString();
 
-/* Different table type supported by tool */
-enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 
 int rand_int(int upper, int lower = 0);
 
@@ -118,14 +116,22 @@ struct Thd1 {
   static bool connection_lost;
   MYSQL *conn;
   int seed;
+  bool success = false; // if the sql is successfully executed
   bool store_result = false;
 };
 
+/* Different table type supported by tool */
 
 /* Table basic properties */
 struct Table {
 public:
-  TABLE_TYPES type;
+  enum TABLE_TYPES {
+    PARTITION,
+    NORMAL,
+    TEMPORARY,
+    TABLE_MAX
+  } type;
+
   Table(std::string n);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
   std::string defination();

@@ -55,6 +55,25 @@ void Node::writeFinalReport() {
                    performed_queries_total
             << "% were successful)";
     general_log << exitmsg.str() << std::endl;
+    exitmsg.str(std::string());
+
+    unsigned long int success_queries = 0;
+    unsigned long int total_queries = 0;
+    for (auto op : *options) {
+      if (op == nullptr)
+        continue;
+      if (op->total_queries > 0) {
+        total_queries += op->total_queries;
+        success_queries += op->success_queries;
+        general_log << op->help << ", total=>" << op->total_queries
+                    << ", success=> " << op->success_queries << std::endl;
+      }
+    }
+
+    exitmsg << "* SUMMAR: " << total_queries - success_queries << "/"
+            << total_queries << "queries failed, ("
+            << success_queries * 100 / total_queries << "% were successful)";
+    general_log << exitmsg.str() << std::endl;
   }
 }
 

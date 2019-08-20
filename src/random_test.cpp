@@ -18,7 +18,7 @@ static std::vector<int> g_key_block_size;
 std::mutex Thd1::ddl_logs_write;
 
 static int g_max_columns_length = 30;
-static int g_innodb_page_size = 16;
+static int g_innodb_page_size;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
 
@@ -98,17 +98,23 @@ int sum_of_all_options(Thd1 *thd) {
   }
 
   /* If no-encryption is set, disable all encryption options */
-  auto enc = opt_bool(NO_ENCRYPTION);
-  if (enc) {
+
+  if (options->at(Option::NO_ENCRYPTION)->getBool()) {
     opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
     opt_int_set(ALTER_MASTER_KEY, 0);
     opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
   }
 
-  /* for 5.7 disable tablespace rename */
-  if (db_branch().compare("5.7") == 0)
+  /* for 5.7 disable some features */
+  if (db_branch().compare("5.7") == 0) {
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
+    opt_int_set(RENAME_COLUMN, 0);
+  }
+
+  /*database encryption is not supported in oracle */
+  if (strcmp(FORK, "Percona-Server") != 0)
+    opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
 
   auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
   auto only_cl_sql = opt_bool(ONLY_CL_SQL);
@@ -120,7 +126,7 @@ int sum_of_all_options(Thd1 *thd) {
       options->at(Option::COLUMNS)->setInt(7);
   }
 
-  /* only-cl-sql, if set then disable all other DDL */
+  /* if set, then disable all other DDL */
   if (only_cl_sql) {
     for (auto &opt : *options) {
       if (opt != nullptr && opt->sql && !opt->cl)
@@ -835,8 +841,8 @@ void create_default_tables(Thd1 *thd) {
   auto only_temporary_tables = opt_bool(ONLY_TEMPORARY);
   if (!only_temporary_tables) {
     for (int i = 1; i <= tables; i++) {
-      all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i, thd));
-      all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i, thd));
+      all_tables->push_back(Table::table_id(Table::NORMAL, i, thd));
+      all_tables->push_back(Table::table_id(Table::PARTITION, i, thd));
     }
   }
 }
@@ -861,6 +867,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
       thd->connection_lost = true;
     }
   } else {
+    thd->success = true;
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
 
@@ -896,6 +903,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
 
 /* load some records in table */
 void load_default_data(Table *table, Thd1 *thd) {
+  thd->ddl_query = false;
   static int initial_records =
       options->at(Option::INITIAL_RECORDS_IN_TABLE)->getInt();
   int rec = rand_int(initial_records);
@@ -1046,6 +1054,8 @@ void Table::SelectRandomRow(Thd1 *thd) {
   table_mutex.unlock();
   execute_sql(sql, thd);
 }
+
+/* update random row */
 void Table::UpdateRandomROW(Thd1 *thd) {
   table_mutex.lock();
   auto set = rand_int(columns_->size() - 1);
@@ -1067,9 +1077,10 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   if (is_lock)
     table_mutex.lock();
   std::string vals = "";
-  std::string insert = "INSERT INTO " + name_ + "  ( ";
+  std::string type = rand_int(3) == 0 ? "INSERT" : "REPLACE";
+  std::string sql = type + " INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
-    insert += column->name_ + " ,";
+    sql += column->name_ + " ,";
     auto val = column->rand_value();
     if (column->auto_increment == true && rand_int(100) < 10)
       val = "NULL";
@@ -1078,13 +1089,13 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
 
   if (vals.size() > 0) {
     vals.pop_back();
-    insert.pop_back();
+    sql.pop_back();
   }
-  insert += ") VALUES(" + vals;
-  insert += " )";
+  sql += ") VALUES(" + vals;
+  sql += " )";
   if (is_lock)
     table_mutex.unlock();
-  if (execute_sql(insert, thd))
+  if (execute_sql(sql, thd))
     max_pk_value_inserted++;
 }
 
@@ -1219,9 +1230,35 @@ void save_objects_to_file() {
 
 /* create in memory data */
 void create_in_memory_data() {
-  auto no_tbs = opt_bool(NO_TABLESPACE);
-  if (!no_tbs)
+
+  /* Adjust the tablespaces */
+  if (!options->at(Option::NO_TABLESPACE)->getBool()) {
     g_tablespace = {"innodb_system", "tab02k", "tab04k"};
+    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
+      g_tablespace.push_back("tab08k");
+    }
+    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
+      g_tablespace.push_back("tab16k");
+    }
+    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
+      g_tablespace.push_back("tab32k");
+    }
+    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
+      g_tablespace.push_back("tab64k");
+    }
+
+    /* add addtional tablespace */
+    auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
+    if (tbs_count > 1) {
+      auto current_size = g_tablespace.size();
+      for (size_t i = 0; i < current_size; i++) {
+        if (g_tablespace[i].compare("innodb_system") == 0)
+          continue;
+        for (int j = 1; j <= tbs_count; j++)
+          g_tablespace.push_back(g_tablespace[i] + to_string(j));
+      }
+    }
+  }
 
   std::string row_format = opt_string(ROW_FORMAT);
   if (row_format.compare("uncompressed") == 0) {
@@ -1238,34 +1275,6 @@ void create_in_memory_data() {
   if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
     g_row_format.clear();
     g_key_block_size.clear();
-  }
-
-  if (!no_tbs) {
-    /* Adjust the tablespaces */
-    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
-      g_tablespace.push_back("tab08k");
-    }
-    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
-      g_tablespace.push_back("tab16k");
-    }
-    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
-      g_tablespace.push_back("tab32k");
-    }
-    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
-      g_tablespace.push_back("tab64k");
-    }
-  }
-
-  /* add addtional tablespace */
-  auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
-  if (tbs_count > 1) {
-    auto current_size = g_tablespace.size();
-    for (size_t i = 0; i < current_size; i++) {
-      if (g_tablespace[i].compare("innodb_system") == 0)
-        continue;
-      for (int j = 1; j <= tbs_count; j++)
-        g_tablespace.push_back(g_tablespace[i] + to_string(j));
-    }
   }
 }
 
@@ -1395,15 +1404,17 @@ bool load_metadata(Thd1 *thd) {
 
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
-  auto &logs = thd->thread_log;
 
   /*set seed for current thread*/
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
 
-  logs << " creating tables metadata " << std::endl;
-
   auto load_from_file = opt_bool(METADATA_READ);
+
+  /* find out innodb page_size */
+  if (options->at(Option::ENGINE)->getString().compare("INNODB") == 0)
+    g_innodb_page_size =
+        std::stoi(get_result("select @@innodb_page_size", thd)) / 1024;
 
   /* create in-memory data for general tablespaces */
   create_in_memory_data();
@@ -1442,7 +1453,6 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
         throw std::runtime_error("Create table failed " + table->name_);
       static auto load_from_file = opt_bool(METADATA_READ);
       if (!just_ddl && !load_from_file) {
-        thd->ddl_query = false;
         load_default_data(table, thd);
       }
     }
@@ -1451,13 +1461,17 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
   no_of_tables /= threads * 2;
+
+  if (no_of_tables == 0)
+    no_of_tables = 1;
+
   thd->thread_log << "Creating " << no_of_tables << " temp tables "
                   << std::endl;
 
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
   for (int i = 0; i < no_of_tables; i++) {
     thd->ddl_query = true;
-    Table *table = Table::table_id(TEMPORARY, i, thd);
+    Table *table = Table::table_id(Table::TEMPORARY, i, thd);
     if (!execute_sql(table->defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
@@ -1489,8 +1503,11 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   thd->thread_log << thd->thread_id << " value of rand_int(100) "
                   << rand_int(100) << std::endl;
 
-  int total_size = size + no_of_tables;
   /* combine all_tables with temp_tables */
+  int total_size = size + no_of_tables;
+
+  /* freqency of all options per thread */
+  int opt_feq[Option::MAX][2] = {{0, 0}};
 
   while (std::chrono::system_clock::now() < end) {
 
@@ -1565,10 +1582,30 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       throw std::runtime_error("invalid options");
     }
 
+    options->at(option)->total_queries++;
+
+    /* sql executed is at [0], and if successful at [1] */
+    opt_feq[option][0]++;
+    if (thd->success) {
+      options->at(option)->success_queries++;
+      opt_feq[option][1]++;
+      thd->success = false;
+    }
+
     if (thd->connection_lost) {
       break;
     }
   }
+
+  /* print options frequency in logs */
+  thd->thread_log << "different options executed in load" << std::endl;
+  for (int i = 0; i < Option::MAX; i++) {
+    if (opt_feq[i][0] > 0)
+      thd->thread_log << options->at(i)->help << ", total=>" << opt_feq[i][0]
+                      << ", success=> " << opt_feq[i][1] << std::endl;
+  }
+
+  /* cleanup session tables */
   for (auto &table : *all_temp_tables)
     delete table;
   delete all_temp_tables;

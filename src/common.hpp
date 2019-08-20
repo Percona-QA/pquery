@@ -101,7 +101,8 @@ struct Option {
     MAX = 'z'
   } option;
   Option(Type t, Opt o, std::string n)
-      : type(t), option(o), name(n), sql(false), ddl(false){};
+      : type(t), option(o), name(n), sql(false), ddl(false), total_queries(0),
+        success_queries(0){};
   ~Option();
 
   void print_pretty();
@@ -150,6 +151,8 @@ struct Option {
   bool ddl; // If SQL is DDL, or false if it is not
   bool cl = false;                // set if it was pass trough command line
   short args = required_argument; // default is required argument
+  std::atomic<unsigned long int> total_queries;   // totatl times executed
+  std::atomic<unsigned long int> success_queries; // successful count
 };
 
 struct Server_Option { // Server_options
