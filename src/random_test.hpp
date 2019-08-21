@@ -44,6 +44,7 @@ struct Column {
     CHAR,
     VARCHAR,
     BOOL,
+    BLOB,
     GENERATED,
     COLUMN_MAX // should be last
   } type_;
@@ -57,13 +58,13 @@ struct Column {
   /* return random value of that column */
   std::string rand_value();
   /* return string to call type */
-  const std::string col_type_to_string() const;
+  const std::string col_type_to_string(COLUMN_TYPES type) const;
   /* return column type from a string */
   COLUMN_TYPES col_type(std::string type);
   /* used to create_metadata */
   template <typename Writer> void Serialize(Writer &writer) const;
   /* return the caluse of create table */
-  virtual std::string clause() { return col_type_to_string(); };
+  virtual std::string clause() { return col_type_to_string(type_); };
   virtual ~Column(){};
   std::string name_;
   bool null = false;
@@ -79,6 +80,10 @@ struct Generated_Column : public Column {
   std::string str;
   std::string clause() { return str; };
   ~Generated_Column(){};
+  COLUMN_TYPES g_type;
+  COLUMN_TYPES generate_type() {
+    return g_type;
+  };
 };
 
 struct Ind_col {

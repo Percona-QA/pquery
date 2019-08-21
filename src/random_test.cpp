@@ -44,13 +44,16 @@ Column::COLUMN_TYPES Column::col_type(std::string type) {
     return BOOL;
   else if (type.compare("GENERATED") == 0)
     return GENERATED;
+  else if (type.compare("BLOB") == 0)
+    return BLOB;
   else
-    throw std::runtime_error("unhandled column in col_type");
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
 }
 
 /* return string from a column type */
-const std::string Column::col_type_to_string() const {
-  switch (type_) {
+const std::string Column::col_type_to_string(COLUMN_TYPES type) const {
+  switch (type) {
   case INT:
     return "INT";
   case CHAR:
@@ -59,11 +62,14 @@ const std::string Column::col_type_to_string() const {
     return "VARCHAR";
   case BOOL:
     return "BOOL";
+  case BLOB:
+    return "BLOB";
   case GENERATED:
     return "GENERATED";
-  default:
-    throw std::runtime_error("unhandled column from column_types");
+  case COLUMN_MAX:
+    break;
   }
+  return "FAIL";
 }
 
 static std::string db_branch() {
@@ -260,26 +266,41 @@ std::string Column::rand_value() {
     static auto rec = 100 * opt_int(INITIAL_RECORDS_IN_TABLE);
     return std::to_string(rand_int(rec));
     break;
-  case (COLUMN_TYPES::VARCHAR):
-  case (COLUMN_TYPES::CHAR):
+  case CHAR:
+  case VARCHAR:
+    return "\'" + rand_string(length) + "\'";
+  case BLOB:
+    // todo use repeat and other methods
     return "\'" + rand_string(length) + "\'";
     break;
-  case (BOOL):
+  case BOOL:
     return (rand_int(1) == 1 ? "true" : "false");
     break;
-  case (GENERATED):
+  case GENERATED:
     return "default";
-  default:
-    throw std::runtime_error("unhandled column in rand_value " +
-                             col_type_to_string());
+  case COLUMN_MAX:
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
   }
 }
 
 /* return table defination */
 std::string Column::defination() {
   std::string def = name_ + " " + clause();
-  if (length > 0)
+  switch (type_) {
+  case VARCHAR:
+  case CHAR:
     def += "(" + std::to_string(length) + ")";
+    break;
+  case BLOB:
+  case INT:
+  case BOOL:
+  case GENERATED:
+    break;
+  default:
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
+  }
   if (null)
     def += " NOT NULL";
   if (auto_increment)
@@ -303,25 +324,35 @@ Column::Column(std::string name, Table *table, COLUMN_TYPES type)
   case BOOL:
   case GENERATED:
     break;
-  default:
-    throw std::runtime_error("unhandled " + col_type_to_string() + " at line " +
-                             to_string(__LINE__));
+  case BLOB:
+    length = rand_int(g_max_columns_length * 100, 100);
+    break;
+  case COLUMN_MAX:
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
   }
 }
 
 /* Generated column  constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
     : Column(name, table, Column::GENERATED) {
-  std::string type = "INT";
+  auto blob_supported = !options->at(Option::NO_BLOB)->getBool();
+  g_type = COLUMN_MAX;
+  /* Generated columns are 5:4:3:1 (INT:VARCHAR:CHAR:BLOB) */
+  while (g_type == COLUMN_MAX) {
+    auto x = rand_int(14, 1);
+    if (x <= 5)
+      g_type = INT;
+    if (x <= 9)
+      g_type = VARCHAR;
+    else if (x <= 12)
+      g_type = CHAR;
+    else if (blob_supported && x <= 13) {
+      g_type = BLOB;
+    }
+  }
 
-  /* Generated columns are 2:2:1 (INT:VARCHAR:CHAR) */
-  auto x = rand_int(5);
-  if (x < 2)
-    type = "INT";
-  if (x < 4)
-    type = "VARCHAR";
-  else
-    type = "CHAR";
+  g_type = BLOB;
 
   /*number of columns in generated columns */
   size_t columns = rand_int(.6 * table->columns_->size()) + 1;
@@ -334,19 +365,20 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       col_pos.push_back(col);
   }
 
-  if (type.compare("INT") == 0) {
-    str = " " + type + " AS(";
+  if (g_type == INT) {
+    str = " " + col_type_to_string(g_type) + " AS(";
     for (auto pos : col_pos) {
       auto col = table->columns_->at(pos);
-      if (col->type_ == VARCHAR || col->type_ == CHAR)
+      if (col->type_ == VARCHAR || col->type_ == CHAR || col->type_ == BLOB)
         str += " LENGTH(" + col->name_ + ")+";
       else if (col->type_ == INT || col->type_ == BOOL)
         str += " " + col->name_ + "+";
       else
-        throw std::runtime_error("unhandled " + to_string(__LINE__));
+        throw std::runtime_error("unhandled " + col_type_to_string(col->type_) +
+                                 " at line " + to_string(__LINE__));
     }
     str.pop_back();
-  } else if (type.compare("VARCHAR") == 0 || type.compare("CHAR") == 0) {
+  } else if (g_type == VARCHAR || g_type == CHAR || g_type == BLOB) {
     auto size = rand_int(g_max_columns_length, col_pos.size());
     int actual_size = 0;
     string gen_sql;
@@ -354,6 +386,7 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       auto col = table->columns_->at(pos);
       auto current_size = rand_int((int)size / col_pos.size() * 2, 1);
       int column_size = 0;
+      /* base column */
       switch (col->type_) {
       case INT:
         column_size = 10; // interger max string size is 10
@@ -363,10 +396,12 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         break;
       case VARCHAR:
       case CHAR:
+      case BLOB:
         column_size = col->length;
         break;
-      default:
-        throw std::runtime_error("unhandled " + col_type_to_string() +
+      case COLUMN_MAX:
+      case GENERATED:
+        throw std::runtime_error("unhandled " + col_type_to_string(col->type_) +
                                  " at line " + to_string(__LINE__));
       }
       if (column_size > current_size) {
@@ -379,9 +414,15 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       }
     }
     gen_sql.pop_back();
-    str = " " + type + "(" + to_string(actual_size) + ") AS" + " (CONCAT(";
+    str = " " + col_type_to_string(g_type);
+    if (g_type == VARCHAR || g_type == CHAR)
+      str += "(" + to_string(actual_size) + ")";
+    str += " AS  (CONCAT(";
     str += gen_sql;
     str += ")";
+  } else {
+    throw std::runtime_error("unhandled " + col_type_to_string(g_type) +
+                             " at line " + to_string(__LINE__));
   }
   str += ")";
 }
@@ -391,7 +432,7 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.String("name");
   writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
   writer.String("type");
-  std::string typ = col_type_to_string();
+  std::string typ = col_type_to_string(type_);
   writer.String(typ.c_str(), static_cast<SizeType>(typ.length()));
   writer.String("null");
   writer.Bool(null);
@@ -504,6 +545,13 @@ std::string Index::defination() {
   def += "INDEX " + name_ + "(";
   for (auto idc : *columns_) {
     def += idc->column->name_;
+
+    if (idc->column->type_ == Column::BLOB ||
+        (idc->column->type_ == Column::GENERATED &&
+         static_cast<Generated_Column *>(idc->column)->generate_type() ==
+             Column::BLOB)) {
+      def += "(" + to_string(rand_int(g_max_columns_length, 1)) + "4)";
+    }
     def += (idc->desc ? " DESC" : (rand_int(3) ? "" : " ASC"));
     def += ", ";
   }
@@ -599,22 +647,31 @@ void Table::CreateDefaultColumn() {
     } else {
       name = "c" + std::to_string(i);
 
-      Column::COLUMN_TYPES col_type;
+      Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
       static auto no_virtual_col = opt_bool(NO_VIRTUAL_COLUMNS);
+      static auto no_blob_col = opt_bool(NO_BLOB);
 
-      /* intial columns can't be generated columns */
-      auto tx = rand_int(10);
-      /* only 33% of  tables last columns  are virtuals */
-      if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
-        col_type = Column::GENERATED;
-      else if (tx < 4)
-        col_type = Column::INT;
-      else if (tx < 7)
-        col_type = Column::VARCHAR;
-      else if (tx < 10)
-        col_type = Column::CHAR;
-      else
-        col_type = Column::BOOL;
+      /* loop untill we select some column */
+      while (col_type == Column::COLUMN_MAX) {
+
+        /* columns are 4:3:2:1:1 INT:VARCHAR:CHAR:BLOB:BOOL */
+        auto prob = rand_int(10);
+
+        /* intial columns can't be generated columns. also 33% of tables last
+         * columns  are virtuals */
+        if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
+          col_type = Column::GENERATED;
+        else if (prob < 4)
+          col_type = Column::INT;
+        else if (prob < 7)
+          col_type = Column::VARCHAR;
+        else if (prob < 9)
+          col_type = Column::CHAR;
+        else if (!no_blob_col && prob < 10)
+          col_type = Column::BLOB;
+        else if (prob == 10)
+          col_type = Column::BOOL;
+      }
 
       if (col_type != Column::GENERATED) {
         col = new Column(name, this, col_type);
@@ -933,26 +990,34 @@ void Table::AddColumn(Thd1 *thd) {
   name = "COL" + std::to_string(rand_int(300));
   sql += name;
 
-  Column::COLUMN_TYPES col_type;
+  Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
 
-  auto flag = true;
+  auto use_virtual = true;
   static auto no_use_virtual = opt_bool(NO_VIRTUAL_COLUMNS);
+  static auto use_blob = !options->at(Option::NO_BLOB)->getBool();
   table_mutex.lock();
+
   if (no_use_virtual ||
       (columns_->size() == 1 && columns_->at(0)->auto_increment == true))
-    flag = false;
+    use_virtual = false;
 
-  auto tx = rand_int(flag ? 10 : 8);
-  if (tx >= 9)
-    col_type = Column::GENERATED;
-  else if (tx > 5)
-    col_type = Column::INT;
-  else if (tx > 2)
-    col_type = Column::VARCHAR;
-  else if (tx > 1)
-    col_type = Column::CHAR;
-  else
-    col_type = Column::BOOL;
+  while (col_type == Column::COLUMN_MAX) {
+    /* new columns are in ratio of 3:2:1:1:1:1
+     * INT:VARCHAR:CHAR:BLOB:BOOL:GENERATD */
+    auto prob = rand_int(8);
+    if (prob < 3)
+      col_type = Column::INT;
+    else if (prob < 5)
+      col_type = Column::VARCHAR;
+    else if (prob < 6)
+      col_type = Column::CHAR;
+    else if (prob < 7 && use_virtual)
+      col_type = Column::GENERATED;
+    else if (prob < 8)
+      col_type = Column::BOOL;
+    else if (prob < 9 && use_blob)
+      col_type = Column::BLOB;
+  }
 
   Column *tc;
   if (col_type != Column::GENERATED)
@@ -1438,21 +1503,22 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   execute_sql("USE " + database, thd);
 
   thd->ddl_query = true;
+
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
 
-  auto load_from_file = opt_bool(METADATA_READ);
   int threads = opt_int(THREADS);
 
-  if (!load_from_file) {
+  if (!options->at(Option::METADATA_READ)->getBool()) {
     /* create tables in all threads */
     for (size_t i = thd->thread_id; i < size; i = i + threads) {
       auto table = all_tables->at(i);
       thd->ddl_query = true;
       if (!execute_sql(table->defination(), thd))
         throw std::runtime_error("Create table failed " + table->name_);
-      static auto load_from_file = opt_bool(METADATA_READ);
-      if (!just_ddl && !load_from_file) {
+
+      /* load default data in temporary table */
+      if (!just_ddl) {
         load_default_data(table, thd);
       }
     }
@@ -1460,6 +1526,8 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
+  /* number of session temporary tables depends on the thread,
+   * more number of threads. less number of temporary tables */
   no_of_tables /= threads * 2;
 
   if (no_of_tables == 0)
@@ -1469,29 +1537,33 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
                   << std::endl;
 
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
+
   for (int i = 0; i < no_of_tables; i++) {
     thd->ddl_query = true;
     Table *table = Table::table_id(Table::TEMPORARY, i, thd);
     if (!execute_sql(table->defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
+
+    /* load default data in temporary table */
     if (!just_ddl) {
       thd->ddl_query = false;
       load_default_data(table, thd);
     }
   }
 
+  if (just_ddl)
+    return;
+
   threads_create_table++;
   std::atomic<int> initial_threads(threads);
+
   while (initial_threads != threads_create_table) {
     thd->thread_log << "Waiting for all threds to finish initial load "
                     << std::endl;
     std::chrono::seconds dura(3);
     std::this_thread::sleep_for(dura);
   }
-
-  if (just_ddl)
-    return;
 
   auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
@@ -1595,15 +1667,15 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
     if (thd->connection_lost) {
       break;
     }
-  }
+  } // while
 
   /* print options frequency in logs */
-  thd->thread_log << "different options executed in load" << std::endl;
   for (int i = 0; i < Option::MAX; i++) {
     if (opt_feq[i][0] > 0)
       thd->thread_log << options->at(i)->help << ", total=>" << opt_feq[i][0]
                       << ", success=> " << opt_feq[i][1] << std::endl;
   }
+
 
   /* cleanup session tables */
   for (auto &table : *all_temp_tables)

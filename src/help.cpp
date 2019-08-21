@@ -146,6 +146,12 @@ void add_options() {
   opt->setBool(false);
   opt->setArgs(no_argument);
 
+  /* disable blob,text columns*/
+  opt = newOption(Option::BOOL, Option::NO_BLOB, "no-blob");
+  opt->help = "Disable blob columns";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* disable all type of encrytion */
   opt = newOption(Option::BOOL, Option::NO_TABLESPACE, "no-tbs");
   opt->help = "disable all type of tablespace including the general tablespace";

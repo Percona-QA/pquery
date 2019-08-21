@@ -40,6 +40,7 @@ struct Option {
     ONLY_CL_SQL,
     NO_ENCRYPTION,
     NO_TABLESPACE,
+    NO_BLOB,
     NO_VIRTUAL_COLUMNS,
     TABLES,
     INDEXES,

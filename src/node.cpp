@@ -70,9 +70,12 @@ void Node::writeFinalReport() {
       }
     }
 
+    unsigned long int percentage =
+        total_queries == 0 ? 0 : success_queries * 100 / total_queries;
+
     exitmsg << "* SUMMAR: " << total_queries - success_queries << "/"
-            << total_queries << "queries failed, ("
-            << success_queries * 100 / total_queries << "% were successful)";
+            << total_queries << "queries failed, (" << percentage
+            << "% were successful)";
     general_log << exitmsg.str() << std::endl;
   }
 }
