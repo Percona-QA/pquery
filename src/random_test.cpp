@@ -282,6 +282,7 @@ std::string Column::rand_value() {
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
                              " at line " + to_string(__LINE__));
   }
+return "";
 }
 
 /* return table defination */

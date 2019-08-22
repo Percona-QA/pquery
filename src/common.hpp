@@ -18,6 +18,7 @@
 #define PQREVISION "unknown"
 #endif
 #include <getopt.h>
+#include <atomic>
 #include <map>
 #include <string>
 #include <algorithm>
