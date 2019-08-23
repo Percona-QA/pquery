@@ -209,12 +209,13 @@ void add_options() {
   opt->setInt(1000);
 
   /* primary key probablity */
-  opt = newOption(Option::INT, Option::PRIMARY_KEY, "ctpkp");
+  opt = newOption(Option::INT, Option::PRIMARY_KEY, "primary-key-probablity");
   opt->help = "Probability of adding primary key in a table";
   opt->setInt(50);
 
   /*Encrypt table */
-  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION, "atsepm");
+  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION,
+                  "alter-table-encrypt");
   opt->help = "Alter table set Encrytion";
   opt->setInt(10);
   opt->setSQL();
@@ -262,125 +263,134 @@ void add_options() {
   opt->setDDL();
 
   /*Tablespace Encrytion */
-  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION, "asepm");
+  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION,
+                  "alt-tbs-enc");
   opt->help = "Alter tablespace set Encrytion";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /*Database Encryption */
-  opt = newOption(Option::INT, Option::ALTER_DATABASE_ENCRYPTION, "ade");
+  opt = newOption(Option::INT, Option::ALTER_DATABASE_ENCRYPTION, "alt-db-enc");
   opt->help = "Alter Database Encryption mode to Y/N";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Tablespace Rename */
-  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "asrpm");
+  opt =
+      newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "alt-tbs-rename");
   opt->help = "Alter tablespace rename";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* SELECT */
-  opt = newOption(Option::BOOL, Option::SELECT, "select");
-  opt->help = "Execute any type select on tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_SELECT, "no-select");
+  opt->help = "do not execute any type select on tables";
+  opt->setBool("false");
+  opt->setArgs(no_argument);
 
   /* INSERT */
-  opt = newOption(Option::BOOL, Option::INSERT, "insert");
-  opt->help = "Execute insert into tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_INSERT, "no-insert");
+  opt->help = "do not execute insert into tables";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* UPDATE */
-  opt = newOption(Option::BOOL, Option::UPDATE, "update");
+  opt = newOption(Option::BOOL, Option::NO_UPDATE, "no-update");
   opt->help = "Execute any type  of update on tables";
-  opt->setBool(true);
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* DELETE */
-  opt = newOption(Option::BOOL, Option::DELETE, "delete");
-  opt->help = "Execute any type of  delete on tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_DELETE, "no-delete");
+  opt->help = "do nt execute any type of  delete on tables";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* Select all row */
-  opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "stapm");
+  opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "select-all-row");
   opt->help = "Selecting Tables All data probablity";
   opt->setInt(8);
   opt->setSQL();
 
-  opt = newOption(Option::INT, Option::SELECT_ROW_USING_PKEY, "stppm");
-  opt->help = "Select table row using pkey probablity";
+  opt = newOption(Option::INT, Option::SELECT_ROW_USING_PKEY,
+                  "select-single-row");
+  opt->help = "Select table using single row";
   opt->setInt(800);
   opt->setSQL();
 
   /* Insert random row */
-  opt = newOption(Option::INT, Option::INSERT_RANDOM_ROW, "itrpm");
+  opt = newOption(Option::INT, Option::INSERT_RANDOM_ROW, "insert-row");
   opt->help = "insert random row";
   opt->setInt(600);
   opt->setSQL();
 
   /* Update row using pkey */
-  opt = newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "utppm");
-  opt->help = "Update row using pkey";
+  opt =
+      newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "update-with-cond");
+  opt->help = "Update row using using where caluse";
   opt->setInt(200);
   opt->setSQL();
 
   /* Delete all rows */
-  opt = newOption(Option::INT, Option::DELETE_ALL_ROW, "dtapm");
+  opt = newOption(Option::INT, Option::DELETE_ALL_ROW, "delete-all-row");
   opt->help = "delete all rows of a table";
   opt->setInt(1);
   opt->setSQL();
 
   /* Delete row using pkey */
-  opt = newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
-  opt->help = "delete row using pkey";
+  opt =
+      newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "delete-with-cond");
+  opt->help = "delete row with where condition";
   opt->setInt(200);
   opt->setSQL();
 
   /* Drop column */
-  opt = newOption(Option::INT, Option::DROP_COLUMN, "atdcpm");
+  opt = newOption(Option::INT, Option::DROP_COLUMN, "drop-column");
   opt->help = "alter table drop column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Add column */
-  opt = newOption(Option::INT, Option::ADD_COLUMN, "atacpm");
+  opt = newOption(Option::INT, Option::ADD_COLUMN, "add-column");
   opt->help = "alter table add column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Rename Column */
-  opt = newOption(Option::INT, Option::RENAME_COLUMN, "atrcpm");
+  opt = newOption(Option::INT, Option::RENAME_COLUMN, "rename-column");
   opt->help = "alter table rename column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Analyze Table */
-  opt = newOption(Option::INT, Option::ANALYZE, "tapm");
+  opt = newOption(Option::INT, Option::ANALYZE, "analyze");
   opt->help = "analyze table";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Optimize Table */
-  opt = newOption(Option::INT, Option::OPTIMIZE, "topm");
+  opt = newOption(Option::INT, Option::OPTIMIZE, "optimize");
   opt->help = "optimize table";
   opt->setInt(3);
   opt->setSQL();
   opt->setDDL();
 
   /* Truncate table */
-  opt = newOption(Option::INT, Option::TRUNCATE, "ttpm");
+  opt = newOption(Option::INT, Option::TRUNCATE, "truncate");
   opt->help = "truncate table";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Drop and recreate table */
-  opt = newOption(Option::INT, Option::DROP_CREATE, "tdcpm");
+  opt = newOption(Option::INT, Option::DROP_CREATE, "recreate-table");
   opt->help = "drop and recreate table";
   opt->setInt(1);
   opt->setSQL();

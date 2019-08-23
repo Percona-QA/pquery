@@ -82,24 +82,24 @@ static std::string db_branch() {
 int sum_of_all_options(Thd1 *thd) {
 
   /* if select is set as zero, disable all type of selects */
-  if (options->at(Option::SELECT)->getBool() == false) {
+  if (options->at(Option::NO_SELECT)->getBool()) {
     options->at(Option::SELECT_ALL_ROW)->setInt(0);
     options->at(Option::SELECT_ROW_USING_PKEY)->setInt(0);
   }
 
   /* if delete is set as zero, disable all type of deletes */
-  if (options->at(Option::DELETE)->getBool() == false) {
+  if (options->at(Option::NO_DELETE)->getBool()) {
     options->at(Option::DELETE_ALL_ROW)->setInt(0);
     options->at(Option::DELETE_ROW_USING_PKEY)->setInt(0);
   }
 
   /* If update is disable, set all update probability to zero */
-  if (options->at(Option::UPDATE)->getBool() == false) {
+  if (options->at(Option::NO_UPDATE)->getBool()) {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
 
   /* if insert is disable, set all insert probability to zero */
-  if (options->at(Option::INSERT)->getBool() == false) {
+  if (options->at(Option::NO_INSERT)->getBool()) {
     opt_int_set(INSERT_RANDOM_ROW, 0);
   }
 
