@@ -7,7 +7,7 @@ using namespace std;
 std::mt19937 rng;
 
 const std::string partition_string = "_p";
-const int version = 2;
+const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
@@ -269,15 +269,11 @@ std::string Column::rand_value() {
   case CHAR:
   case VARCHAR:
     return "\'" + rand_string(length) + "\'";
-  case BLOB:
-    // todo use repeat and other methods
-    return "\'" + rand_string(length) + "\'";
-    break;
   case BOOL:
     return (rand_int(1) == 1 ? "true" : "false");
     break;
+  case BLOB:
   case GENERATED:
-    return "default";
   case COLUMN_MAX:
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
                              " at line " + to_string(__LINE__));
@@ -288,20 +284,6 @@ return "";
 /* return table defination */
 std::string Column::defination() {
   std::string def = name_ + " " + clause();
-  switch (type_) {
-  case VARCHAR:
-  case CHAR:
-    def += "(" + std::to_string(length) + ")";
-    break;
-  case BLOB:
-  case INT:
-  case BOOL:
-  case GENERATED:
-    break;
-  default:
-    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
-                             " at line " + to_string(__LINE__));
-  }
   if (null)
     def += " NOT NULL";
   if (auto_increment)
@@ -311,32 +293,61 @@ std::string Column::defination() {
 
 /* add new column, part of create table or Alter table */
 Column::Column(std::string name, Table *table, COLUMN_TYPES type)
-    : name_(name), table_(table) {
+    : table_(table) {
   type_ = type;
   switch (type) {
   case CHAR:
+    name_ = "c" + name;
+    length = rand_int(g_max_columns_length, 10);
+    break;
   case VARCHAR:
+    name_ = "v" + name;
     length = rand_int(g_max_columns_length, 10);
     break;
   case INT:
+    name_ = "i" + name;
     if (rand_int(10) == 1)
       length = rand_int(100, 20);
     break;
   case BOOL:
-  case GENERATED:
+    name_ = "t" + name;
     break;
-  case BLOB:
-    length = rand_int(g_max_columns_length * 100, 100);
-    break;
-  case COLUMN_MAX:
+  default:
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
                              " at line " + to_string(__LINE__));
   }
 }
 
+/* add new blobl column, part of create table or Alter table */
+Blob_Column::Blob_Column(std::string name, Table *table)
+    : Column(table, Column::BLOB) {
+  switch (rand_int(5, 1)) {
+  case 1:
+    sub_type = "MEDIUMTEXT";
+    name_ = "mt" + name;
+    break;
+  case 2:
+    sub_type = "TEXT";
+    name_ = "t" + name;
+    break;
+  case 3:
+    sub_type = "LOGNTEXT";
+    name_ = "lt" + name;
+  case 4:
+    sub_type = "BLOB";
+    name_ = "b" + name;
+    break;
+  case 5:
+    sub_type = "LONGBLOB";
+    name_ = "lb" + name;
+    break;
+  }
+}
+
 /* Generated column  constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
-    : Column(name, table, Column::GENERATED) {
+    : Column(table, Column::GENERATED) {
+  name_ = "g" + name;
   auto blob_supported = !options->at(Option::NO_BLOB)->getBool();
   g_type = COLUMN_MAX;
   /* Generated columns are 5:4:3:1 (INT:VARCHAR:CHAR:BLOB) */
@@ -646,7 +657,7 @@ void Table::CreateDefaultColumn() {
       }
 
     } else {
-      name = "c" + std::to_string(i);
+      name = std::to_string(i);
 
       Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
       static auto no_virtual_col = opt_bool(NO_VIRTUAL_COLUMNS);
@@ -674,10 +685,12 @@ void Table::CreateDefaultColumn() {
           col_type = Column::BOOL;
       }
 
-      if (col_type != Column::GENERATED) {
-        col = new Column(name, this, col_type);
-      } else
+      if (col_type == Column::GENERATED)
         col = new Generated_Column(name, this);
+      else if (col_type == Column::BLOB)
+        col = new Blob_Column(name, this);
+      else
+        col = new Column(name, this, col_type);
 
       /* 25% column can have auto_inc */
       if (col->type_ == Column::INT && !no_auto_inc &&
@@ -1021,17 +1034,17 @@ void Table::AddColumn(Thd1 *thd) {
   }
 
   Column *tc;
-  if (col_type != Column::GENERATED)
-    tc = new Column(name, this, col_type);
-  else
-    tc = new Generated_Column(name, this);
 
-  table_mutex.unlock();
+  if (col_type == Column::GENERATED)
+    tc = new Generated_Column(name, this);
+  else if (col_type == Column::BLOB)
+    tc = new Blob_Column(name, this);
+  else
+    tc = new Column(name, this, col_type);
 
   sql += " " + tc->clause();
 
-  if (tc->length > 0)
-    sql += "(" + std::to_string(tc->length) + ")";
+  table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
@@ -1144,8 +1157,10 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
     table_mutex.lock();
   std::string vals = "";
   std::string type = "INSERT";
+
   if (is_lock)
     type = rand_int(3) == 0 ? "INSERT" : "REPLACE";
+
   std::string sql = type + " INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
     sql += column->name_ + " ,";
@@ -1180,6 +1195,7 @@ void Table::DropColumn(Thd1 *thd) {
     table_mutex.unlock();
     return;
   }
+
   std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
   table_mutex.unlock();
 
@@ -1679,10 +1695,8 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
                       << ", success=> " << opt_feq[i][1] << std::endl;
   }
 
-
   /* cleanup session tables */
   for (auto &table : *all_temp_tables)
     delete table;
   delete all_temp_tables;
 }
-
