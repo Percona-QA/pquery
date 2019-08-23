@@ -237,20 +237,21 @@ void add_options() {
   opt = newOption(Option::STRING, Option::MYSQLD_SERVER_OPTION, "mso");
   opt->help =
       "mysqld server options variables which are set during the load, see "
-      "--set-global. n:option=v1=v2 where n is probabality of picking "
+      "--set-variable. n:option=v1=v2 where n is probabality of picking "
       "option, v1 and v2 different value that is supported. "
       "for e.g. --md=20:innodb_temp_tablespace_encrypt=on=off";
 
   opt = newOption(Option::STRING, Option::SERVER_OPTION_FILE, "sof");
-  opt->help = "server options file, MySQL server options file, picks some of "
-              "the mysqld options, "
-              "and try to set them during the load , using set global and set "
-              "session.\n see --set-global.\n File should contain lines like\n "
-              "20:innodb_temp_tablespace_encrypt=on=off\n, means 20% chances "
-              "that it would be processed. ";
+  opt->help =
+      "server options file, MySQL server options file, picks some of "
+      "the mysqld options, "
+      "and try to set them during the load , using set global and set "
+      "session.\n see --set-variable.\n File should contain lines like\n "
+      "20:innodb_temp_tablespace_encrypt=on=off\n, means 20% chances "
+      "that it would be processed. ";
 
   /* Set Global */
-  opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-global");
+  opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-variable");
   opt->help = "set global variable during the load";
   opt->setInt(3);
   opt->setSQL();
@@ -299,19 +300,19 @@ void add_options() {
 
   /* UPDATE */
   opt = newOption(Option::BOOL, Option::NO_UPDATE, "no-update");
-  opt->help = "Execute any type  of update on tables";
+  opt->help = "do not execute any type  of update on tables";
   opt->setBool(false);
   opt->setArgs(no_argument);
 
   /* DELETE */
   opt = newOption(Option::BOOL, Option::NO_DELETE, "no-delete");
-  opt->help = "do nt execute any type of  delete on tables";
+  opt->help = "do not execute any type of  delete on tables";
   opt->setBool(false);
   opt->setArgs(no_argument);
 
   /* Select all row */
   opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "select-all-row");
-  opt->help = "Selecting Tables All data probablity";
+  opt->help = "select all data probablity";
   opt->setInt(8);
   opt->setSQL();
 
@@ -530,6 +531,7 @@ void Option::print_pretty() {
   case BOOL:
     std::cout << ": " << getBool() << std::endl;
   }
+  std::cout << std::endl;
 }
 
 /* delete options and server options */

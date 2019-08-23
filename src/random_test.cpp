@@ -1143,7 +1143,9 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   if (is_lock)
     table_mutex.lock();
   std::string vals = "";
-  std::string type = rand_int(3) == 0 ? "INSERT" : "REPLACE";
+  std::string type = "INSERT";
+  if (is_lock)
+    type = rand_int(3) == 0 ? "INSERT" : "REPLACE";
   std::string sql = type + " INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
     sql += column->name_ + " ,";
