@@ -105,6 +105,12 @@ void add_options() {
   opt->setInt("1");
   opt->help = "random number of different general tablespaces ";
 
+  /* Number of Undo tablespaces */
+  opt =
+      newOption(Option::INT, Option::NUMBER_OF_UNDO_TABLESPACE, "undo-tbs-count");
+  opt->setInt("3");
+  opt->help = "random number of different undo tablespaces ";
+
   /* Engine */
   opt = newOption(Option::STRING, Option::ENGINE, "engine");
   opt->help = "Engine used ";
@@ -139,6 +145,13 @@ void add_options() {
   opt->help = "Disable All type of encrytion";
   opt->setBool(false);
   opt->setArgs(no_argument);
+
+  /* create,alter,drop undo tablespace */
+  opt = newOption(Option::BOOL, Option::UNDO_SQL, "undo-tbs-sql");
+  opt->help = "Assign probability of running create/alter/drop undo tablespace";
+  opt->setInt(100);
+  opt->setSQL();
+  opt->setDDL();
 
   /* disable virtual columns*/
   opt = newOption(Option::BOOL, Option::NO_VIRTUAL_COLUMNS, "no-virtual");
@@ -274,28 +287,6 @@ void add_options() {
   /*Database Encryption */
   opt = newOption(Option::INT, Option::ALTER_DATABASE_ENCRYPTION, "alt-db-enc");
   opt->help = "Alter Database Encryption mode to Y/N";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-
-  /* Create Undo Tablespace */
-  opt = newOption(Option::INT, Option::CREATE_UNDO_TABLESPACE, "undo_tbsp");
-  opt->help = "Create undo tablespaces";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-
-
-  /* Alter Undo Tablespace */
-  opt = newOption(Option::INT, Option::ALTER_UNDO_TABLESPACE, "alter_undo");
-  opt->help = "Alter undo tablespace to active or inactive";
-  opt->setInt(1);
-  opt->setSQL();
-  opt->setDDL();
-
-  /* Drop Undo Tablespace */
-  opt = newOption(Option::INT, Option::DROP_UNDO_TABLESPACE, "drop_undo");
-  opt->help = "Drop undo tablespace";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
