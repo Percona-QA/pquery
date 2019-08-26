@@ -1388,7 +1388,7 @@ void create_in_memory_data() {
   }
 
   int undo_tbs_count = opt_int(NUMBER_OF_UNDO_TABLESPACE);
-  if (undo_tbs_count>0) {
+  if (undo_tbs_count > 0) {
     for (int i=1; i<=undo_tbs_count; i++) {
       g_undo_tablespace.push_back("undo_00" + to_string(i));
     }
