@@ -146,6 +146,12 @@ void add_options() {
   opt->setBool(false);
   opt->setArgs(no_argument);
 
+  /* disable blob,text columns*/
+  opt = newOption(Option::BOOL, Option::NO_BLOB, "no-blob");
+  opt->help = "Disable blob columns";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* disable all type of encrytion */
   opt = newOption(Option::BOOL, Option::NO_TABLESPACE, "no-tbs");
   opt->help = "disable all type of tablespace including the general tablespace";
@@ -203,12 +209,13 @@ void add_options() {
   opt->setInt(1000);
 
   /* primary key probablity */
-  opt = newOption(Option::INT, Option::PRIMARY_KEY, "ctpkp");
+  opt = newOption(Option::INT, Option::PRIMARY_KEY, "primary-key-probablity");
   opt->help = "Probability of adding primary key in a table";
   opt->setInt(50);
 
   /*Encrypt table */
-  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION, "atsepm");
+  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION,
+                  "alter-table-encrypt");
   opt->help = "Alter table set Encrytion";
   opt->setInt(10);
   opt->setSQL();
@@ -230,40 +237,42 @@ void add_options() {
   opt = newOption(Option::STRING, Option::MYSQLD_SERVER_OPTION, "mso");
   opt->help =
       "mysqld server options variables which are set during the load, see "
-      "--set-global. n:option=v1=v2 where n is probabality of picking "
+      "--set-variable. n:option=v1=v2 where n is probabality of picking "
       "option, v1 and v2 different value that is supported. "
       "for e.g. --md=20:innodb_temp_tablespace_encrypt=on=off";
 
   opt = newOption(Option::STRING, Option::SERVER_OPTION_FILE, "sof");
-  opt->help = "server options file, MySQL server options file, picks some of "
-              "the mysqld options, "
-              "and try to set them during the load , using set global and set "
-              "session.\n see --set-global.\n File should contain lines like\n "
-              "20:innodb_temp_tablespace_encrypt=on=off\n, means 20% chances "
-              "that it would be processed. ";
+  opt->help =
+      "server options file, MySQL server options file, picks some of "
+      "the mysqld options, "
+      "and try to set them during the load , using set global and set "
+      "session.\n see --set-variable.\n File should contain lines like\n "
+      "20:innodb_temp_tablespace_encrypt=on=off\n, means 20% chances "
+      "that it would be processed. ";
 
   /* Set Global */
-  opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-global");
+  opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-variable");
   opt->help = "set global variable during the load";
   opt->setInt(3);
   opt->setSQL();
 
   /* alter instance rotate innodb master key */
   opt = newOption(Option::INT, Option::ALTER_MASTER_KEY, "rotate-master-key");
-  opt->help = "probablity of running. alter instance rotate innodb master key";
+  opt->help = "Alter instance rotate innodb master key";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /*Tablespace Encrytion */
-  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION, "asepm");
+  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION,
+                  "alt-tbs-enc");
   opt->help = "Alter tablespace set Encrytion";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /*Database Encryption */
-  opt = newOption(Option::INT, Option::ALTER_DATABASE_ENCRYPTION, "ade");
+  opt = newOption(Option::INT, Option::ALTER_DATABASE_ENCRYPTION, "alt-db-enc");
   opt->help = "Alter Database Encryption mode to Y/N";
   opt->setInt(1);
   opt->setSQL();
@@ -292,111 +301,119 @@ void add_options() {
   opt->setDDL();
 
   /* Tablespace Rename */
-  opt = newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "asrpm");
+  opt =
+      newOption(Option::INT, Option::ALTER_TABLESPACE_RENAME, "alt-tbs-rename");
   opt->help = "Alter tablespace rename";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* SELECT */
-  opt = newOption(Option::BOOL, Option::SELECT, "select");
-  opt->help = "Execute any type select on tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_SELECT, "no-select");
+  opt->help = "do not execute any type select on tables";
+  opt->setBool("false");
+  opt->setArgs(no_argument);
 
   /* INSERT */
-  opt = newOption(Option::BOOL, Option::INSERT, "insert");
-  opt->help = "Execute insert into tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_INSERT, "no-insert");
+  opt->help = "do not execute insert into tables";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* UPDATE */
-  opt = newOption(Option::BOOL, Option::UPDATE, "update");
-  opt->help = "Execute any type  of update on tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_UPDATE, "no-update");
+  opt->help = "do not execute any type  of update on tables";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* DELETE */
-  opt = newOption(Option::BOOL, Option::DELETE, "delete");
-  opt->help = "Execute any type of  delete on tables";
-  opt->setBool(true);
+  opt = newOption(Option::BOOL, Option::NO_DELETE, "no-delete");
+  opt->help = "do not execute any type of  delete on tables";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* Select all row */
-  opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "stapm");
-  opt->help = "Selecting Tables All data probablity";
+  opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "select-all-row");
+  opt->help = "select all data probablity";
   opt->setInt(8);
   opt->setSQL();
 
-  opt = newOption(Option::INT, Option::SELECT_ROW_USING_PKEY, "stppm");
-  opt->help = "Select table row using pkey probablity";
+  opt = newOption(Option::INT, Option::SELECT_ROW_USING_PKEY,
+                  "select-single-row");
+  opt->help = "Select table using single row";
   opt->setInt(800);
   opt->setSQL();
 
   /* Insert random row */
-  opt = newOption(Option::INT, Option::INSERT_RANDOM_ROW, "itrpm");
+  opt = newOption(Option::INT, Option::INSERT_RANDOM_ROW, "insert-row");
   opt->help = "insert random row";
   opt->setInt(600);
   opt->setSQL();
 
   /* Update row using pkey */
-  opt = newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "utppm");
-  opt->help = "Update row using pkey";
+  opt =
+      newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "update-with-cond");
+  opt->help = "Update row using using where caluse";
   opt->setInt(200);
   opt->setSQL();
 
   /* Delete all rows */
-  opt = newOption(Option::INT, Option::DELETE_ALL_ROW, "dtapm");
+  opt = newOption(Option::INT, Option::DELETE_ALL_ROW, "delete-all-row");
   opt->help = "delete all rows of a table";
   opt->setInt(1);
   opt->setSQL();
 
   /* Delete row using pkey */
-  opt = newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "dtppm");
-  opt->help = "delete row using pkey";
+  opt =
+      newOption(Option::INT, Option::DELETE_ROW_USING_PKEY, "delete-with-cond");
+  opt->help = "delete row with where condition";
   opt->setInt(200);
   opt->setSQL();
 
   /* Drop column */
-  opt = newOption(Option::INT, Option::DROP_COLUMN, "atdcpm");
+  opt = newOption(Option::INT, Option::DROP_COLUMN, "drop-column");
   opt->help = "alter table drop column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Add column */
-  opt = newOption(Option::INT, Option::ADD_COLUMN, "atacpm");
+  opt = newOption(Option::INT, Option::ADD_COLUMN, "add-column");
   opt->help = "alter table add column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Rename Column */
-  opt = newOption(Option::INT, Option::RENAME_COLUMN, "atrcpm");
+  opt = newOption(Option::INT, Option::RENAME_COLUMN, "rename-column");
   opt->help = "alter table rename column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Analyze Table */
-  opt = newOption(Option::INT, Option::ANALYZE, "tapm");
+  opt = newOption(Option::INT, Option::ANALYZE, "analyze");
   opt->help = "analyze table";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Optimize Table */
-  opt = newOption(Option::INT, Option::OPTIMIZE, "topm");
+  opt = newOption(Option::INT, Option::OPTIMIZE, "optimize");
   opt->help = "optimize table";
   opt->setInt(3);
   opt->setSQL();
   opt->setDDL();
 
   /* Truncate table */
-  opt = newOption(Option::INT, Option::TRUNCATE, "ttpm");
+  opt = newOption(Option::INT, Option::TRUNCATE, "truncate");
   opt->help = "truncate table";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Drop and recreate table */
-  opt = newOption(Option::INT, Option::DROP_CREATE, "tdcpm");
+  opt = newOption(Option::INT, Option::DROP_CREATE, "recreate-table");
   opt->help = "drop and recreate table";
   opt->setInt(1);
   opt->setSQL();
@@ -460,6 +477,38 @@ void add_options() {
   opt->setBool(true);
   opt->setArgs(no_argument);
 
+  /* execute sql sequentially */
+  opt = newOption(Option::BOOL, Option::NO_SHUFFLE, "no-shuffle");
+  opt->help = "execute SQL sequentially | randomly\n";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log query statistics */
+  opt = newOption(Option::BOOL, Option::LOG_QUERY_STATISTICS,
+                  "log-query-statistics");
+  opt->help = "extended output of query result";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log client output*/
+  opt = newOption(Option::BOOL, Option::LOG_CLIENT_OUTPUT, "log-client-output");
+  opt->help = "Log query output to separate file";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log query number*/
+  opt = newOption(Option::BOOL, Option::LOG_QUERY_NUMBERS, "log-query-numbers");
+  opt->help = "write query # to logs";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* log query duration */
+  opt =
+      newOption(Option::BOOL, Option::LOG_QUERY_DURATION, "log-query-duration");
+  opt->help = "Log query duration in milliseconds";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* log failed queries */
   opt =
       newOption(Option::BOOL, Option::LOG_FAILED_QUERIES, "log-failed-queries");
@@ -471,6 +520,18 @@ void add_options() {
   opt = newOption(Option::BOOL, Option::LOG_SUCCEDED_QUERIES,
                   "log-succeeded-queries");
   opt->help = "Log succeeded queries";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* queries per thread */
+  opt =
+      newOption(Option::INT, Option::QUERIES_PER_THREAD, "queries-per-thread");
+  opt->help = "The number of queries per thread";
+  opt->setInt(1);
+
+  /* test connection */
+  opt = newOption(Option::BOOL, Option::TEST_CONNECTION, "test-connection");
+  opt->help = "Test connection to server and exit";
   opt->setBool(false);
   opt->setArgs(no_argument);
 }
@@ -492,6 +553,7 @@ void Option::print_pretty() {
   case BOOL:
     std::cout << ": " << getBool() << std::endl;
   }
+  std::cout << std::endl;
 }
 
 /* delete options and server options */
@@ -602,10 +664,6 @@ void show_help(std::string help) {
            "       | no\n"
         << "--no-shuffle           | Execute SQL sequentially              "
            "       | randomly\n"
-        << "--log-query-statistics | Extended output of query result       "
-           "       | no\n"
-        << "--log-query-duration   | Log query duration in milliseconds    "
-           "       | no\n"
         << "--test-connection      | Test connection to server and exit    "
            "       | no\n"
         << "--log-query-number     | Write query # to logs                 "
@@ -662,12 +720,6 @@ void show_help(std::string help) {
         << "log-succeeded-queries = No\n"
         << "# Log failed queries\n"
         << "log-failed-queries = No\n"
-        << "# Execute SQL randomly\n"
-        << "shuffle = Yes\n"
-        << "# Extended output of query result\n"
-           "log-query-statistics = No\n"
-        << "# Log query duration in milliseconds\n"
-        << "log-query-duration = No\n"
         << "# Log output from executed query (separate log)\n"
         << "log-client-output = No\n"
         << "# Log query numbers along the query results and statistics\n"

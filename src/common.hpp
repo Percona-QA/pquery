@@ -18,6 +18,7 @@
 #define PQREVISION "unknown"
 #endif
 #include <getopt.h>
+#include <atomic>
 #include <map>
 #include <string>
 #include <algorithm>
@@ -40,6 +41,7 @@ struct Option {
     ONLY_CL_SQL,
     NO_ENCRYPTION,
     NO_TABLESPACE,
+    NO_BLOB,
     NO_VIRTUAL_COLUMNS,
     TABLES,
     INDEXES,
@@ -60,12 +62,10 @@ struct Option {
     ALTER_TABLESPACE_RENAME,
     CREATE_UNDO_TABLESPACE,
     ALTER_DATABASE_ENCRYPTION,
-    ALTER_UNDO_TABLESPACE,
-    DROP_UNDO_TABLESPACE,
-    SELECT,
-    INSERT,
-    UPDATE,
-    DELETE,
+    NO_SELECT,
+    NO_INSERT,
+    NO_UPDATE,
+    NO_DELETE,
     SELECT_ALL_ROW,
     SELECT_ROW_USING_PKEY,
     INSERT_RANDOM_ROW,
@@ -89,15 +89,23 @@ struct Option {
     PORT = 'p',
     PASSWORD = 'P',
     HELP = 'h',
+    NO_SHUFFLE = 'n',
     THREADS = 't',
     LOG_ALL_QUERIES = 'A',
     LOG_FAILED_QUERIES = 'F',
     LOG_SUCCEDED_QUERIES = 'S',
+    LOG_QUERY_STATISTICS = 'L',
+    LOG_QUERY_DURATION = 'D',
+    LOG_QUERY_NUMBERS = 'N',
+    LOG_CLIENT_OUTPUT = 'O',
+    TEST_CONNECTION = 'T',
+    QUERIES_PER_THREAD = 'q',
     USER = 'u',
     MAX = 'z'
   } option;
   Option(Type t, Opt o, std::string n)
-      : type(t), option(o), name(n), sql(false), ddl(false){};
+      : type(t), option(o), name(n), sql(false), ddl(false), total_queries(0),
+        success_queries(0){};
   ~Option();
 
   void print_pretty();
@@ -146,6 +154,8 @@ struct Option {
   bool ddl; // If SQL is DDL, or false if it is not
   bool cl = false;                // set if it was pass trough command line
   short args = required_argument; // default is required argument
+  std::atomic<unsigned long int> total_queries;   // totatl times executed
+  std::atomic<unsigned long int> success_queries; // successful count
 };
 
 struct Server_Option { // Server_options

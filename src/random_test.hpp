@@ -33,10 +33,9 @@
 #define opt_bool(a) options->at(Option::a)->getBool();
 #define opt_string(a) options->at(Option::a)->getString();
 
-/* Different table type supported by tool */
-enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX };
 
 int rand_int(int upper, int lower = 0);
+std::string rand_string(int upper, int lower = 0);
 
 struct Table;
 
@@ -46,26 +45,34 @@ struct Column {
     CHAR,
     VARCHAR,
     BOOL,
+    BLOB,
     GENERATED,
     COLUMN_MAX // should be last
   } type_;
   /* used for create new table/alter table add column*/
   Column(std::string name, Table *table, COLUMN_TYPES type);
+  Column(Table *table, COLUMN_TYPES type) : type_(type), table_(table){};
   /* used for read meta data */
   Column(std::string name, std::string type, Table *table)
       : type_(col_type(type)), name_(name), table_(table){};
   /* table defination */
   std::string defination();
   /* return random value of that column */
-  std::string rand_value();
+  virtual std::string rand_value();
   /* return string to call type */
-  const std::string col_type_to_string() const;
+  const std::string col_type_to_string(COLUMN_TYPES type) const;
   /* return column type from a string */
   COLUMN_TYPES col_type(std::string type);
   /* used to create_metadata */
   template <typename Writer> void Serialize(Writer &writer) const;
-  /* return the caluse of create table */
-  virtual std::string clause() { return col_type_to_string(); };
+  /* return the caluse of column */
+  virtual std::string clause() {
+    std::string str;
+    str = col_type_to_string(type_);
+    if (length > 0)
+      str += "(" + std::to_string(length) + ")";
+    return str;
+  };
   virtual ~Column(){};
   std::string name_;
   bool null = false;
@@ -76,11 +83,25 @@ struct Column {
   Table *table_;
 };
 
+struct Blob_Column : public Column {
+  Blob_Column(std::string name, Table *table);
+  std::string sub_type;
+  std::string clause() {
+    return sub_type;
+  };
+  std::string rand_value() { return "\'" + rand_string(1000) + "\'"; }
+};
+
 struct Generated_Column : public Column {
   Generated_Column(std::string name, Table *table);
   std::string str;
   std::string clause() { return str; };
+  std::string rand_value() { return "default"; };
   ~Generated_Column(){};
+  COLUMN_TYPES g_type;
+  COLUMN_TYPES generate_type() {
+    return g_type;
+  };
 };
 
 struct Ind_col {
@@ -118,14 +139,22 @@ struct Thd1 {
   static bool connection_lost;
   MYSQL *conn;
   int seed;
+  bool success = false; // if the sql is successfully executed
   bool store_result = false;
 };
 
+/* Different table type supported by tool */
 
 /* Table basic properties */
 struct Table {
 public:
-  TABLE_TYPES type;
+  enum TABLE_TYPES {
+    PARTITION,
+    NORMAL,
+    TEMPORARY,
+    TABLE_MAX
+  } type;
+
   Table(std::string n);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
   std::string defination();
@@ -194,22 +223,19 @@ std::vector<std::string> *random_strs_generator(unsigned long int seed);
 bool load_metadata(Thd1 *thd);
 void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table);
 int save_dictionary(std::vector<Table *> *all_tables);
-std::string rand_string(int upper, int lower = 0);
 bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(Table *table, Thd1 *thd);
 void save_objects_to_file();
 void load_objects_from_file(Thd1 *thd);
-void create_default_tables(Thd1 *thd);
 void clean_up_at_end();
-void create_database_tablespace(Thd1 *thd);
 Table *select_random_table();
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 void set_mysqld_variable(Thd1 *thd);
 void add_server_options(std::string str);
 void alter_database_encryption(Thd1 *thd);
-void create_undo_tablespace(Thd1 *thd);
-void alter_undo_tablespace(Thd1 *thd);
-void drop_undo_tablespace(Thd1 *thd);
+void create_in_memory_data();
+void create_default_tables(Thd1 *thd);
+void create_database_tablespace(Thd1 *thd);
 
 #endif

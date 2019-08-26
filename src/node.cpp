@@ -55,6 +55,28 @@ void Node::writeFinalReport() {
                    performed_queries_total
             << "% were successful)";
     general_log << exitmsg.str() << std::endl;
+    exitmsg.str(std::string());
+
+    unsigned long int success_queries = 0;
+    unsigned long int total_queries = 0;
+    for (auto op : *options) {
+      if (op == nullptr)
+        continue;
+      if (op->total_queries > 0) {
+        total_queries += op->total_queries;
+        success_queries += op->success_queries;
+        general_log << op->help << ", total=>" << op->total_queries
+                    << ", success=> " << op->success_queries << std::endl;
+      }
+    }
+
+    unsigned long int percentage =
+        total_queries == 0 ? 0 : success_queries * 100 / total_queries;
+
+    exitmsg << "* SUMMAR: " << total_queries - success_queries << "/"
+            << total_queries << "queries failed, (" << percentage
+            << "% were successful)";
+    general_log << exitmsg.str() << std::endl;
   }
 }
 
@@ -96,9 +118,9 @@ int Node::startWork() {
               << myParams.infile << std::endl;
 
   /* log replaying */
-  if (!myParams.shuffle) {
+  if (options->at(Option::NO_SHUFFLE)->getBool()) {
     myParams.threads = 1;
-    myParams.queries_per_thread = querylist->size();
+    options->at(Option::QUERIES_PER_THREAD)->setInt(querylist->size());
   }
   /* END log replaying */
   auto threads = opt_int(THREADS);
@@ -131,8 +153,8 @@ void Node::tryConnect() {
   }
   if (mysql_real_connect(conn, myParams.address.c_str(),
                          myParams.username.c_str(), myParams.password.c_str(),
-                         myParams.database.c_str(), myParams.port,
-                         myParams.socket.c_str(), 0) == NULL) {
+                         options->at(Option::DATABASE)->getString().c_str(),
+                         myParams.port, myParams.socket.c_str(), 0) == NULL) {
     std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn)
               << std::endl;
     std::cerr << "* PQUERY: Unable to continue [2], exiting" << std::endl;
@@ -165,7 +187,7 @@ void Node::tryConnect() {
     mysql_free_result(result);
   }
   mysql_close(conn);
-  if (myParams.test_connection) {
+  if (options->at(Option::TEST_CONNECTION)->getBool()) {
     exit(EXIT_SUCCESS);
   }
 }

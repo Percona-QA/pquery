@@ -7,7 +7,7 @@ using namespace std;
 std::mt19937 rng;
 
 const std::string partition_string = "_p";
-const int version = 2;
+const int version = 1;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
@@ -19,7 +19,7 @@ static std::vector<int> g_key_block_size;
 std::mutex Thd1::ddl_logs_write;
 
 static int g_max_columns_length = 30;
-static int g_innodb_page_size = 16;
+static int g_innodb_page_size;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
 
@@ -45,13 +45,16 @@ Column::COLUMN_TYPES Column::col_type(std::string type) {
     return BOOL;
   else if (type.compare("GENERATED") == 0)
     return GENERATED;
+  else if (type.compare("BLOB") == 0)
+    return BLOB;
   else
-    throw std::runtime_error("unhandled column in col_type");
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
 }
 
 /* return string from a column type */
-const std::string Column::col_type_to_string() const {
-  switch (type_) {
+const std::string Column::col_type_to_string(COLUMN_TYPES type) const {
+  switch (type) {
   case INT:
     return "INT";
   case CHAR:
@@ -60,11 +63,14 @@ const std::string Column::col_type_to_string() const {
     return "VARCHAR";
   case BOOL:
     return "BOOL";
+  case BLOB:
+    return "BLOB";
   case GENERATED:
     return "GENERATED";
-  default:
-    throw std::runtime_error("unhandled column from column_types");
+  case COLUMN_MAX:
+    break;
   }
+  return "FAIL";
 }
 
 static std::string db_branch() {
@@ -77,43 +83,45 @@ static std::string db_branch() {
 int sum_of_all_options(Thd1 *thd) {
 
   /* if select is set as zero, disable all type of selects */
-  if (options->at(Option::SELECT)->getBool() == false) {
+  if (options->at(Option::NO_SELECT)->getBool()) {
     options->at(Option::SELECT_ALL_ROW)->setInt(0);
     options->at(Option::SELECT_ROW_USING_PKEY)->setInt(0);
   }
 
   /* if delete is set as zero, disable all type of deletes */
-  if (options->at(Option::DELETE)->getBool() == false) {
+  if (options->at(Option::NO_DELETE)->getBool()) {
     options->at(Option::DELETE_ALL_ROW)->setInt(0);
     options->at(Option::DELETE_ROW_USING_PKEY)->setInt(0);
   }
 
   /* If update is disable, set all update probability to zero */
-  if (options->at(Option::UPDATE)->getBool() == false) {
+  if (options->at(Option::NO_UPDATE)->getBool()) {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
 
   /* if insert is disable, set all insert probability to zero */
-  if (options->at(Option::INSERT)->getBool() == false) {
+  if (options->at(Option::NO_INSERT)->getBool()) {
     opt_int_set(INSERT_RANDOM_ROW, 0);
   }
 
   /* If no-encryption is set, disable all encryption options */
-  auto enc = opt_bool(NO_ENCRYPTION);
-  if (enc) {
+
+  if (options->at(Option::NO_ENCRYPTION)->getBool()) {
     opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
     opt_int_set(ALTER_MASTER_KEY, 0);
     opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
   }
 
-  /* for 5.7 disable tablespace rename */
+  /* for 5.7 disable some features */
   if (db_branch().compare("5.7") == 0) {
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
-    opt_int_set(CREATE_UNDO_TABLESPACE, 0);
-    opt_int_set(ALTER_UNDO_TABLESPACE, 0);
-    opt_int_set(DROP_UNDO_TABLESPACE, 0);
+    opt_int_set(RENAME_COLUMN, 0);
   }
+
+  /*database encryption is not supported in oracle */
+  if (strcmp(FORK, "Percona-Server") != 0)
+    opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
 
   auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
   auto only_cl_sql = opt_bool(ONLY_CL_SQL);
@@ -125,7 +133,7 @@ int sum_of_all_options(Thd1 *thd) {
       options->at(Option::COLUMNS)->setInt(7);
   }
 
-  /* only-cl-sql, if set then disable all other DDL */
+  /* if set, then disable all other DDL */
   if (only_cl_sql) {
     for (auto &opt : *options) {
       if (opt != nullptr && opt->sql && !opt->cl)
@@ -259,26 +267,24 @@ std::string Column::rand_value() {
     static auto rec = 100 * opt_int(INITIAL_RECORDS_IN_TABLE);
     return std::to_string(rand_int(rec));
     break;
-  case (COLUMN_TYPES::VARCHAR):
-  case (COLUMN_TYPES::CHAR):
+  case CHAR:
+  case VARCHAR:
     return "\'" + rand_string(length) + "\'";
-    break;
-  case (BOOL):
+  case BOOL:
     return (rand_int(1) == 1 ? "true" : "false");
     break;
-  case (GENERATED):
-    return "default";
-  default:
-    throw std::runtime_error("unhandled column in rand_value " +
-                             col_type_to_string());
+  case BLOB:
+  case GENERATED:
+  case COLUMN_MAX:
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
   }
+return "";
 }
 
 /* return table defination */
 std::string Column::defination() {
   std::string def = name_ + " " + clause();
-  if (length > 0)
-    def += "(" + std::to_string(length) + ")";
   if (null)
     def += " NOT NULL";
   if (auto_increment)
@@ -288,33 +294,80 @@ std::string Column::defination() {
 
 /* add new column, part of create table or Alter table */
 Column::Column(std::string name, Table *table, COLUMN_TYPES type)
-    : name_(name), table_(table) {
+    : table_(table) {
   type_ = type;
-  if (type == CHAR || type == VARCHAR)
+  switch (type) {
+  case CHAR:
+    name_ = "c" + name;
     length = rand_int(g_max_columns_length, 10);
-  else if (type == INT) {
+    break;
+  case VARCHAR:
+    name_ = "v" + name;
+    length = rand_int(g_max_columns_length, 10);
+    break;
+  case INT:
+    name_ = "i" + name;
     if (rand_int(10) == 1)
       length = rand_int(100, 20);
-    else
-      length = 0;
+    break;
+  case BOOL:
+    name_ = "t" + name;
+    break;
+  default:
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
+  }
+}
+
+/* add new blobl column, part of create table or Alter table */
+Blob_Column::Blob_Column(std::string name, Table *table)
+    : Column(table, Column::BLOB) {
+  switch (rand_int(5, 1)) {
+  case 1:
+    sub_type = "MEDIUMTEXT";
+    name_ = "mt" + name;
+    break;
+  case 2:
+    sub_type = "TEXT";
+    name_ = "t" + name;
+    break;
+  case 3:
+    sub_type = "LOGNTEXT";
+    name_ = "lt" + name;
+  case 4:
+    sub_type = "BLOB";
+    name_ = "b" + name;
+    break;
+  case 5:
+    sub_type = "LONGBLOB";
+    name_ = "lb" + name;
+    break;
   }
 }
 
 /* Generated column  constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
-    : Column(name, table, Column::GENERATED) {
-  std::string type = "INT";
+    : Column(table, Column::GENERATED) {
+  name_ = "g" + name;
+  auto blob_supported = !options->at(Option::NO_BLOB)->getBool();
+  g_type = COLUMN_MAX;
+  /* Generated columns are 5:4:3:1 (INT:VARCHAR:CHAR:BLOB) */
+  while (g_type == COLUMN_MAX) {
+    auto x = rand_int(14, 1);
+    if (x <= 5)
+      g_type = INT;
+    if (x <= 9)
+      g_type = VARCHAR;
+    else if (x <= 12)
+      g_type = CHAR;
+    else if (blob_supported && x <= 13) {
+      g_type = BLOB;
+    }
+  }
 
-  auto x = rand_int(10);
-  if (x < 4)
-    type = "INT";
-  else // if (x < 8)
-    type = "VARCHAR";
-  /*
-  else
-    type = "CHAR";
-    */
+  g_type = BLOB;
 
+  /*number of columns in generated columns */
   size_t columns = rand_int(.6 * table->columns_->size()) + 1;
 
   std::vector<size_t> col_pos; // position of columns
@@ -325,19 +378,20 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       col_pos.push_back(col);
   }
 
-  if (type.compare("INT") == 0) {
-    str = " " + type + " AS(";
+  if (g_type == INT) {
+    str = " " + col_type_to_string(g_type) + " AS(";
     for (auto pos : col_pos) {
       auto col = table->columns_->at(pos);
-      if (col->type_ == VARCHAR || col->type_ == CHAR)
+      if (col->type_ == VARCHAR || col->type_ == CHAR || col->type_ == BLOB)
         str += " LENGTH(" + col->name_ + ")+";
       else if (col->type_ == INT || col->type_ == BOOL)
         str += " " + col->name_ + "+";
       else
-        throw std::runtime_error("unhandled " + to_string(__LINE__));
+        throw std::runtime_error("unhandled " + col_type_to_string(col->type_) +
+                                 " at line " + to_string(__LINE__));
     }
     str.pop_back();
-  } else if (type.compare("VARCHAR") == 0) {
+  } else if (g_type == VARCHAR || g_type == CHAR || g_type == BLOB) {
     auto size = rand_int(g_max_columns_length, col_pos.size());
     int actual_size = 0;
     string gen_sql;
@@ -345,6 +399,7 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       auto col = table->columns_->at(pos);
       auto current_size = rand_int((int)size / col_pos.size() * 2, 1);
       int column_size = 0;
+      /* base column */
       switch (col->type_) {
       case INT:
         column_size = 10; // interger max string size is 10
@@ -354,10 +409,13 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         break;
       case VARCHAR:
       case CHAR:
+      case BLOB:
         column_size = col->length;
         break;
-      default:
-        throw std::runtime_error("unhandled " + to_string(__LINE__));
+      case COLUMN_MAX:
+      case GENERATED:
+        throw std::runtime_error("unhandled " + col_type_to_string(col->type_) +
+                                 " at line " + to_string(__LINE__));
       }
       if (column_size > current_size) {
         actual_size += current_size;
@@ -369,9 +427,15 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       }
     }
     gen_sql.pop_back();
-    str = " " + type + "(" + to_string(actual_size) + ") AS" + " (CONCAT(";
+    str = " " + col_type_to_string(g_type);
+    if (g_type == VARCHAR || g_type == CHAR)
+      str += "(" + to_string(actual_size) + ")";
+    str += " AS  (CONCAT(";
     str += gen_sql;
     str += ")";
+  } else {
+    throw std::runtime_error("unhandled " + col_type_to_string(g_type) +
+                             " at line " + to_string(__LINE__));
   }
   str += ")";
 }
@@ -381,7 +445,7 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.String("name");
   writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
   writer.String("type");
-  std::string typ = col_type_to_string();
+  std::string typ = col_type_to_string(type_);
   writer.String(typ.c_str(), static_cast<SizeType>(typ.length()));
   writer.String("null");
   writer.Bool(null);
@@ -494,6 +558,14 @@ std::string Index::defination() {
   def += "INDEX " + name_ + "(";
   for (auto idc : *columns_) {
     def += idc->column->name_;
+
+    /* blob columns should have prefix length */
+    if (idc->column->type_ == Column::BLOB ||
+        (idc->column->type_ == Column::GENERATED &&
+         static_cast<Generated_Column *>(idc->column)->generate_type() ==
+             Column::BLOB))
+      def += "(" + to_string(rand_int(g_max_columns_length, 1)) + ")";
+
     def += (idc->desc ? " DESC" : (rand_int(3) ? "" : " ASC"));
     def += ", ";
   }
@@ -587,29 +659,40 @@ void Table::CreateDefaultColumn() {
       }
 
     } else {
-      name = "c" + std::to_string(i);
+      name = std::to_string(i);
 
-      Column::COLUMN_TYPES col_type;
+      Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
       static auto no_virtual_col = opt_bool(NO_VIRTUAL_COLUMNS);
+      static auto no_blob_col = opt_bool(NO_BLOB);
 
-      /* intial columns can't be generated columns */
-      auto tx = rand_int(10);
-      /* only 33% of  tables last columns  are virtuals */
-      if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
-        col_type = Column::GENERATED;
-      else if (tx < 4)
-        col_type = Column::INT;
-      else if (tx < 7)
-        col_type = Column::VARCHAR;
-      else if (tx < 10)
-        col_type = Column::CHAR;
-      else
-        col_type = Column::BOOL;
+      /* loop untill we select some column */
+      while (col_type == Column::COLUMN_MAX) {
 
-      if (col_type != Column::GENERATED)
-        col = new Column(name, this, col_type);
-      else
+        /* columns are 4:3:2:1:1 INT:VARCHAR:CHAR:BLOB:BOOL */
+        auto prob = rand_int(10);
+
+        /* intial columns can't be generated columns. also 33% of tables last
+         * columns  are virtuals */
+        if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
+          col_type = Column::GENERATED;
+        else if (prob < 4)
+          col_type = Column::INT;
+        else if (prob < 7)
+          col_type = Column::VARCHAR;
+        else if (prob < 9)
+          col_type = Column::CHAR;
+        else if (!no_blob_col && prob < 10)
+          col_type = Column::BLOB;
+        else if (prob == 10)
+          col_type = Column::BOOL;
+      }
+
+      if (col_type == Column::GENERATED)
         col = new Generated_Column(name, this);
+      else if (col_type == Column::BLOB)
+        col = new Blob_Column(name, this);
+      else
+        col = new Column(name, this, col_type);
 
       /* 25% column can have auto_inc */
       if (col->type_ == Column::INT && !no_auto_inc &&
@@ -825,14 +908,14 @@ std::string Table::defination() {
   return def;
 }
 
-/* create default table include all tables now */
+/* create default table includes all tables now */
 void create_default_tables(Thd1 *thd) {
   auto tables = opt_int(TABLES);
   auto only_temporary_tables = opt_bool(ONLY_TEMPORARY);
   if (!only_temporary_tables) {
     for (int i = 1; i <= tables; i++) {
-      all_tables->push_back(Table::table_id(TABLE_TYPES::NORMAL, i, thd));
-      all_tables->push_back(Table::table_id(TABLE_TYPES::PARTITION, i, thd));
+      all_tables->push_back(Table::table_id(Table::NORMAL, i, thd));
+      all_tables->push_back(Table::table_id(Table::PARTITION, i, thd));
     }
   }
 }
@@ -857,6 +940,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
       thd->connection_lost = true;
     }
   } else {
+    thd->success = true;
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
 
@@ -892,6 +976,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
 
 /* load some records in table */
 void load_default_data(Table *table, Thd1 *thd) {
+  thd->ddl_query = false;
   static int initial_records =
       options->at(Option::INITIAL_RECORDS_IN_TABLE)->getInt();
   int rec = rand_int(initial_records);
@@ -921,42 +1006,47 @@ void Table::AddColumn(Thd1 *thd) {
   name = "COL" + std::to_string(rand_int(300));
   sql += name;
 
-  Column::COLUMN_TYPES col_type;
+  Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
 
-  auto flag = true;
+  auto use_virtual = true;
   static auto no_use_virtual = opt_bool(NO_VIRTUAL_COLUMNS);
+  static auto use_blob = !options->at(Option::NO_BLOB)->getBool();
   table_mutex.lock();
+
   if (no_use_virtual ||
       (columns_->size() == 1 && columns_->at(0)->auto_increment == true))
-    flag = false;
+    use_virtual = false;
 
-  auto tx = rand_int(flag ? 10 : 8);
-  if (tx >= 9)
-    std::cout << "value of tx " << sql << std::endl;
-
-  if (tx >= 9)
-    col_type = Column::GENERATED;
-  else if (tx > 5)
-    col_type = Column::INT;
-  else if (tx > 2)
-    col_type = Column::VARCHAR;
-  else if (tx > 1)
-    col_type = Column::CHAR;
-  else
-    col_type = Column::BOOL;
+  while (col_type == Column::COLUMN_MAX) {
+    /* new columns are in ratio of 3:2:1:1:1:1
+     * INT:VARCHAR:CHAR:BLOB:BOOL:GENERATD */
+    auto prob = rand_int(8);
+    if (prob < 3)
+      col_type = Column::INT;
+    else if (prob < 5)
+      col_type = Column::VARCHAR;
+    else if (prob < 6)
+      col_type = Column::CHAR;
+    else if (prob < 7 && use_virtual)
+      col_type = Column::GENERATED;
+    else if (prob < 8)
+      col_type = Column::BOOL;
+    else if (prob < 9 && use_blob)
+      col_type = Column::BLOB;
+  }
 
   Column *tc;
-  if (col_type != Column::GENERATED)
-    tc = new Column(name, this, col_type);
-  else
-    tc = new Generated_Column(name, this);
 
-  table_mutex.unlock();
+  if (col_type == Column::GENERATED)
+    tc = new Generated_Column(name, this);
+  else if (col_type == Column::BLOB)
+    tc = new Blob_Column(name, this);
+  else
+    tc = new Column(name, this, col_type);
 
   sql += " " + tc->clause();
 
-  if (tc->length > 0)
-    sql += "(" + std::to_string(tc->length) + ")";
+  table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
@@ -1045,6 +1135,8 @@ void Table::SelectRandomRow(Thd1 *thd) {
   table_mutex.unlock();
   execute_sql(sql, thd);
 }
+
+/* update random row */
 void Table::UpdateRandomROW(Thd1 *thd) {
   table_mutex.lock();
   auto set = rand_int(columns_->size() - 1);
@@ -1066,9 +1158,14 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   if (is_lock)
     table_mutex.lock();
   std::string vals = "";
-  std::string insert = "INSERT INTO " + name_ + "  ( ";
+  std::string type = "INSERT";
+
+  if (is_lock)
+    type = rand_int(3) == 0 ? "INSERT" : "REPLACE";
+
+  std::string sql = type + " INTO " + name_ + "  ( ";
   for (auto &column : *columns_) {
-    insert += column->name_ + " ,";
+    sql += column->name_ + " ,";
     auto val = column->rand_value();
     if (column->auto_increment == true && rand_int(100) < 10)
       val = "NULL";
@@ -1077,13 +1174,13 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
 
   if (vals.size() > 0) {
     vals.pop_back();
-    insert.pop_back();
+    sql.pop_back();
   }
-  insert += ") VALUES(" + vals;
-  insert += " )";
+  sql += ") VALUES(" + vals;
+  sql += " )";
   if (is_lock)
     table_mutex.unlock();
-  if (execute_sql(insert, thd))
+  if (execute_sql(sql, thd))
     max_pk_value_inserted++;
 }
 
@@ -1100,6 +1197,7 @@ void Table::DropColumn(Thd1 *thd) {
     table_mutex.unlock();
     return;
   }
+
   std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
   table_mutex.unlock();
 
@@ -1240,6 +1338,56 @@ void save_objects_to_file() {
     throw std::runtime_error("can't write the JSON string to the file!");
 }
 
+/* create in memory data */
+void create_in_memory_data() {
+
+  /* Adjust the tablespaces */
+  if (!options->at(Option::NO_TABLESPACE)->getBool()) {
+    g_tablespace = {"innodb_system", "tab02k", "tab04k"};
+    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
+      g_tablespace.push_back("tab08k");
+    }
+    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
+      g_tablespace.push_back("tab16k");
+    }
+    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
+      g_tablespace.push_back("tab32k");
+    }
+    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
+      g_tablespace.push_back("tab64k");
+    }
+
+    /* add addtional tablespace */
+    auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
+    if (tbs_count > 1) {
+      auto current_size = g_tablespace.size();
+      for (size_t i = 0; i < current_size; i++) {
+        if (g_tablespace[i].compare("innodb_system") == 0)
+          continue;
+        for (int j = 1; j <= tbs_count; j++)
+          g_tablespace.push_back(g_tablespace[i] + to_string(j));
+      }
+    }
+  }
+
+  std::string row_format = opt_string(ROW_FORMAT);
+  if (row_format.compare("uncompressed") == 0) {
+    g_row_format = {"DYNAMIC", "REDUNDANT"};
+  } else if (row_format.compare("all") == 0) {
+    g_row_format = {"DYNAMIC", "REDUNDANT", "COMPRESSED"};
+    g_key_block_size = {0, 0, 1, 2, 4};
+  } else if (row_format.compare("none") == 0) {
+    g_key_block_size.empty();
+  } else {
+    g_row_format.push_back(row_format);
+  }
+
+  if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
+    g_row_format.clear();
+    g_key_block_size.clear();
+  }
+}
+
 /*load objects from a file */
 void load_objects_from_file(Thd1 *thd) {
   std::string file_read_path = opt_string(LOGDIR);
@@ -1336,110 +1484,54 @@ void clean_up_at_end() {
   delete random_strs;
 }
 
-/* create new database and tables */
+/* create new database and tablespace */
 void create_database_tablespace(Thd1 *thd) {
 
-  auto no_tbs = opt_bool(NO_TABLESPACE);
-  if (!no_tbs)
-    g_tablespace = {"innodb_system", "tab02k", "tab04k"};
-
-  for (int i=1; i<=options->at(Option::CREATE_UNDO_TABLESPACE)->getInt(); i++) {
-    g_undo_tablespace.push_back("undo_00" + to_string(i));
-  }
-  std::string row_format = opt_string(ROW_FORMAT);
-
-  if (row_format.compare("uncompressed") == 0) {
-    g_row_format = {"DYNAMIC", "REDUNDANT"};
-  } else if (row_format.compare("all") == 0) {
-    g_row_format = {"DYNAMIC", "REDUNDANT", "COMPRESSED"};
-    g_key_block_size = {0, 0, 1, 2, 4};
-
-  } else if (row_format.compare("none") == 0) {
-    thd->thread_log << "row_format is excluted" << std::endl;
-  } else {
-    g_row_format.push_back(row_format);
-  }
-
-  if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
-    g_row_format.clear();
-    g_key_block_size.clear();
-  }
-  if (!no_tbs) {
-    /* Adjust the tablespaces */
-    if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
-      g_tablespace.push_back("tab08k");
-    }
-    if (g_innodb_page_size >= INNODB_16K_PAGE_SIZE) {
-      g_tablespace.push_back("tab16k");
-    }
-    if (g_innodb_page_size >= INNODB_32K_PAGE_SIZE) {
-      g_tablespace.push_back("tab32k");
-    }
-    if (g_innodb_page_size >= INNODB_64K_PAGE_SIZE) {
-      g_tablespace.push_back("tab64k");
-    }
-  }
-
-  auto load_from_file = opt_bool(METADATA_READ);
-
-  /* drop dabase test*/
-  if (!load_from_file) {
-    execute_sql("DROP DATABASE test", thd);
-    execute_sql("CREATE DATABASE test", thd);
-  }
-
-  /* add addtional tablespace */
-  auto tbs_count = opt_int(NUMBER_OF_GENERAL_TABLESPACE);
-  if (tbs_count > 1) {
-    auto current_size = g_tablespace.size();
-    for (size_t i = 0; i < current_size; i++) {
-      if (g_tablespace[i].compare("innodb_system") == 0)
-        continue;
-      for (int j = 1; j <= tbs_count; j++)
-        g_tablespace.push_back(g_tablespace[i] + to_string(j));
-    }
-  }
+  /* drop database test*/
+  execute_sql("DROP DATABASE test", thd);
+  execute_sql("CREATE DATABASE test", thd);
 
   for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
       continue;
     std::string sql =
         "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd' ";
+
     if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
-    if (!load_from_file) {
-      if (db_branch().compare("5.7") != 0)
-        execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab,
-                    thd);
-      execute_sql("DROP TABLESPACE " + tab, thd);
-      execute_sql(sql, thd);
-    }
-  }
 
-  thd->thread_log << "default tablespaces created" << std::endl;
+    if (db_branch().compare("5.7") != 0)
+      execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
+    execute_sql("DROP TABLESPACE " + tab, thd);
+    execute_sql(sql, thd);
+  }
 }
 
 /* load metadata */
 bool load_metadata(Thd1 *thd) {
   sum_of_all_opts = sum_of_all_options(thd);
-  auto engine = opt_string(ENGINE);
 
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
-  auto &logs = thd->thread_log;
 
   /*set seed for current thread*/
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
-  logs << " creating tables metadata " << std::endl;
 
   auto load_from_file = opt_bool(METADATA_READ);
+
+  /* find out innodb page_size */
+  if (options->at(Option::ENGINE)->getString().compare("INNODB") == 0)
+    g_innodb_page_size =
+        std::stoi(get_result("select @@innodb_page_size", thd)) / 1024;
+
+  /* create in-memory data for general tablespaces */
+  create_in_memory_data();
 
   if (load_from_file) {
     load_objects_from_file(thd);
   } else {
-    thd->ddl_query = true;
     create_database_tablespace(thd);
     create_default_tables(thd);
   }
@@ -1456,22 +1548,22 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   execute_sql("USE " + database, thd);
 
   thd->ddl_query = true;
+
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
 
-  auto load_from_file = opt_bool(METADATA_READ);
   int threads = opt_int(THREADS);
 
-  if (!load_from_file) {
+  if (!options->at(Option::METADATA_READ)->getBool()) {
     /* create tables in all threads */
     for (size_t i = thd->thread_id; i < size; i = i + threads) {
       auto table = all_tables->at(i);
       thd->ddl_query = true;
       if (!execute_sql(table->defination(), thd))
         throw std::runtime_error("Create table failed " + table->name_);
-      static auto load_from_file = opt_bool(METADATA_READ);
-      if (!just_ddl && !load_from_file) {
-        thd->ddl_query = false;
+
+      /* load default data in temporary table */
+      if (!just_ddl) {
         load_default_data(table, thd);
       }
     }
@@ -1479,34 +1571,44 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
   /* create session temporary tables */
   auto no_of_tables = opt_int(TABLES);
+  /* number of session temporary tables depends on the thread,
+   * more number of threads. less number of temporary tables */
   no_of_tables /= threads * 2;
+
+  if (no_of_tables == 0)
+    no_of_tables = 1;
+
   thd->thread_log << "Creating " << no_of_tables << " temp tables "
                   << std::endl;
 
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
+
   for (int i = 0; i < no_of_tables; i++) {
     thd->ddl_query = true;
-    Table *table = Table::table_id(TEMPORARY, i, thd);
+    Table *table = Table::table_id(Table::TEMPORARY, i, thd);
     if (!execute_sql(table->defination(), thd))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
+
+    /* load default data in temporary table */
     if (!just_ddl) {
       thd->ddl_query = false;
       load_default_data(table, thd);
     }
   }
 
+  if (just_ddl)
+    return;
+
   threads_create_table++;
   std::atomic<int> initial_threads(threads);
+
   while (initial_threads != threads_create_table) {
     thd->thread_log << "Waiting for all threds to finish initial load "
                     << std::endl;
     std::chrono::seconds dura(3);
     std::this_thread::sleep_for(dura);
   }
-
-  if (just_ddl)
-    return;
 
   auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
@@ -1518,8 +1620,11 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   thd->thread_log << thd->thread_id << " value of rand_int(100) "
                   << rand_int(100) << std::endl;
 
-  int total_size = size + no_of_tables;
   /* combine all_tables with temp_tables */
+  int total_size = size + no_of_tables;
+
+  /* freqency of all options per thread */
+  int opt_feq[Option::MAX][2] = {{0, 0}};
 
   while (std::chrono::system_clock::now() < end) {
 
@@ -1603,12 +1708,30 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       throw std::runtime_error("invalid options");
     }
 
+    options->at(option)->total_queries++;
+
+    /* sql executed is at [0], and if successful at [1] */
+    opt_feq[option][0]++;
+    if (thd->success) {
+      options->at(option)->success_queries++;
+      opt_feq[option][1]++;
+      thd->success = false;
+    }
+
     if (thd->connection_lost) {
       break;
     }
+  } // while
+
+  /* print options frequency in logs */
+  for (int i = 0; i < Option::MAX; i++) {
+    if (opt_feq[i][0] > 0)
+      thd->thread_log << options->at(i)->help << ", total=>" << opt_feq[i][0]
+                      << ", success=> " << opt_feq[i][1] << std::endl;
   }
+
+  /* cleanup session tables */
   for (auto &table : *all_temp_tables)
     delete table;
   delete all_temp_tables;
 }
-
