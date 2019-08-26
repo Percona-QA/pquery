@@ -558,12 +558,13 @@ std::string Index::defination() {
   for (auto idc : *columns_) {
     def += idc->column->name_;
 
+    /* blob columns should have prefix length */
     if (idc->column->type_ == Column::BLOB ||
         (idc->column->type_ == Column::GENERATED &&
          static_cast<Generated_Column *>(idc->column)->generate_type() ==
-             Column::BLOB)) {
-      def += "(" + to_string(rand_int(g_max_columns_length, 1)) + "4)";
-    }
+             Column::BLOB))
+      def += "(" + to_string(rand_int(g_max_columns_length, 1)) + ")";
+
     def += (idc->desc ? " DESC" : (rand_int(3) ? "" : " ASC"));
     def += ", ";
   }
