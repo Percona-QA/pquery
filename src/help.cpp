@@ -105,6 +105,12 @@ void add_options() {
   opt->setInt("1");
   opt->help = "random number of different general tablespaces ";
 
+  /* Number of Undo tablespaces */
+  opt =
+      newOption(Option::INT, Option::NUMBER_OF_UNDO_TABLESPACE, "undo-tbs-count");
+  opt->setInt("3");
+  opt->help = "Number of default undo tablespaces ";
+
   /* Engine */
   opt = newOption(Option::STRING, Option::ENGINE, "engine");
   opt->help = "Engine used ";
@@ -139,6 +145,13 @@ void add_options() {
   opt->help = "Disable All type of encrytion";
   opt->setBool(false);
   opt->setArgs(no_argument);
+
+  /* create,alter,drop undo tablespace */
+  opt = newOption(Option::INT, Option::UNDO_SQL, "undo-tbs-sql");
+  opt->help = "Assign probability of running create/alter/drop undo tablespace";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
 
   /* disable virtual columns*/
   opt = newOption(Option::BOOL, Option::NO_VIRTUAL_COLUMNS, "no-virtual");
