@@ -837,7 +837,7 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
 
   // todo use #ifdefine FORK
   if (strcmp(FORK, "Percona-Server") == 0 && table->type == TEMPORARY &&
-      temp_table_encrypt.compare("1") == 0)
+      temp_table_encrypt.compare("1") == 0 && db_branch().compare("5.7") == 0)
     table->encryption = true;
 
   /* if innodb system is encrypt , create ecrypt table */
