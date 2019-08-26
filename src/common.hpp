@@ -75,6 +75,8 @@ struct Option {
     DELETE_ROW_USING_PKEY,
     DROP_COLUMN,
     ADD_COLUMN,
+    DROP_INDEX,
+    ADD_INDEX,
     RENAME_COLUMN,
     OPTIMIZE,
     ANALYZE,

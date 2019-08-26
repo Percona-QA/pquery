@@ -229,9 +229,6 @@ std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   return strs;
 }
 
-/* return some random table */
-Table *select_random_table() { return all_tables->at(0); }
-
 std::vector<std::string> *random_strs;
 
 int rand_int(int upper, int lower) {
@@ -280,7 +277,7 @@ std::string Column::rand_value() {
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
                              " at line " + to_string(__LINE__));
   }
-return "";
+  return "";
 }
 
 /* return table defination */
@@ -543,8 +540,6 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
   writer.EndObject();
 }
 
-Ind_col::Ind_col(Column *c) : column(c) {}
-
 Ind_col::Ind_col(Column *c, bool d) : column(c), desc(d) {}
 
 Index::Index(std::string n) : name_(n), columns_() {
@@ -571,7 +566,7 @@ std::string Index::defination() {
     def += ", ";
   }
   def.erase(def.length() - 2);
-  def += "), ";
+  def += ") ";
   return def;
 }
 
@@ -708,53 +703,49 @@ void Table::CreateDefaultColumn() {
 
 /* create default indexes */
 void Table::CreateDefaultIndex() {
-  int auto_inc_col = -1;
 
-  /* number of index we are adding */
-  int max_indexes = opt_int(INDEXES);
-  if (max_indexes > (int)columns_->size())
-    max_indexes = columns_->size();
-  int indexes = rand_int(max_indexes, 1);
+  int auto_inc_col = -1; // auto_inc_column_position
 
-  /* for auto-inc columns handling, we need to  add auto_inc  as first column */
+  static size_t max_indexes = opt_int(INDEXES);
+  int indexes = rand_int(
+      (max_indexes < columns_->size() ? max_indexes : columns_->size()), 1);
+
+  /* for auto-inc columns handling, we need to add auto_inc as first column */
   for (size_t i = 0; i < columns_->size(); i++) {
     if (columns_->at(i)->auto_increment) {
       auto_inc_col = i;
     }
   }
-  int auto_inc_index = rand_int(indexes, 1);
+
+  int auto_inc_index = rand_int(indexes - 1, 0);
 
   for (int i = 0; i < indexes; i++) {
     Index *id = new Index(name_ + "i" + std::to_string(i));
 
-    /* number of columns we are adding in index */
-    size_t max_columns = opt_int(INDEX_COLUMNS);
-    if (max_columns > columns_->size())
-      max_columns = columns_->size();
-    int columns = rand_int(max_columns, 1);
+    static size_t max_columns = opt_int(INDEX_COLUMNS);
+
+    /* number of columns to be added */
+    int no_of_columns = rand_int(
+        (max_columns < columns_->size() ? max_columns : columns_->size()), 1);
 
     std::vector<int> col_pos; // position of columns
 
-    while (col_pos.size() < (size_t)columns) {
-      int current = rand_int(columns - 1);
-      bool flag = false;
-
-      /* auto-inc column should be part of  */
-      if (auto_inc_col != -1 && auto_inc_index == i + 1 &&
-          col_pos.size() == 0) {
+    /* pick some columns */
+    while (col_pos.size() < (size_t)no_of_columns) {
+      int current = rand_int(columns_->size() - 1);
+      /* auto-inc column should be first column in auto_inc_index */
+      if (auto_inc_col != -1 && i == auto_inc_index && col_pos.size() == 0)
         col_pos.push_back(auto_inc_col);
-        continue;
-      }
-
-      for (auto id : col_pos) {
-        if (id == current) {
-          flag = true;
-          break;
+      else {
+        bool already_added = false;
+        for (auto id : col_pos) {
+          if (id == current)
+            already_added = true;
         }
+        if (!already_added)
+          col_pos.push_back(current);
       }
-      if (flag == false)
-        col_pos.push_back(current);
-    }
+    } // while
 
     for (auto pos : col_pos) {
       auto col = columns_->at(pos);
@@ -837,12 +828,12 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   static auto temp_table_encrypt =
       get_result("select @@innodb_temp_tablespace_encrypt", thd);
 
-  // todo use #ifdefine FORK
-  if (strcmp(FORK, "Percona-Server") == 0 && table->type == TEMPORARY &&
-      temp_table_encrypt.compare("1") == 0 && db_branch().compare("5.7") == 0)
+  // todo add assert in case innob_temp_tablespace is encrypt and --no-enc
+  if (strcmp(FORK, "Percona-Server") == 0 && db_branch().compare("5.7") == 0 &&
+      temp_table_encrypt.compare("1") == 0 && table->type == TEMPORARY)
     table->encryption = true;
 
-  /* if innodb system is encrypt , create ecrypt table */
+  /* if innodb system is encrypt , create encrypt table */
   static auto system_table_encrypt =
       get_result("select @@innodb_sys_tablespace_encrypt", thd);
 
@@ -883,7 +874,7 @@ std::string Table::defination() {
   }
 
   for (auto id : *indexes_) {
-    def += id->defination();
+    def += id->defination() + ", ";
   }
 
   def.erase(def.length() - 2);
@@ -891,7 +882,7 @@ std::string Table::defination() {
 
   if (encryption)
     def += " ENCRYPTION='Y'";
-  else if (type != TEMPORARY && rand_int(3) == 1)
+  else if (type != TEMPORARY && rand_int(1) == 1) // 50% ,set ENCRYPTION='N"
     def += " ENCRYPTION='N'";
 
   if (!tablespace.empty())
@@ -1000,6 +991,65 @@ void Table::SetEncryption(Thd1 *thd) {
   }
 }
 
+/* alter table drop column */
+void Table::DropColumn(Thd1 *thd) {
+  table_mutex.lock();
+  if (columns_->size() == 1) {
+    table_mutex.unlock();
+    return;
+  }
+  auto ps = rand_int(columns_->size() - 1);
+  auto name = columns_->at(ps)->name_;
+  if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
+    table_mutex.unlock();
+    return;
+  }
+
+  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
+  table_mutex.unlock();
+
+  if (execute_sql(sql, thd)) {
+    table_mutex.lock();
+
+    std::vector<int> indexes_to_drop;
+    for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
+      auto index = *id;
+
+      for (auto id_col = index->columns_->begin();
+           id_col != index->columns_->end(); id_col++) {
+        auto ic = *id_col;
+        if (ic->column->name_.compare(name) == 0) {
+          if (index->columns_->size() == 1) {
+            delete index;
+            indexes_to_drop.push_back(id - indexes_->begin());
+          } else {
+            delete ic;
+            index->columns_->erase(id_col);
+          }
+          break;
+        }
+      }
+    }
+    std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
+              std::greater<int>());
+
+    for (auto &i : indexes_to_drop) {
+      indexes_->at(i) = indexes_->back();
+      indexes_->pop_back();
+    }
+    // table->indexes_->erase(id);
+
+    for (auto pos = columns_->begin(); pos != columns_->end(); pos++) {
+      if ((*pos)->name_.compare(name) == 0) {
+        delete *pos;
+        columns_->erase(pos);
+        break;
+      }
+    }
+    table_mutex.unlock();
+  }
+}
+
 /* alter table add random column */
 void Table::AddColumn(Thd1 *thd) {
   std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
@@ -1055,6 +1105,65 @@ void Table::AddColumn(Thd1 *thd) {
     table_mutex.unlock();
   } else
     delete tc;
+}
+
+/* randomly drop some index of table */
+void Table::DropIndex(Thd1 *thd) {
+  table_mutex.lock();
+  std::string sql = "ALTER TABLE " + name_ + " DROP PRIMARY_KEY";
+  if (has_pk && execute_sql(sql, thd))
+    has_pk = false;
+    table_mutex.unlock();
+}
+
+/*randomly add some index on the table */
+void Table::AddIndex(Thd1 *thd) {
+  auto i = rand_int(1000);
+  Index *id = new Index(name_ + std::to_string(i));
+
+  static size_t max_columns = opt_int(INDEX_COLUMNS);
+  table_mutex.lock();
+
+  /* number of columns to be added */
+  int no_of_columns = rand_int(
+      (max_columns < columns_->size() ? max_columns : columns_->size()), 1);
+
+  std::vector<int> col_pos; // position of columns
+
+  /* pick some columns */
+  while (col_pos.size() < (size_t)no_of_columns) {
+    int current = rand_int(columns_->size() - 1);
+    /* auto-inc column should be first column in auto_inc_index */
+    bool already_added = false;
+    for (auto id : col_pos) {
+      if (id == current)
+        already_added = true;
+    }
+    if (!already_added)
+      col_pos.push_back(current);
+  } // while
+
+  for (auto pos : col_pos) {
+    auto col = columns_->at(pos);
+    static bool no_desc_support = opt_bool(NO_DESC_INDEX);
+    bool column_desc = false;
+    if (!no_desc_support) {
+      column_desc = rand_int(100) < DESC_INDEXES_IN_COLUMN
+                        ? true
+                        : false; // 33 % are desc //
+    }
+    id->AddInternalColumn(new Ind_col(col, column_desc)); // desc is set as true
+  }
+
+  std::string sql = "ALTER TABLE " + name_ + " ADD " + id->defination();
+  table_mutex.unlock();
+
+  if (execute_sql(sql, thd)) {
+    table_mutex.lock();
+    AddInternalIndex(id);
+    table_mutex.unlock();
+  } else
+    std::cout << "GANDU" << std::endl;
 }
 
 void Table::DeleteAllRows(Thd1 *thd) {
@@ -1185,65 +1294,6 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
     max_pk_value_inserted++;
 }
 
-/* alter table drop column */
-void Table::DropColumn(Thd1 *thd) {
-  table_mutex.lock();
-  if (columns_->size() == 1) {
-    table_mutex.unlock();
-    return;
-  }
-  auto ps = rand_int(columns_->size() - 1);
-  auto name = columns_->at(ps)->name_;
-  if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
-    table_mutex.unlock();
-    return;
-  }
-
-  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
-  table_mutex.unlock();
-
-  if (execute_sql(sql, thd)) {
-    table_mutex.lock();
-
-    std::vector<int> indexes_to_drop;
-    for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
-      auto index = *id;
-
-      for (auto id_col = index->columns_->begin();
-           id_col != index->columns_->end(); id_col++) {
-        auto ic = *id_col;
-        if (ic->column->name_.compare(name) == 0) {
-          if (index->columns_->size() == 1) {
-            delete index;
-            indexes_to_drop.push_back(id - indexes_->begin());
-          } else {
-            delete ic;
-            index->columns_->erase(id_col);
-          }
-          break;
-        }
-      }
-    }
-    std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
-              std::greater<int>());
-
-    for (auto &i : indexes_to_drop) {
-      indexes_->at(i) = indexes_->back();
-      indexes_->pop_back();
-    }
-    // table->indexes_->erase(id);
-
-    for (auto pos = columns_->begin(); pos != columns_->end(); pos++) {
-      if ((*pos)->name_.compare(name) == 0) {
-        delete *pos;
-        columns_->erase(pos);
-        break;
-      }
-    }
-    table_mutex.unlock();
-  }
-}
-
 /* set mysqld_variable */
 void set_mysqld_variable(Thd1 *thd) {
   static int total_probablity = sum_of_all_server_options();
@@ -1280,20 +1330,20 @@ void alter_database_encryption(Thd1 *thd) {
 void create_alter_drop_undo(Thd1 *thd) {
   auto x = rand_int(100);
   if (x < 20) {
-    std::string name = g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)];
-    std::string sql = "CREATE UNDO TABLESPACE " + name +
-                      " ADD DATAFILE '" + name + ".ibu'";
+    std::string name =
+        g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)];
+    std::string sql =
+        "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
     execute_sql(sql, thd);
   }
   if (x < 40) {
     std::string sql = "DROP UNDO TABLESPACE " +
                       g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)];
     execute_sql(sql, thd);
-  }
-  else {
-    std::string sql = "ALTER UNDO TABLESPACE " +
-                      g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)] +
-                      " SET ";
+  } else {
+    std::string sql =
+        "ALTER UNDO TABLESPACE " +
+        g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)] + " SET ";
     sql += (rand_int(1) == 0 ? "ACTIVE" : "INACTIVE");
     execute_sql(sql, thd);
   }
@@ -1389,7 +1439,7 @@ void create_in_memory_data() {
 
   int undo_tbs_count = opt_int(NUMBER_OF_UNDO_TABLESPACE);
   if (undo_tbs_count > 0) {
-    for (int i=1; i<=undo_tbs_count; i++) {
+    for (int i = 1; i <= undo_tbs_count; i++) {
       g_undo_tablespace.push_back("undo_00" + to_string(i));
     }
   }
@@ -1514,7 +1564,7 @@ void create_database_tablespace(Thd1 *thd) {
     execute_sql(sql, thd);
   }
 
-  if (db_branch().compare("5.7") !=0)  {
+  if (db_branch().compare("5.7") != 0) {
     for (auto &name : g_undo_tablespace) {
       std::string sql =
           "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
@@ -1653,14 +1703,20 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
     thd->ddl_query = options->at(option)->ddl == true ? true : false;
 
     switch (option) {
+    case Option::DROP_INDEX:
+      table->DropIndex(thd);
+      break;
+    case Option::ADD_INDEX:
+      table->AddIndex(thd);
+      break;
     case Option::DROP_COLUMN:
       table->DropColumn(thd);
       break;
-    case Option::TRUNCATE:
-      table->Truncate(thd);
-      break;
     case Option::ADD_COLUMN:
       table->AddColumn(thd);
+      break;
+    case Option::TRUNCATE:
+      table->Truncate(thd);
       break;
     case Option::DROP_CREATE:
       table->DropCreate(thd);

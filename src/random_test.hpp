@@ -105,10 +105,8 @@ struct Generated_Column : public Column {
 };
 
 struct Ind_col {
-  Ind_col(Column *c);
   Ind_col(Column *c, bool d);
   template <typename Writer> void Serialize(Writer &writer) const;
-
   Column *column;
   bool desc = false;
   int length = 0;
@@ -173,6 +171,8 @@ public:
   void InsertRandomRow(Thd1 *thd, bool islock);
   void DropColumn(Thd1 *thd);
   void AddColumn(Thd1 *thd);
+  void DropIndex(Thd1 *thd);
+  void AddIndex(Thd1 *thd);
   void DeleteRandomRow(Thd1 *thd);
   void UpdateRandomROW(Thd1 *thd);
   void SelectRandomRow(Thd1 *thd);
@@ -228,7 +228,6 @@ void load_default_data(Table *table, Thd1 *thd);
 void save_objects_to_file();
 void load_objects_from_file(Thd1 *thd);
 void clean_up_at_end();
-Table *select_random_table();
 void alter_tablespace_encryption(Thd1 *thd);
 void alter_tablespace_rename(Thd1 *thd);
 void set_mysqld_variable(Thd1 *thd);

@@ -363,15 +363,29 @@ void add_options() {
 
   /* Drop column */
   opt = newOption(Option::INT, Option::DROP_COLUMN, "drop-column");
-  opt->help = "alter table drop column";
+  opt->help = "alter table drop some random column";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Add column */
   opt = newOption(Option::INT, Option::ADD_COLUMN, "add-column");
-  opt->help = "alter table add column";
+  opt->help = "alter table add some random column";
   opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Drop index */
+  opt = newOption(Option::INT, Option::DROP_INDEX, "drop-index");
+  opt->help = "alter table drop random index";
+  opt->setInt(0);
+  opt->setSQL();
+  opt->setDDL();
+
+  /* Add column */
+  opt = newOption(Option::INT, Option::ADD_INDEX, "add-index");
+  opt->help = "alter table add random index";
+  opt->setInt(0);
   opt->setSQL();
   opt->setDDL();
 
@@ -465,7 +479,7 @@ void add_options() {
   /* log all queries */
   opt = newOption(Option::BOOL, Option::LOG_ALL_QUERIES, "log-all-queries");
   opt->help = "Log all queries (succeeded and failed)";
-  opt->setBool(true);
+  opt->setBool(false);
   opt->setArgs(no_argument);
 
   /* execute sql sequentially */
