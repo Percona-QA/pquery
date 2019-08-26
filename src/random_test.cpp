@@ -1257,15 +1257,6 @@ void set_mysqld_variable(Thd1 *thd) {
   }
 }
 
-/* create default undo tablespaces based on user option
-Default number of undo tablespace is 3 */
-void create_undo_tablespace(Thd1 *thd)  {
-  for (auto &name : g_undo_tablespace) {
-  std::string sql = "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
-  execute_sql(sql, thd);
-  }
-}
-
 /* alter tablespace set encryption */
 void alter_tablespace_encryption(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
@@ -1286,11 +1277,14 @@ void alter_database_encryption(Thd1 *thd) {
 
 /* create,alter,drop undo tablespace */
 void create_alter_drop_undo(Thd1 *thd) {
-  static int undo_sql_count = opt_int(UNDO_SQL);
-  auto x = rand_int(undo_sql_count);
-  if (x < (20*undo_sql_count)/100)
-    create_undo_tablespace(thd);
-  if (x < (40*undo_sql_count)/100) {
+  auto x = rand_int(100);
+  if (x < 20) {
+    std::string name = g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)];
+    std::string sql = "CREATE UNDO TABLESPACE " + name +
+                      " ADD DATAFILE '" + name + ".ibu'";
+    execute_sql(sql, thd);
+  }
+  if (x < 40) {
     std::string sql = "DROP UNDO TABLESPACE " +
                       g_undo_tablespace[rand_int(g_undo_tablespace.size() - 1)];
     execute_sql(sql, thd);
@@ -1390,6 +1384,13 @@ void create_in_memory_data() {
   if (g_innodb_page_size > INNODB_16K_PAGE_SIZE) {
     g_row_format.clear();
     g_key_block_size.clear();
+  }
+
+  int undo_tbs_count = opt_int(NUMBER_OF_UNDO_TABLESPACE);
+  if (undo_tbs_count>0) {
+    for (int i=1; i<=undo_tbs_count; i++) {
+      g_undo_tablespace.push_back("undo_00" + to_string(i));
+    }
   }
 }
 
@@ -1512,12 +1513,11 @@ void create_database_tablespace(Thd1 *thd) {
     execute_sql(sql, thd);
   }
 
- static int undo_tbs_count = opt_int(NUMBER_OF_UNDO_TABLESPACE);
- if (undo_tbs_count>0) {
-   for (int i=1; i<=undo_tbs_count; i++) {
-     g_undo_tablespace.push_back("undo_00" + to_string(i));
-   }
- }
+  for (auto &name : g_undo_tablespace) {
+    std::string sql =
+        "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
+    execute_sql(sql, thd);
+  }
 }
 
 /* load metadata */

@@ -109,7 +109,7 @@ void add_options() {
   opt =
       newOption(Option::INT, Option::NUMBER_OF_UNDO_TABLESPACE, "undo-tbs-count");
   opt->setInt("3");
-  opt->help = "random number of different undo tablespaces ";
+  opt->help = "Number of default undo tablespaces ";
 
   /* Engine */
   opt = newOption(Option::STRING, Option::ENGINE, "engine");
@@ -147,9 +147,9 @@ void add_options() {
   opt->setArgs(no_argument);
 
   /* create,alter,drop undo tablespace */
-  opt = newOption(Option::BOOL, Option::UNDO_SQL, "undo-tbs-sql");
+  opt = newOption(Option::INT, Option::UNDO_SQL, "undo-tbs-sql");
   opt->help = "Assign probability of running create/alter/drop undo tablespace";
-  opt->setInt(100);
+  opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
