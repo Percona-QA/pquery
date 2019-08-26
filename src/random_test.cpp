@@ -117,6 +117,7 @@ int sum_of_all_options(Thd1 *thd) {
   if (db_branch().compare("5.7") == 0) {
     opt_int_set(ALTER_TABLESPACE_RENAME, 0);
     opt_int_set(RENAME_COLUMN, 0);
+    opt_int_set(UNDO_SQL, 0);
   }
 
   /*database encryption is not supported in oracle */
@@ -838,7 +839,7 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
 
   // todo use #ifdefine FORK
   if (strcmp(FORK, "Percona-Server") == 0 && table->type == TEMPORARY &&
-      temp_table_encrypt.compare("1") == 0)
+      temp_table_encrypt.compare("1") == 0 && db_branch().compare("5.7") == 0)
     table->encryption = true;
 
   /* if innodb system is encrypt , create ecrypt table */
@@ -1513,10 +1514,12 @@ void create_database_tablespace(Thd1 *thd) {
     execute_sql(sql, thd);
   }
 
-  for (auto &name : g_undo_tablespace) {
-    std::string sql =
-        "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
-    execute_sql(sql, thd);
+  if (db_branch().compare("5.7") !=0)  {
+    for (auto &name : g_undo_tablespace) {
+      std::string sql =
+          "CREATE UNDO TABLESPACE " + name + " ADD DATAFILE '" + name + ".ibu'";
+      execute_sql(sql, thd);
+    }
   }
 }
 
