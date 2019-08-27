@@ -512,14 +512,6 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
   else
     writer.String("file_per_table");
 
-  writer.String("has_pk");
-  writer.Bool(has_pk);
-
-  if (has_pk) {
-    writer.String("max_pk_value_inserted");
-    writer.Int(max_pk_value_inserted);
-  }
-
   writer.String("encryption");
   writer.Bool(encryption);
 
@@ -570,15 +562,14 @@ std::string Index::defination() {
   return def;
 }
 
-Table::Table(std::string n) : name_(n), max_pk_value_inserted(0), indexes_() {
+Table::Table(std::string n) : name_(n), indexes_() {
   columns_ = new std::vector<Column *>;
   indexes_ = new std::vector<Index *>;
 }
 
 void Table::DropCreate(Thd1 *thd) {
-  if (execute_sql("DROP TABLE " + name_, thd))
-    max_pk_value_inserted = 0;
-
+  int max_pk_value_inserted = 0;
+  execute_sql("DROP TABLE " + name_, thd);
   std::string def = defination();
   if (execute_sql(def, thd))
     max_pk_value_inserted = 0;
@@ -609,10 +600,7 @@ void Table::Optimize(Thd1 *thd) { execute_sql("OPTIMIZE TABLE " + name_, thd); }
 
 void Table::Analyze(Thd1 *thd) { execute_sql("ANALYZE TABLE " + name_, thd); }
 
-void Table::Truncate(Thd1 *thd) {
-  if (execute_sql("TRUNCATE TABLE " + name_, thd))
-    max_pk_value_inserted = 0;
-}
+void Table::Truncate(Thd1 *thd) { execute_sql("TRUNCATE TABLE " + name_, thd); }
 
 Table::~Table() {
   for (auto ind : *indexes_)
@@ -645,7 +633,6 @@ void Table::CreateDefaultColumn() {
     if (i == 0 && rand_int(100) < pkey_pb_per_table) {
       type = Column::INT;
       name = "pkey";
-      has_pk = true;
       col = new Column{name, this, type};
       col->primary_key = true;
       if (!no_auto_inc &&
@@ -859,25 +846,25 @@ std::string Table::defination() {
     def += " TEMPORARY";
   def += " TABLE  " + name_ + " (";
 
+  /* add columns */
   for (auto col : *columns_) {
     def += col->defination() + ", ";
   }
 
-  if (has_pk) {
-    def += " PRIMARY KEY(";
-    for (auto col : *columns_) {
-      if (col->primary_key)
-        def += col->name_ + ", ";
-    }
-    def.erase(def.length() - 2);
-    def += "), ";
+  /* if column has primary key */
+  for (auto col : *columns_) {
+    if (col->primary_key)
+      def += " PRIMARY KEY(" + col->name_ + "), ";
   }
 
-  for (auto id : *indexes_) {
-    def += id->defination() + ", ";
+  if (indexes_->size() > 0) {
+    for (auto id : *indexes_) {
+      def += id->defination() + ", ";
+    }
   }
 
   def.erase(def.length() - 2);
+
   def += " )";
 
   if (encryption)
@@ -1101,7 +1088,16 @@ void Table::AddColumn(Thd1 *thd) {
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
-    AddInternalColumn(tc);
+    auto do_not_add =
+        false; // check if there is already a column with this name
+    for (auto col : *columns_) {
+      if (col->name_.compare(tc->name_) == 0)
+        do_not_add = true;
+    }
+    if (!do_not_add)
+      AddInternalColumn(tc);
+    else
+      delete tc;
     table_mutex.unlock();
   } else
     delete tc;
@@ -1180,8 +1176,21 @@ void Table::AddIndex(Thd1 *thd) {
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
-    AddInternalIndex(id);
+    auto do_not_add =
+        false; // check if there is already a index  with this name
+    for (auto ind : *indexes_) {
+      if (ind->name_.compare(id->name_) == 0)
+        do_not_add = true;
+    }
+    if (!do_not_add)
+      AddInternalIndex(id);
+    else {
+      std::cout << "already index exist " << name_ << id->name_;
+      delete id;
+    }
     table_mutex.unlock();
+  } else {
+    delete id;
   }
 }
 
@@ -1219,34 +1228,44 @@ void Table::ColumnRename(Thd1 *thd) {
   }
 }
 
-/* pick random columns for delete */
-inline int Table::pick_column_for_delete() {
-  auto column = rand_int(columns_->size() - 1);
-
-  bool only_bool = true;
-  /* if tables has pkey try to use that in where clause */
-  if (has_pk && rand_int(100) <= 50)
-    return 0;
-
-  for (auto &col : *columns_) {
-    if (col->type_ != Column::BOOL) {
-      only_bool = false;
-      break;
-    }
-  }
-
-  if (columns_->at(column)->type_ == Column::BOOL && rand_int(100) == 1)
-    return column;
-
-  if (columns_->at(column)->type_ == Column::BOOL && only_bool == false)
-    return pick_column_for_delete();
-
-  return column;
-}
-
 void Table::DeleteRandomRow(Thd1 *thd) {
   table_mutex.lock();
-  auto where = pick_column_for_delete();
+  auto where = -1;
+  bool only_bool = true;
+  int pk_pos = -1;
+
+  for (size_t i = 0; i < columns_->size(); i++) {
+    auto col = columns_->at(i);
+    if (col->type_ != Column::BOOL)
+      only_bool = false;
+    if (col->primary_key)
+      pk_pos = i;
+  }
+
+  /* 50% time we use primary key column */
+  if (pk_pos != -1 && rand_int(100) > 50)
+    where = pk_pos;
+  else {
+    /* iterate over and over to find a valid column */
+    while (where < 0) {
+      auto col_pos = rand_int(columns_->size() - 1);
+      switch (columns_->at(col_pos)->type_) {
+      case Column::BOOL:
+        if (only_bool || rand_int(1000) == 0)
+          where = col_pos;
+        break;
+      case Column::INT:
+      case Column::VARCHAR:
+      case Column::CHAR:
+      case Column::BLOB:
+      case Column::GENERATED:
+        where = col_pos;
+        break;
+      case Column::COLUMN_MAX:
+        break;
+      }
+  }
+  }
 
   std::string sql = "DELETE FROM " + name_ + " WHERE " +
                     columns_->at(where)->name_ + "=" +
@@ -1271,9 +1290,13 @@ void Table::UpdateRandomROW(Thd1 *thd) {
   auto set = rand_int(columns_->size() - 1);
   auto where = rand_int(columns_->size() - 1);
 
-  /* if tables has pkey try to use that in where clause */
-  if (has_pk && rand_int(100) <= 50)
-    where = 0;
+  /* if tables has pkey try to use that in where clause for 50% cases */
+  for (size_t i = 0; i < columns_->size(); i++) {
+    if (columns_->at(i)->primary_key && rand_int(100) <= 50) {
+      where = i;
+      break;
+    }
+  }
 
   std::string sql = "UPDATE " + name_ + " SET " + columns_->at(set)->name_ +
                     "=" + columns_->at(set)->rand_value() + " WHERE " +
@@ -1309,8 +1332,7 @@ void Table::InsertRandomRow(Thd1 *thd, bool is_lock) {
   sql += " )";
   if (is_lock)
     table_mutex.unlock();
-  if (execute_sql(sql, thd))
-    max_pk_value_inserted++;
+  execute_sql(sql, thd);
 }
 
 /* set mysqld_variable */
@@ -1508,12 +1530,6 @@ void load_objects_from_file(Thd1 *thd) {
     if (tablespace.compare("file_per_table") != 0) {
       table->tablespace = tablespace;
     }
-
-    bool has_pk = tab["has_pk"].GetBool();
-    table->has_pk = has_pk;
-
-    if (has_pk)
-      table->max_pk_value_inserted = tab["max_pk_value_inserted"].GetInt();
 
     table->encryption = tab["encryption"].GetBool();
 

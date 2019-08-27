@@ -179,8 +179,6 @@ public:
   void SelectAllRow(Thd1 *thd);
   void DeleteAllRows(Thd1 *thd);
   void ColumnRename(Thd1 *thd);
-  int pick_column_for_delete(); /* pick column for delete */
-  /* end */
   template <typename Writer> void Serialize(Writer &writer) const;
   virtual ~Table();
 
@@ -188,8 +186,6 @@ public:
   std::string engine;
   std::string row_format;
   std::string tablespace;
-  bool has_pk = false;
-  std::atomic<int> max_pk_value_inserted;
   bool encryption = false;
   int key_block_size = 0;
   // std::string data_directory; todo add corressponding code
