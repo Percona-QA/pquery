@@ -1052,7 +1052,7 @@ void Table::DropColumn(Thd1 *thd) {
 
 /* alter table add random column */
 void Table::AddColumn(Thd1 *thd) {
-  std::string sql = "ALTER TABLE " + name_ + "  ADD COLUMN ";
+  std::string sql = "ALTER TABLE " + name_ + " ADD COLUMN ";
   std::string name;
   name = "COL" + std::to_string(rand_int(300));
   sql += name;
@@ -1109,11 +1109,25 @@ void Table::AddColumn(Thd1 *thd) {
 
 /* randomly drop some index of table */
 void Table::DropIndex(Thd1 *thd) {
+
   table_mutex.lock();
-  std::string sql = "ALTER TABLE " + name_ + " DROP PRIMARY_KEY";
-  if (has_pk && execute_sql(sql, thd))
-    has_pk = false;
+  if (indexes_ != nullptr && indexes_->size() > 0) {
+    auto pos = rand_int(indexes_->size() - 1);
+    auto index = indexes_->at(pos);
+    std::string sql = "ALTER TABLE " + name_ + " DROP INDEX " + index->name_;
     table_mutex.unlock();
+    if (execute_sql(sql, thd)) {
+      table_mutex.lock();
+      delete index;
+      indexes_->at(pos) = indexes_->back();
+      indexes_->pop_back();
+      table_mutex.unlock();
+    } else
+      std::cout << "GANDU" << std::endl;
+  } else {
+    table_mutex.unlock();
+    thd->thread_log << "no index to drop " + name_ << std::endl;
+  }
 }
 
 /*randomly add some index on the table */
@@ -1162,8 +1176,7 @@ void Table::AddIndex(Thd1 *thd) {
     table_mutex.lock();
     AddInternalIndex(id);
     table_mutex.unlock();
-  } else
-    std::cout << "GANDU" << std::endl;
+  }
 }
 
 void Table::DeleteAllRows(Thd1 *thd) {
