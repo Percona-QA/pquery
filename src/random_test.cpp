@@ -1112,18 +1112,24 @@ void Table::DropIndex(Thd1 *thd) {
 
   table_mutex.lock();
   if (indexes_ != nullptr && indexes_->size() > 0) {
-    auto pos = rand_int(indexes_->size() - 1);
-    auto index = indexes_->at(pos);
-    std::string sql = "ALTER TABLE " + name_ + " DROP INDEX " + index->name_;
+    auto index = indexes_->at(rand_int(indexes_->size() - 1));
+    auto name = index->name_;
+    std::string sql = "ALTER TABLE " + name_ + " DROP INDEX " + name;
     table_mutex.unlock();
     if (execute_sql(sql, thd)) {
       table_mutex.lock();
-      delete index;
-      indexes_->at(pos) = indexes_->back();
-      indexes_->pop_back();
+      for (size_t i = 0; i < indexes_->size(); i++) {
+        auto ix = indexes_->at(i);
+        if (ix->name_.compare(name) == 0) {
+          delete ix;
+          indexes_->at(i) = indexes_->back();
+          indexes_->pop_back();
+          break;
+        }
+      }
       table_mutex.unlock();
     } else
-      std::cout << "GANDU" << std::endl;
+      std::cout << "DROP INDEX FAIL" << sql << std::endl;
   } else {
     table_mutex.unlock();
     thd->thread_log << "no index to drop " + name_ << std::endl;
