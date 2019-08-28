@@ -172,6 +172,7 @@ int sum_of_all_options(Thd1 *thd) {
   }
   return total;
 }
+
 /* return some options */
 Option::Opt pick_some_option() {
   int rd = rand_int(sum_of_all_opts, 1);
@@ -192,6 +193,36 @@ int sum_of_all_server_options() {
   }
   return total;
 }
+
+/* pick some algorith */
+inline static std::string pick_algorithm_lock() {
+  /* pick algorith for current sql */
+  static auto lock = opt_string(LOCK);
+  static auto algorithm = opt_string(ALGORITHM);
+  std::string locks[] = {"DEFAULT", "EXCLUSIVE", "SHARED", "NONE"};
+  std::string algorithms[] = {"INPLACE", "COPY", "DEFAULT"};
+  std::string current_lock;
+  std::string current_algo;
+  if (lock.compare("all") == 0 && algorithm.compare("all") == 0) {
+    auto lock_index = rand_int(3);
+    auto algo_index = rand_int(2);
+    /* lock=none;algo=inplace not supported */
+    if (lock_index == 3 && algo_index == 0)
+      lock_index = 0;
+    current_lock = locks[lock_index];
+    current_algo = algorithms[algo_index];
+  } else if (lock.compare("all") == 0) {
+    auto lock_index = rand_int(3);
+    current_lock = locks[lock_index];
+  } else if (algorithm.compare("all") == 0) {
+    auto algo_index = rand_int(2);
+    current_algo = algorithms[algo_index];
+  } else {
+    current_lock = lock;
+    current_algo = algorithm;
+  }
+  return ", LOCK=" + current_lock + ", ALGORITHM=" + current_algo;
+};
 
 /* set seed of current thread */
 int set_seed(Thd1 *thd) {
@@ -846,6 +877,9 @@ std::string Table::defination() {
     def += " TEMPORARY";
   def += " TABLE  " + name_ + " (";
 
+  if (columns_->size() == 0)
+    throw std::runtime_error("no column in table " + name_);
+
   /* add columns */
   for (auto col : *columns_) {
     def += col->defination() + ", ";
@@ -887,10 +921,12 @@ std::string Table::defination() {
   return def;
 }
 
-/* create default table includes all tables now */
+/* create default table includes all tables*/
 void create_default_tables(Thd1 *thd) {
   auto tables = opt_int(TABLES);
+
   auto only_temporary_tables = opt_bool(ONLY_TEMPORARY);
+
   if (!only_temporary_tables) {
     for (int i = 1; i <= tables; i++) {
       all_tables->push_back(Table::table_id(Table::NORMAL, i, thd));
@@ -902,14 +938,13 @@ void create_default_tables(Thd1 *thd) {
 /* return true if SQL is successful, else return false */
 bool execute_sql(std::string sql, Thd1 *thd) {
   auto query = sql.c_str();
-  auto res = mysql_real_query(thd->conn, query, strlen(query));
+  auto not_success = mysql_real_query(thd->conn, query, strlen(query));
   static auto log_all = opt_bool(LOG_ALL_QUERIES);
   static auto log_failed = opt_bool(LOG_FAILED_QUERIES);
   static auto log_success = opt_bool(LOG_SUCCEDED_QUERIES);
   sql += ";";
 
-  if (res == 1) {
-    /* log failed query */
+  if (not_success == 1) { // query failed
     if (log_all || log_failed) {
       thd->thread_log << "Query =>" << sql << std::endl;
       thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
@@ -950,7 +985,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
                   << mysql_error(thd->conn) << std::endl;
     thd->ddl_logs_write.unlock();
   }
-  return (res == 0 ? 1 : 0);
+  return (not_success == 0 ? 1 : 0);
 }
 
 /* load some records in table */
@@ -981,18 +1016,24 @@ void Table::SetEncryption(Thd1 *thd) {
 /* alter table drop column */
 void Table::DropColumn(Thd1 *thd) {
   table_mutex.lock();
+
+  /* do not drop last column */
   if (columns_->size() == 1) {
     table_mutex.unlock();
     return;
   }
-  auto ps = rand_int(columns_->size() - 1);
+  auto ps = rand_int(columns_->size() - 1); // position
+
   auto name = columns_->at(ps)->name_;
+
   if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
     table_mutex.unlock();
     return;
   }
 
   std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
+
+  sql += pick_algorithm_lock();
   table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {
@@ -1039,16 +1080,18 @@ void Table::DropColumn(Thd1 *thd) {
 
 /* alter table add random column */
 void Table::AddColumn(Thd1 *thd) {
+
+  static auto no_use_virtual = opt_bool(NO_VIRTUAL_COLUMNS);
+  static auto use_blob = !options->at(Option::NO_BLOB)->getBool();
+
   std::string sql = "ALTER TABLE " + name_ + " ADD COLUMN ";
   std::string name;
-  name = "COL" + std::to_string(rand_int(300));
+  name = "N" + std::to_string(rand_int(300));
   sql += name;
 
   Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
 
   auto use_virtual = true;
-  static auto no_use_virtual = opt_bool(NO_VIRTUAL_COLUMNS);
-  static auto use_blob = !options->at(Option::NO_BLOB)->getBool();
   table_mutex.lock();
 
   if (no_use_virtual ||
@@ -1083,21 +1126,24 @@ void Table::AddColumn(Thd1 *thd) {
     tc = new Column(name, this, col_type);
 
   sql += " " + tc->clause();
+  sql += pick_algorithm_lock();
 
   table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
-    auto do_not_add =
-        false; // check if there is already a column with this name
+    auto add_new_column =
+        true; // check if there is already a column with this name
     for (auto col : *columns_) {
       if (col->name_.compare(tc->name_) == 0)
-        do_not_add = true;
+        add_new_column = false;
     }
-    if (!do_not_add)
+
+    if (add_new_column)
       AddInternalColumn(tc);
     else
       delete tc;
+
     table_mutex.unlock();
   } else
     delete tc;
@@ -1105,12 +1151,12 @@ void Table::AddColumn(Thd1 *thd) {
 
 /* randomly drop some index of table */
 void Table::DropIndex(Thd1 *thd) {
-
   table_mutex.lock();
   if (indexes_ != nullptr && indexes_->size() > 0) {
     auto index = indexes_->at(rand_int(indexes_->size() - 1));
     auto name = index->name_;
     std::string sql = "ALTER TABLE " + name_ + " DROP INDEX " + name;
+    sql += pick_algorithm_lock();
     table_mutex.unlock();
     if (execute_sql(sql, thd)) {
       table_mutex.lock();
@@ -1124,8 +1170,7 @@ void Table::DropIndex(Thd1 *thd) {
         }
       }
       table_mutex.unlock();
-    } else
-      std::cout << "DROP INDEX FAIL" << sql << std::endl;
+    }
   } else {
     table_mutex.unlock();
     thd->thread_log << "no index to drop " + name_ << std::endl;
@@ -1172,6 +1217,7 @@ void Table::AddIndex(Thd1 *thd) {
   }
 
   std::string sql = "ALTER TABLE " + name_ + " ADD " + id->defination();
+  sql += pick_algorithm_lock();
   table_mutex.unlock();
 
   if (execute_sql(sql, thd)) {

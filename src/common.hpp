@@ -47,6 +47,8 @@ struct Option {
     NO_VIRTUAL_COLUMNS,
     TABLES,
     INDEXES,
+    ALGORITHM,
+    LOCK,
     COLUMNS,
     INDEX_COLUMNS,
     NO_AUTO_INC,

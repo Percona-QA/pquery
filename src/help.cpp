@@ -181,6 +181,19 @@ void add_options() {
   opt->help = "maximum indexes in a table,default depends on page-size as well";
   opt->setInt(7);
 
+  /* algorithm for alter */
+  opt = newOption(Option::STRING, Option::ALGORITHM, "algorith");
+  opt->help = "algorithm used in alter table. INPLACE|COPY|DEFAULT\n all "
+              "means randomly one of them  will be picked";
+  opt->setString("all");
+
+  /* lock for alter */
+  opt = newOption(Option::STRING, Option::LOCK, "lock");
+  opt->help = "lock mechanism used in alter table.\n  "
+              "DEFAULT|NONE|SHARED|EXCLUSIVE.\n all means randomly one of them "
+              "will be picked";
+  opt->setString("all");
+
   /* Number of columns in a table */
   opt = newOption(Option::INT, Option::COLUMNS, "columns");
   opt->help = "maximum columns in a table, default depends on page-size, "
