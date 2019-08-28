@@ -222,7 +222,7 @@ inline static std::string pick_algorithm_lock() {
     current_algo = algorithm;
   }
   return ", LOCK=" + current_lock + ", ALGORITHM=" + current_algo;
-};
+}
 
 /* set seed of current thread */
 int set_seed(Thd1 *thd) {
@@ -361,8 +361,9 @@ Blob_Column::Blob_Column(std::string name, Table *table)
     name_ = "t" + name;
     break;
   case 3:
-    sub_type = "LOGNTEXT";
+    sub_type = "LONGTEXT";
     name_ = "lt" + name;
+    break;
   case 4:
     sub_type = "BLOB";
     name_ = "b" + name;
@@ -599,12 +600,9 @@ Table::Table(std::string n) : name_(n), indexes_() {
 }
 
 void Table::DropCreate(Thd1 *thd) {
-  int max_pk_value_inserted = 0;
   execute_sql("DROP TABLE " + name_, thd);
   std::string def = defination();
-  if (execute_sql(def, thd))
-    max_pk_value_inserted = 0;
-  else if (tablespace.size() > 0) {
+  if (!execute_sql(def, thd) && tablespace.size() > 0) {
     std::string tbs = " TABLESPACE=" + tablespace + "_rename";
 
     auto no_encryption = opt_bool(NO_ENCRYPTION);
@@ -612,18 +610,14 @@ void Table::DropCreate(Thd1 *thd) {
     std::string encrypt_sql = " ENCRYPTION = ";
     encrypt_sql += (encryption == false ? "'y' " : "'n'");
 
-    /* If tablespace is rename */
-    if (execute_sql(def + tbs, thd))
-      max_pk_value_inserted = 0;
-
-    /* If tablespace is encrypted, and or tablespace is rename */
-    else if (!no_encryption && (execute_sql(def + encrypt_sql, thd) ||
-                                execute_sql(def + encrypt_sql + tbs, thd))) {
-      table_mutex.lock();
-      encryption = !encryption;
-      table_mutex.unlock();
-      max_pk_value_inserted = 0;
-    }
+    /* If tablespace is rename or encrypted,  or tablespace rename/encrypted */
+    if (!execute_sql(def + tbs, thd))
+      if (!no_encryption && (execute_sql(def + encrypt_sql, thd) ||
+                             execute_sql(def + encrypt_sql + tbs, thd))) {
+        table_mutex.lock();
+        encryption = !encryption;
+        table_mutex.unlock();
+      }
   }
 }
 
@@ -1414,7 +1408,7 @@ void alter_database_encryption(Thd1 *thd) {
 }
 
 /* create,alter,drop undo tablespace */
-void create_alter_drop_undo(Thd1 *thd) {
+static void create_alter_drop_undo(Thd1 *thd) {
   auto x = rand_int(100);
   if (x < 20) {
     std::string name =
