@@ -205,25 +205,19 @@ int main(int argc, char *argv[]) {
     }
   } // while
 
-  wParams.socket = options->at(Option::SOCKET)->getString();
-  wParams.username = options->at(Option::USER)->getString();
-  wParams.password = options->at(Option::PASSWORD)->getString();
-  wParams.port = options->at(Option::PORT)->getInt();
-  wParams.threads = options->at(Option::THREADS)->getInt();
-  wParams.logdir = opt_string(LOGDIR);
-
   if (options->at(Option::CONFIGFILE)->getString().size() > 0)
     confFile = options->at(Option::CONFIGFILE)->getString();
 
   if (confFile.empty()) {
-    if (wParams.debug) {
-      std::cerr << "> Config file is not specified, creating default worker"
-                << std::endl;
-    }
+    /*single node and command line */
+    wParams.socket = options->at(Option::SOCKET)->getString();
+    wParams.username = options->at(Option::USER)->getString();
+    wParams.password = options->at(Option::PASSWORD)->getString();
+    wParams.port = options->at(Option::PORT)->getInt();
+    wParams.threads = options->at(Option::THREADS)->getInt();
+    wParams.logdir = opt_string(LOGDIR);
     create_worker(wParams);
   } else {
-    std::cout << "* Config is set, all other CLI options will be ignored "
-              << std::endl;
     INIReader reader(confFile);
     if (reader.ParseError() < 0) {
       std::cout << "Can't load " << confFile << std::endl;

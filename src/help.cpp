@@ -62,11 +62,11 @@ void add_options() {
   Option *opt;
 
   /* Mode of Pquery */
-  opt = newOption(Option::BOOL, Option::MODE_OF_PQUERY, "mode");
+  opt = newOption(Option::BOOL, Option::MODE_OF_PQUERY, "random-mode");
   opt->help =
-      "run load from a SQL file or generate them. If set, then infile will be "
-      "processed and queries would be executed in random order. If set false "
-      "then sql would be generated based on the option provided";
+      "run pquery from generator or infine.\n If set, then query will be "
+      "generated using random generator else sqls will be executed from "
+      "--infine in some order based on shuffle";
   opt->setBool(true);
 
   /* Load metadata */

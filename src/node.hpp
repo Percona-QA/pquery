@@ -3,27 +3,40 @@
 
 #include "pquery.hpp"
 #include "random_test.hpp"
-#include <mysql.h>
 #include <atomic>
+#include <fstream>
 #include <iostream>
+#include <mysql.h>
+#include <sstream>
 #include <string>
 #include <thread>
 #include <vector>
 
 /* struct for node setup */
 struct workerParams {
-  std::string myName;
+  std::string myName; // unique name for worker
+  std::string database;
   std::string address;
   std::string socket;
   std::string username;
   std::string password;
   std::string infile;
   std::string logdir;
-  short threads;
   short port;
+  short threads;
+  unsigned long queries_per_thread;
   unsigned long maxpacket;
   bool verbose;
   bool debug;
+  bool log_all_queries;
+  bool log_failed_queries;
+  bool log_query_statistics;
+  bool log_query_duration;
+  bool log_client_output;
+  bool log_query_numbers;
+  bool log_succeeded_queries;
+  bool shuffle;
+  bool test_connection;
 };
 
 enum LogLevel {
@@ -52,25 +65,22 @@ public:
 private:
   // declaration for worker thread function
   void workerThread(int);
-  void Random_Generated_Load(int);
   inline unsigned long long getAffectedRows(MYSQL *);
   void tryConnect();
   bool createGeneralLog();
   void readSettings(std::string);
   void writeFinalReport();
-  void random_Generated_Load(int number);
+
   std::vector<std::thread> workers;
   std::vector<std::string> *querylist;
-
   std::vector<Table *> *tables;
-
   struct workerParams myParams;
   std::ofstream general_log;
   std::atomic<unsigned long long> performed_queries_total;
   std::atomic<unsigned long long> failed_queries_total;
 
 public:
-  std::atomic<bool> default_load;
-  std::atomic<int> threads_create_table;
+  std::atomic<bool> default_load;        // todo why
+  std::atomic<int> threads_create_table; // todo why
 };
 #endif

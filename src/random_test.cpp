@@ -14,13 +14,10 @@ static std::vector<std::string> g_tablespace;
 static std::vector<std::string> g_undo_tablespace;
 bool Thd1::connection_lost = false;
 static int sum_of_all_opts = 0;
-
 static std::vector<int> g_key_block_size;
 std::mutex Thd1::ddl_logs_write;
-
 static int g_max_columns_length = 30;
 static int g_innodb_page_size;
-
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
 
 /* get result of sql */
@@ -33,46 +30,7 @@ static std::string get_result(std::string sql, Thd1 *thd) {
   return result;
 }
 
-/* return column type from a string */
-Column::COLUMN_TYPES Column::col_type(std::string type) {
-  if (type.compare("INT") == 0)
-    return INT;
-  else if (type.compare("CHAR") == 0)
-    return CHAR;
-  else if (type.compare("VARCHAR") == 0)
-    return VARCHAR;
-  else if (type.compare("BOOL") == 0)
-    return BOOL;
-  else if (type.compare("GENERATED") == 0)
-    return GENERATED;
-  else if (type.compare("BLOB") == 0)
-    return BLOB;
-  else
-    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
-                             " at line " + to_string(__LINE__));
-}
-
-/* return string from a column type */
-const std::string Column::col_type_to_string(COLUMN_TYPES type) const {
-  switch (type) {
-  case INT:
-    return "INT";
-  case CHAR:
-    return "CHAR";
-  case VARCHAR:
-    return "VARCHAR";
-  case BOOL:
-    return "BOOL";
-  case BLOB:
-    return "BLOB";
-  case GENERATED:
-    return "GENERATED";
-  case COLUMN_MAX:
-    break;
-  }
-  return "FAIL";
-}
-
+/* return the db branch */
 static std::string db_branch() {
   std::string branch = mysql_get_client_info();
   branch = branch.substr(0, 3); // 8.0 or 5.7
@@ -87,25 +45,25 @@ int sum_of_all_options(Thd1 *thd) {
     options->at(Option::SELECT_ALL_ROW)->setInt(0);
     options->at(Option::SELECT_ROW_USING_PKEY)->setInt(0);
   }
-
   /* if delete is set as zero, disable all type of deletes */
   if (options->at(Option::NO_DELETE)->getBool()) {
     options->at(Option::DELETE_ALL_ROW)->setInt(0);
     options->at(Option::DELETE_ROW_USING_PKEY)->setInt(0);
   }
-
   /* If update is disable, set all update probability to zero */
   if (options->at(Option::NO_UPDATE)->getBool()) {
     options->at(Option::UPDATE_ROW_USING_PKEY)->setInt(0);
   }
-
   /* if insert is disable, set all insert probability to zero */
   if (options->at(Option::NO_INSERT)->getBool()) {
     opt_int_set(INSERT_RANDOM_ROW, 0);
   }
-
+  /* if no-tbs, do not execute tablespace related sql */
+  if (options->at(Option::NO_TABLESPACE)->getBool()) {
+    opt_int_set(ALTER_TABLESPACE_RENAME, 0);
+    opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
+  }
   /* If no-encryption is set, disable all encryption options */
-
   if (options->at(Option::NO_ENCRYPTION)->getBool()) {
     opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
@@ -124,15 +82,19 @@ int sum_of_all_options(Thd1 *thd) {
   if (strcmp(FORK, "Percona-Server") != 0)
     opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
 
-  auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
-  auto only_cl_sql = opt_bool(ONLY_CL_SQL);
-  auto no_ddl = opt_bool(NO_DDL);
+  /* if no dynamic variables is passed set-global to zero */
+  if (server_options->empty())
+    opt_int_set(SET_GLOBAL_VARIABLE, 0);
 
   /* for 8.0 default columns */
   if (db_branch().compare("8.0") == 0) {
     if (!options->at(Option::COLUMNS)->cl)
       options->at(Option::COLUMNS)->setInt(7);
   }
+
+  auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
+  auto only_cl_sql = opt_bool(ONLY_CL_SQL);
+  auto no_ddl = opt_bool(NO_DDL);
 
   /* if set, then disable all other DDL */
   if (only_cl_sql) {
@@ -170,6 +132,7 @@ int sum_of_all_options(Thd1 *thd) {
       continue;
     total += opt->getInt();
   }
+
   return total;
 }
 
@@ -186,6 +149,8 @@ Option::Opt pick_some_option() {
   }
   return Option::MAX;
 }
+
+/* sum of _all_server_option */
 int sum_of_all_server_options() {
   int total = 0;
   for (auto &opt : *server_options) {
@@ -287,6 +252,46 @@ std::string rand_string(int upper, int lower) {
     size -= MAX_RANDOM_STRING_SIZE;
   }
   return rs;
+}
+
+/* return column type from a string */
+Column::COLUMN_TYPES Column::col_type(std::string type) {
+  if (type.compare("INT") == 0)
+    return INT;
+  else if (type.compare("CHAR") == 0)
+    return CHAR;
+  else if (type.compare("VARCHAR") == 0)
+    return VARCHAR;
+  else if (type.compare("BOOL") == 0)
+    return BOOL;
+  else if (type.compare("GENERATED") == 0)
+    return GENERATED;
+  else if (type.compare("BLOB") == 0)
+    return BLOB;
+  else
+    throw std::runtime_error("unhandled " + col_type_to_string(type_) +
+                             " at line " + to_string(__LINE__));
+}
+
+/* return string from a column type */
+const std::string Column::col_type_to_string(COLUMN_TYPES type) const {
+  switch (type) {
+  case INT:
+    return "INT";
+  case CHAR:
+    return "CHAR";
+  case VARCHAR:
+    return "VARCHAR";
+  case BOOL:
+    return "BOOL";
+  case BLOB:
+    return "BLOB";
+  case GENERATED:
+    return "GENERATED";
+  case COLUMN_MAX:
+    break;
+  }
+  return "FAIL";
 }
 
 /* return random value of any string */
