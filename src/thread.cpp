@@ -98,24 +98,30 @@ void Node::workerThread(int number) {
 
   /* run pquery in with generator or infile */
   if (options->at(Option::MODE_OF_PQUERY)->getBool()) {
-    Thd1 *THD = new Thd1(number, thread_log, general_log, conn);
+    Thd1 *thd = new Thd1(number, thread_log, general_log, conn);
     static bool success = false;
-    if (number == 0) {
-      threads_create_table = 0;
-      success = load_metadata(THD);
-      default_load = true;
+
+    if (Thd1::metadata_locked.try_lock()) {
+      if (Thd1::metadata_loaded)
+        Thd1::metadata_locked.unlock();
+      else {
+        success = thd->load_metadata();
+        Thd1::metadata_loaded = true;
+        Thd1::metadata_locked.unlock();
+      }
     }
-    while (!default_load) {
+
+    while (!Thd1::metadata_loaded) {
       std::chrono::seconds dura(3);
       std::this_thread::sleep_for(dura);
-      thread_log << "waiting for defalut load to finish" << std::endl;
+      thread_log << "waiting for metadata load to finish" << std::endl;
     }
     if (!success)
       thread_log << " initial setup failed, check logs for details "
                  << std::endl;
     else
-      run_some_query(THD, threads_create_table);
-    delete THD;
+      thd->run_some_query();
+    delete thd;
   } else {
 
     unsigned long i;

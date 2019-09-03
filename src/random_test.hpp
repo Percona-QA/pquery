@@ -128,17 +128,22 @@ struct Thd1 {
   Thd1(int id, std::ofstream &tl, std::ofstream &ddl_l, MYSQL *c)
       : thread_id(id), thread_log(tl), ddl_logs(ddl_l), conn(c),
         store_result(false){};
+  void run_some_query(); // create default tables and run random queries
+  bool load_metadata();  // load metada of tool in memory
   int thread_id;
-  std::ofstream &thread_log;
-  static std::mutex ddl_logs_write; // mutex used for writing ddl logs
-  std::ofstream &ddl_logs;
-  bool ddl_query = false; // is the query ddl
-  std::string result;
-  static bool connection_lost;
-  MYSQL *conn;
   int seed;
-  bool success = false; // if the sql is successfully executed
-  bool store_result = false;
+  std::ofstream &thread_log;
+  std::ofstream &ddl_logs;
+  std::string result;
+  MYSQL *conn;
+  bool ddl_query = false; // is the query ddl
+  bool success = false;   // if the sql is successfully executed
+  bool store_result = false;        // store result of executed sql
+
+  static bool metadata_loaded;      // set if metadata is loaded successfully
+  static std::mutex metadata_locked; // which thread will lock and execute
+  static std::mutex ddl_logs_write; // mutex used for writing ddl logs
+  static bool connection_lost;      // set if connection to mysql is lost
 };
 
 /* Different table type supported by tool */
@@ -217,7 +222,7 @@ int sum_of_all_server_options();
 Option::Opt pick_some_option();
 std::vector<std::string> *random_strs_generator(unsigned long int seed);
 bool load_metadata(Thd1 *thd);
-void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table);
+void run_some_query(Thd1 *thd);
 int save_dictionary(std::vector<Table *> *all_tables);
 bool execute_sql(std::string sql, Thd1 *thd);
 void load_default_data(Table *table, Thd1 *thd);

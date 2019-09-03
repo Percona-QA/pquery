@@ -215,7 +215,7 @@ int main(int argc, char *argv[]) {
     wParams.password = options->at(Option::PASSWORD)->getString();
     wParams.port = options->at(Option::PORT)->getInt();
     wParams.threads = options->at(Option::THREADS)->getInt();
-    wParams.logdir = opt_string(LOGDIR);
+    wParams.logdir = options->at(Option::LOGDIR)->getString();
     create_worker(wParams);
   } else {
     INIReader reader(confFile);

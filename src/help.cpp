@@ -224,6 +224,20 @@ void add_options() {
   opt->setArgs(no_argument);
   opt->setBool(false);
 
+  /* NO Temporary tables */
+  opt = newOption(Option::BOOL, Option::NO_TEMPORARY, "no-temp-tables");
+  opt->help = "do not work on tempoary tables";
+  opt->setArgs(no_argument);
+  opt->setBool(false);
+
+  /* Ratio of temporary table to normal table */
+  opt = newOption(Option::INT, Option::TEMPORARY_TO_NORMAL_RATIO,
+                  "ratio-normal-temp");
+  opt->help = "ratio of normal to temporary tables. for e.g. if ratio to "
+              "normal table to temporary is 10 . --tables 40. them only 4 "
+              "temorary table will be created per session";
+  opt->setInt(10);
+
   /* Initial Records in table */
   opt = newOption(Option::INT, Option::INITIAL_RECORDS_IN_TABLE, "records");
   opt->help = "Number of initial records in table";
@@ -391,14 +405,14 @@ void add_options() {
   /* Drop index */
   opt = newOption(Option::INT, Option::DROP_INDEX, "drop-index");
   opt->help = "alter table drop random index";
-  opt->setInt(0);
+  opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 
   /* Add column */
   opt = newOption(Option::INT, Option::ADD_INDEX, "add-index");
   opt->help = "alter table add random index";
-  opt->setInt(0);
+  opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
 

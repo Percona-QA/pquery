@@ -1,16 +1,15 @@
 #ifndef __NODE_HPP__
 #define __NODE_HPP__
 
-#include "pquery.hpp"
-#include "random_test.hpp"
-#include <atomic>
-#include <fstream>
-#include <iostream>
-#include <mysql.h>
-#include <sstream>
 #include <string>
-#include <thread>
+#include <fstream>
+#include <sstream>
+#include <iostream>
 #include <vector>
+#include <thread>
+#include <atomic>
+#include "pquery.hpp"
+#include <mysql.h>
 
 /* struct for node setup */
 struct workerParams {
@@ -73,14 +72,9 @@ private:
 
   std::vector<std::thread> workers;
   std::vector<std::string> *querylist;
-  std::vector<Table *> *tables;
   struct workerParams myParams;
   std::ofstream general_log;
   std::atomic<unsigned long long> performed_queries_total;
   std::atomic<unsigned long long> failed_queries_total;
-
-public:
-  std::atomic<bool> default_load;        // todo why
-  std::atomic<int> threads_create_table; // todo why
 };
 #endif

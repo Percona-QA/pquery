@@ -8,17 +8,27 @@ std::mt19937 rng;
 
 const std::string partition_string = "_p";
 const int version = 1;
+
+/* set static variable related to thread */
+bool Thd1::connection_lost = false;
+std::mutex Thd1::metadata_locked;
+bool Thd1::metadata_loaded = false;
+std::mutex Thd1::ddl_logs_write;
+
+static std::vector<Table *> *all_tables = new std::vector<Table *>;
+
+static std::vector<std::string> g_undo_tablespace;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
-static std::vector<std::string> g_undo_tablespace;
-bool Thd1::connection_lost = false;
-static int sum_of_all_opts = 0;
 static std::vector<int> g_key_block_size;
-std::mutex Thd1::ddl_logs_write;
 static int g_max_columns_length = 30;
 static int g_innodb_page_size;
-static std::vector<Table *> *all_tables = new std::vector<Table *>;
+
+static std::atomic<size_t> table_started(0);
+static std::atomic<size_t> table_completed(0);
+
+static int sum_of_all_opts = 0; // sum of all probablility
 
 /* get result of sql */
 static std::string get_result(std::string sql, Thd1 *thd) {
@@ -171,8 +181,8 @@ inline static std::string pick_algorithm_lock() {
   if (lock.compare("all") == 0 && algorithm.compare("all") == 0) {
     auto lock_index = rand_int(3);
     auto algo_index = rand_int(2);
-    /* lock=none;algo=inplace not supported */
-    if (lock_index == 3 && algo_index == 0)
+    /* lock=none;algo=inplace|copy not supported */
+    if (lock_index == 3 && algo_index != 2)
       lock_index = 0;
     current_lock = locks[lock_index];
     current_algo = algorithms[algo_index];
@@ -201,6 +211,7 @@ int set_seed(Thd1 *thd) {
   return thd->seed;
 }
 
+/* generate random strings of size N_STR */
 std::vector<std::string> *random_strs_generator(unsigned long int seed) {
   static const char alphabet[] = "abcdefghijklmnopqrstuvwxyz"
                                  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -1474,7 +1485,8 @@ void save_objects_to_file() {
     throw std::runtime_error("can't write the JSON string to the file!");
 }
 
-/* create in memory data */
+/* create in memory data about tablespaces, row_format, key_block size and undo
+ * tablespaces  */
 void create_in_memory_data() {
 
   /* Adjust the tablespaces */
@@ -1626,13 +1638,14 @@ void create_database_tablespace(Thd1 *thd) {
 
   /* drop database test*/
   execute_sql("DROP DATABASE test", thd);
-  execute_sql("CREATE DATABASE test", thd);
+  execute_sql("CREATE DATABASE test", thd); // todo encrypt database/schema
 
   for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
       continue;
     std::string sql =
         "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd' ";
+    // todo encrypt tablespace
 
     if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
@@ -1654,8 +1667,8 @@ void create_database_tablespace(Thd1 *thd) {
 }
 
 /* load metadata */
-bool load_metadata(Thd1 *thd) {
-  sum_of_all_opts = sum_of_all_options(thd);
+bool Thd1::load_metadata() {
+  sum_of_all_opts = sum_of_all_options(this);
 
   random_strs =
       random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
@@ -1669,16 +1682,16 @@ bool load_metadata(Thd1 *thd) {
   /* find out innodb page_size */
   if (options->at(Option::ENGINE)->getString().compare("INNODB") == 0)
     g_innodb_page_size =
-        std::stoi(get_result("select @@innodb_page_size", thd)) / 1024;
+        std::stoi(get_result("select @@innodb_page_size", this)) / 1024;
 
   /* create in-memory data for general tablespaces */
   create_in_memory_data();
 
   if (load_from_file) {
-    load_objects_from_file(thd);
+    load_objects_from_file(this);
   } else {
-    create_database_tablespace(thd);
-    create_default_tables(thd);
+    create_database_tablespace(this);
+    create_default_tables(this);
   }
 
   if (options->at(Option::TABLES)->getInt() <= 0)
@@ -1687,70 +1700,60 @@ bool load_metadata(Thd1 *thd) {
   return 1;
 }
 
-void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
-
-  auto database = opt_string(DATABASE);
-  execute_sql("USE " + database, thd);
-
-  thd->ddl_query = true;
-
+void Thd1::run_some_query() {
   static bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
+  execute_sql("USE " + options->at(Option::DATABASE)->getString(), this);
 
-  int threads = opt_int(THREADS);
-
-  if (!options->at(Option::METADATA_READ)->getBool()) {
-    /* create tables in all threads */
-    for (size_t i = thd->thread_id; i < size; i = i + threads) {
-      auto table = all_tables->at(i);
-      thd->ddl_query = true;
-      if (!execute_sql(table->defination(), thd))
-        throw std::runtime_error("Create table failed " + table->name_);
-
-      /* load default data in temporary table */
-      if (!just_ddl) {
-        load_default_data(table, thd);
-      }
-    }
-  }
-
-  /* create session temporary tables */
-  auto no_of_tables = opt_int(TABLES);
-  /* number of session temporary tables depends on the thread,
-   * more number of threads. less number of temporary tables */
-  no_of_tables /= threads * 2;
-
-  if (no_of_tables == 0)
-    no_of_tables = 1;
-
-  thd->thread_log << "Creating " << no_of_tables << " temp tables "
-                  << std::endl;
+  /* first create temporary tables if requried */
+  int temp_tables;
+  if (options->at(Option::ONLY_TEMPORARY)->getBool())
+    temp_tables = options->at(Option::TABLES)->getInt();
+  else if (options->at(Option::NO_TEMPORARY)->getBool())
+    temp_tables = 0;
+  else
+    temp_tables = options->at(Option::TABLES)->getInt() /
+                  options->at(Option::TEMPORARY_TO_NORMAL_RATIO)->getInt();
 
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
-
-  for (int i = 0; i < no_of_tables; i++) {
-    thd->ddl_query = true;
-    Table *table = Table::table_id(Table::TEMPORARY, i, thd);
-    if (!execute_sql(table->defination(), thd))
+  for (int i = 0; i < temp_tables; i++) {
+    ddl_query = true;
+    Table *table = Table::table_id(Table::TEMPORARY, i, this);
+    if (!execute_sql(table->defination(), this))
       throw std::runtime_error("Create table failed " + table->name_);
     all_temp_tables->push_back(table);
 
     /* load default data in temporary table */
     if (!just_ddl) {
-      thd->ddl_query = false;
-      load_default_data(table, thd);
+      load_default_data(table, this);
+    }
+  }
+
+  if (!options->at(Option::METADATA_READ)->getBool()) {
+    while (1) {
+      auto current = table_started++;
+      if (current < size) {
+        auto table = all_tables->at(current);
+        ddl_query = true;
+        if (!execute_sql(table->defination(), this))
+          throw std::runtime_error("Create table failed " + table->name_);
+
+        /* load default data in table*/
+        // todo only_initial_ddl
+        if (!just_ddl) {
+          load_default_data(table, this);
+        }
+        table_completed++;
+      } else
+        break;
     }
   }
 
   if (just_ddl)
     return;
 
-  threads_create_table++;
-  std::atomic<int> initial_threads(threads);
-
-  while (initial_threads != threads_create_table) {
-    thd->thread_log << "Waiting for all threds to finish initial load "
-                    << std::endl;
+  while (table_completed < size) {
+    thread_log << "Waiting for all threds to finish initial load " << std::endl;
     std::chrono::seconds dura(3);
     std::this_thread::sleep_for(dura);
   }
@@ -1761,12 +1764,12 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
       std::chrono::system_clock::time_point(begin + std::chrono::seconds(sec));
 
   /* set seed for current thread */
-  rng = std::mt19937(set_seed(thd));
-  thd->thread_log << thd->thread_id << " value of rand_int(100) "
-                  << rand_int(100) << std::endl;
+  rng = std::mt19937(set_seed(this));
+  thread_log << thread_id << " value of rand_int(100) " << rand_int(100)
+             << std::endl;
 
   /* combine all_tables with temp_tables */
-  int total_size = size + no_of_tables;
+  int total_size = size + temp_tables;
 
   /* freqency of all options per thread */
   int opt_feq[Option::MAX][2] = {{0, 0}};
@@ -1774,80 +1777,78 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   while (std::chrono::system_clock::now() < end) {
 
     auto curr = rand_int(total_size - 1);
-
-    auto table = (curr < no_of_tables) ? all_temp_tables->at(curr)
-                                       : all_tables->at(curr - no_of_tables);
-
+    auto table = (curr < temp_tables) ? all_temp_tables->at(curr)
+                                      : all_tables->at(curr - temp_tables);
     auto option = pick_some_option();
 
-    thd->ddl_query = options->at(option)->ddl == true ? true : false;
+    ddl_query = options->at(option)->ddl == true ? true : false;
 
     switch (option) {
     case Option::DROP_INDEX:
-      table->DropIndex(thd);
+      table->DropIndex(this);
       break;
     case Option::ADD_INDEX:
-      table->AddIndex(thd);
+      table->AddIndex(this);
       break;
     case Option::DROP_COLUMN:
-      table->DropColumn(thd);
+      table->DropColumn(this);
       break;
     case Option::ADD_COLUMN:
-      table->AddColumn(thd);
+      table->AddColumn(this);
       break;
     case Option::TRUNCATE:
-      table->Truncate(thd);
+      table->Truncate(this);
       break;
     case Option::DROP_CREATE:
-      table->DropCreate(thd);
+      table->DropCreate(this);
       break;
     case Option::ALTER_TABLE_ENCRYPTION:
-      table->SetEncryption(thd);
+      table->SetEncryption(this);
       break;
     case Option::SET_GLOBAL_VARIABLE:
-      set_mysqld_variable(thd);
+      set_mysqld_variable(this);
       break;
     case Option::ALTER_TABLESPACE_ENCRYPTION:
-      alter_tablespace_encryption(thd);
+      alter_tablespace_encryption(this);
       break;
     case Option::ALTER_TABLESPACE_RENAME:
-      alter_tablespace_rename(thd);
+      alter_tablespace_rename(this);
       break;
     case Option::SELECT_ALL_ROW:
-      table->SelectAllRow(thd);
+      table->SelectAllRow(this);
       break;
     case Option::SELECT_ROW_USING_PKEY:
-      table->SelectRandomRow(thd);
+      table->SelectRandomRow(this);
       break;
     case Option::INSERT_RANDOM_ROW:
-      table->InsertRandomRow(thd, true);
+      table->InsertRandomRow(this, true);
       break;
     case Option::DELETE_ALL_ROW:
-      table->DeleteAllRows(thd);
+      table->DeleteAllRows(this);
       break;
     case Option::DELETE_ROW_USING_PKEY:
-      table->DeleteRandomRow(thd);
+      table->DeleteRandomRow(this);
       break;
     case Option::UPDATE_ROW_USING_PKEY:
-      table->UpdateRandomROW(thd);
+      table->UpdateRandomROW(this);
       break;
     case Option::OPTIMIZE:
-      table->Optimize(thd);
+      table->Optimize(this);
       break;
     case Option::ANALYZE:
-      table->Analyze(thd);
+      table->Analyze(this);
       break;
     case Option::RENAME_COLUMN:
-      table->ColumnRename(thd);
+      table->ColumnRename(this);
       break;
     case Option::ALTER_MASTER_KEY:
-      execute_sql("ALTER INSTANCE ROTATE INNODB MASTER KEY", thd);
+      execute_sql("ALTER INSTANCE ROTATE INNODB MASTER KEY", this);
       break;
     case Option::ALTER_DATABASE_ENCRYPTION:
-      alter_database_encryption(thd);
+      alter_database_encryption(this);
       break;
     case Option::UNDO_SQL:
-      create_alter_drop_undo(thd);
+      create_alter_drop_undo(this);
       break;
     default:
       throw std::runtime_error("invalid options");
@@ -1857,13 +1858,13 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
 
     /* sql executed is at [0], and if successful at [1] */
     opt_feq[option][0]++;
-    if (thd->success) {
+    if (success) {
       options->at(option)->success_queries++;
       opt_feq[option][1]++;
-      thd->success = false;
+      success = false;
     }
 
-    if (thd->connection_lost) {
+    if (connection_lost) {
       break;
     }
   } // while
@@ -1871,8 +1872,8 @@ void run_some_query(Thd1 *thd, std::atomic<int> &threads_create_table) {
   /* print options frequency in logs */
   for (int i = 0; i < Option::MAX; i++) {
     if (opt_feq[i][0] > 0)
-      thd->thread_log << options->at(i)->help << ", total=>" << opt_feq[i][0]
-                      << ", success=> " << opt_feq[i][1] << std::endl;
+      thread_log << options->at(i)->help << ", total=>" << opt_feq[i][0]
+                 << ", success=> " << opt_feq[i][1] << std::endl;
   }
 
   /* cleanup session tables */

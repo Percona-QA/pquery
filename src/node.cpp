@@ -9,7 +9,6 @@ Node::Node() {
   workers.clear();
   performed_queries_total = 0;
   failed_queries_total = 0;
-  default_load = false;
 }
 
 Node::~Node() {
@@ -22,11 +21,10 @@ Node::~Node() {
   }
 
   /* if mode is query generator*/
-  if (tables) {
+  if (options->at(Option::MODE_OF_PQUERY)) {
     save_objects_to_file();
     clean_up_at_end();
   }
-
 }
 bool Node::createGeneralLog() {
   std::string logName;
@@ -104,7 +102,6 @@ int Node::startWork() {
     return EXIT_FAILURE;
   }
   querylist = new std::vector<std::string>;
-  tables = new std::vector<Table *>;
   std::string line;
 
   while (getline(sqlfile_in, line)) {
