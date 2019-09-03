@@ -78,6 +78,7 @@ int sum_of_all_options(Thd1 *thd) {
     opt_int_set(ALTER_TABLE_ENCRYPTION, 0);
     opt_int_set(ALTER_TABLESPACE_ENCRYPTION, 0);
     opt_int_set(ALTER_MASTER_KEY, 0);
+    opt_int_set(ROTATE_REDO_LOG_KEY, 0);
     opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
   }
 
@@ -1843,6 +1844,9 @@ void Thd1::run_some_query() {
       break;
     case Option::ALTER_MASTER_KEY:
       execute_sql("ALTER INSTANCE ROTATE INNODB MASTER KEY", this);
+      break;
+    case Option::ROTATE_REDO_LOG_KEY:
+      execute_sql("SELECT rotate_system_key(\"percona_redo\")", thd);
       break;
     case Option::ALTER_DATABASE_ENCRYPTION:
       alter_database_encryption(this);

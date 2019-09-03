@@ -303,6 +303,14 @@ void add_options() {
   opt->setSQL();
   opt->setDDL();
 
+  /* rotate redo log key */
+  opt = newOption(Option::INT, Option::ROTATE_REDO_LOG_KEY,
+                  "rotate-redo-log-key");
+  opt->help = "Rotate redo log key";
+  opt->setInt(1);
+  opt->setSQL();
+  opt->setDDL();
+
   /*Tablespace Encrytion */
   opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION,
                   "alt-tbs-enc");
