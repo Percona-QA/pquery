@@ -1846,7 +1846,7 @@ void Thd1::run_some_query() {
       execute_sql("ALTER INSTANCE ROTATE INNODB MASTER KEY", this);
       break;
     case Option::ROTATE_REDO_LOG_KEY:
-      execute_sql("SELECT rotate_system_key(\"percona_redo\")", thd);
+      execute_sql("SELECT rotate_system_key(\"percona_redo\")", this);
       break;
     case Option::ALTER_DATABASE_ENCRYPTION:
       alter_database_encryption(this);
