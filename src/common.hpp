@@ -27,7 +27,6 @@
 struct Option {
   enum Type { BOOL, INT, STRING } type;
   enum Opt {
-    MODE_OF_PQUERY,
     METADATA_READ,
     METADATA_READ_FILE,
     METADATA_WRITE,
@@ -88,6 +87,7 @@ struct Option {
     TRUNCATE,
     DROP_CREATE,
     MYSQLD_SERVER_OPTION,
+    DYNAMIC_PQUERY = 'k',
     DATABASE = 'd',
     ADDRESS = 'a',
     INFILE = 'i',

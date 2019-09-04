@@ -24,6 +24,7 @@ pid_t childPID, wPID;
 int status;
 void set_defaults(struct workerParams &Params) {
   // initialize all fields with default values
+  Params.myName = "default.node.tld";
   Params.database = opt_string(DATABASE);
   Params.address = opt_string(ADDRESS);
   Params.socket = opt_string(SOCKET);
@@ -132,7 +133,7 @@ int main(int argc, char *argv[]) {
     };
     long_options[i] = {0, 0, 0, 0};
 
-    c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAEFNLDTNOS",
+    c = getopt_long_only(argc, argv, "c:d:a:i:l:s:p:u:P:t:q:vAEFNLDTNOSk",
                          long_options, &option_index);
 
     if (c == -1) {
@@ -152,9 +153,6 @@ int main(int argc, char *argv[]) {
     case 'I':
       show_config_help();
       exit(EXIT_FAILURE);
-    case 'i':
-      wParams.infile = optarg;
-      break;
     case 'C':
       show_cli_help();
       exit(EXIT_FAILURE);
@@ -216,7 +214,6 @@ int main(int argc, char *argv[]) {
 
   if (options->at(Option::CONFIGFILE)->getString().size() > 0)
     confFile = options->at(Option::CONFIGFILE)->getString();
-
   if (confFile.empty()) {
     /*single node and command line */
 

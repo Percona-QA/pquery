@@ -16,14 +16,14 @@ Node::~Node() {
   if (general_log) {
     general_log.close();
   }
-  if (querylist) {
-    delete querylist;
-  }
-
   /* if mode is query generator*/
-  if (options->at(Option::MODE_OF_PQUERY)) {
+  if (options->at(Option::DYNAMIC_PQUERY)) {
     save_objects_to_file();
     clean_up_at_end();
+  } else {
+    if (querylist) {
+      delete querylist;
+    }
   }
 }
 bool Node::createGeneralLog() {
@@ -47,34 +47,36 @@ void Node::writeFinalReport() {
     std::ostringstream exitmsg;
     exitmsg.precision(2);
     exitmsg << std::fixed;
-    exitmsg << "* NODE SUMMARY: " << failed_queries_total << "/"
-            << performed_queries_total << " queries failed, ("
-            << (performed_queries_total - failed_queries_total) * 100.0 /
-                   performed_queries_total
-            << "% were successful)";
-    general_log << exitmsg.str() << std::endl;
-    exitmsg.str(std::string());
 
-    unsigned long int success_queries = 0;
-    unsigned long int total_queries = 0;
-    for (auto op : *options) {
-      if (op == nullptr)
-        continue;
-      if (op->total_queries > 0) {
-        total_queries += op->total_queries;
-        success_queries += op->success_queries;
-        general_log << op->help << ", total=>" << op->total_queries
-                    << ", success=> " << op->success_queries << std::endl;
+    if (options->at(Option::DYNAMIC_PQUERY)->getBool() == false) {
+      exitmsg << "* NODE SUMMARY: " << failed_queries_total << "/"
+              << performed_queries_total << " queries failed, ("
+              << (performed_queries_total - failed_queries_total) * 100.0 /
+                     performed_queries_total
+              << "% were successful)";
+    } else {
+      unsigned long int success_queries = 0;
+      unsigned long int total_queries = 0;
+      for (auto op : *options) {
+        if (op == nullptr)
+          continue;
+        if (op->total_queries > 0) {
+          total_queries += op->total_queries;
+          success_queries += op->success_queries;
+          general_log << op->help << ", total=>" << op->total_queries
+                      << ", success=> " << op->success_queries << std::endl;
+        }
       }
+
+      unsigned long int percentage =
+          total_queries == 0 ? 0 : success_queries * 100 / total_queries;
+
+      exitmsg << "* SUMMAR: " << total_queries - success_queries << "/"
+              << total_queries << "queries failed, (" << percentage
+              << "% were successful)";
     }
-
-    unsigned long int percentage =
-        total_queries == 0 ? 0 : success_queries * 100 / total_queries;
-
-    exitmsg << "* SUMMAR: " << total_queries - success_queries << "/"
-            << total_queries << "queries failed, (" << percentage
-            << "% were successful)";
-    general_log << exitmsg.str() << std::endl;
+      general_log << exitmsg.str() << std::endl;
+      exitmsg.str(std::string());
   }
 }
 
@@ -91,48 +93,48 @@ int Node::startWork() {
               << myParams.address << "]..." << std::endl;
   tryConnect();
 
-  std::ifstream sqlfile_in;
-  sqlfile_in.open(myParams.infile);
+  if (options->at(Option::DYNAMIC_PQUERY)->getBool() == false) {
+    std::ifstream sqlfile_in;
+    sqlfile_in.open(myParams.infile);
 
-  if (!sqlfile_in.is_open()) {
-    std::cerr << "Unable to open SQL file " << myParams.infile << ": "
-              << strerror(errno) << std::endl;
-    general_log << "Unable to open SQL file " << myParams.infile << ": "
+    if (!sqlfile_in.is_open()) {
+      std::cerr << "Unable to open SQL file " << myParams.infile << ": "
                 << strerror(errno) << std::endl;
-    return EXIT_FAILURE;
-  }
-  querylist = new std::vector<std::string>;
-  std::string line;
+      general_log << "Unable to open SQL file " << myParams.infile << ": "
+                  << strerror(errno) << std::endl;
+      return EXIT_FAILURE;
+    }
+    querylist = new std::vector<std::string>;
+    std::string line;
 
-  while (getline(sqlfile_in, line)) {
-    if (!line.empty()) {
-      querylist->push_back(line);
+    while (getline(sqlfile_in, line)) {
+      if (!line.empty()) {
+        querylist->push_back(line);
+      }
+    }
+
+    sqlfile_in.close();
+    general_log << "- Read " << querylist->size() << " lines from "
+                << myParams.infile << std::endl;
+
+    /* log replaying */
+    if (!myParams.shuffle) {
+      myParams.threads = 1;
+      myParams.queries_per_thread = querylist->size();
     }
   }
-
-  sqlfile_in.close();
-  general_log << "- Read " << querylist->size() << " lines from "
-              << myParams.infile << std::endl;
-
-  /* log replaying */
-  if (options->at(Option::NO_SHUFFLE)->getBool()) {
-    myParams.threads = 1;
-    options->at(Option::QUERIES_PER_THREAD)->setInt(querylist->size());
-  }
   /* END log replaying */
-  auto threads = opt_int(THREADS);
-  workers.resize(threads);
+  workers.resize(myParams.threads);
 
-  for (int i = 0; i < threads; i++) {
+  for (int i = 0; i < myParams.threads; i++) {
     workers[i] = std::thread(&Node::workerThread, this, i);
   }
 
-  for (int i = 0; i < threads; i++) {
+  for (int i = 0; i < myParams.threads; i++) {
     workers[i].join();
   }
   return EXIT_SUCCESS;
 }
-
 
 void Node::tryConnect() {
   MYSQL *conn;

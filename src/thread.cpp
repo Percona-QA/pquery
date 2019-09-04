@@ -22,13 +22,8 @@ void Node::workerThread(int number) {
   int max_con_fail_count = 0;
   int res;
 
-  std::chrono::steady_clock::time_point begin, end;
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<int> dis(0, querylist->size() - 1);
   std::ofstream thread_log;
   std::ofstream client_log;
-
   if (myParams.log_client_output) {
     std::ostringstream cl;
     cl << myParams.logdir << "/" << myParams.myName << "_thread-" << number
@@ -96,8 +91,8 @@ void Node::workerThread(int number) {
     return;
   }
 
-  /* run pquery in with generator or infile */
-  if (options->at(Option::MODE_OF_PQUERY)->getBool()) {
+  /* run pquery in with dynamic generator or infile */
+  if (options->at(Option::DYNAMIC_PQUERY)->getBool()) {
     Thd1 *thd = new Thd1(number, thread_log, general_log, conn);
     static bool success = false;
 
@@ -123,7 +118,10 @@ void Node::workerThread(int number) {
       thd->run_some_query();
     delete thd;
   } else {
-
+    std::chrono::steady_clock::time_point begin, end;
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<int> dis(0, querylist->size() - 1);
     unsigned long i;
     for (i = 0; i < myParams.queries_per_thread; i++) {
 

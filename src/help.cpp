@@ -62,12 +62,13 @@ void add_options() {
   Option *opt;
 
   /* Mode of Pquery */
-  opt = newOption(Option::BOOL, Option::MODE_OF_PQUERY, "random-mode");
+  opt = newOption(Option::BOOL, Option::DYNAMIC_PQUERY, "dynamic-pquery");
   opt->help =
       "run pquery from generator or infine.\n If set, then query will be "
-      "generated using random generator else sqls will be executed from "
-      "--infine in some order based on shuffle";
-  opt->setBool(true);
+      "dynamically generated using random generator else sqls will be executed "
+      "from --infine in some order based on shuffle. you can also use -k";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
 
   /* Load metadata */
   opt = newOption(Option::BOOL, Option::METADATA_READ, "metadata-read");
@@ -472,6 +473,7 @@ void add_options() {
   /* Infile */
   opt = newOption(Option::STRING, Option::INFILE, "infile");
   opt->help = "The SQL input file";
+  opt->setString("pquery.sql");
 
   /* Logdir */
   opt = newOption(Option::STRING, Option::LOGDIR, "logdir");
