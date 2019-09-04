@@ -190,9 +190,11 @@ inline static std::string pick_algorithm_lock() {
   } else if (lock.compare("all") == 0) {
     auto lock_index = rand_int(3);
     current_lock = locks[lock_index];
+    current_algo = algorithm;
   } else if (algorithm.compare("all") == 0) {
     auto algo_index = rand_int(2);
     current_algo = algorithms[algo_index];
+    current_lock = lock;
   } else {
     current_lock = lock;
     current_algo = algorithm;
@@ -392,7 +394,7 @@ Blob_Column::Blob_Column(std::string name, Table *table)
   }
 }
 
-/* Generated column  constructor. lock table before calling */
+/* Generated column constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
     : Column(table, Column::GENERATED) {
   name_ = "g" + name;
@@ -697,7 +699,7 @@ void Table::CreateDefaultColumn() {
         auto prob = rand_int(10);
 
         /* intial columns can't be generated columns. also 33% of tables last
-         * columns  are virtuals */
+         * columns are virtuals */
         if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
           col_type = Column::GENERATED;
         else if (prob < 4)
@@ -979,7 +981,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
 
     /* log successful query */
     if (log_all || log_success) {
-      thd->thread_log << "Query  =>" << sql << std::endl;
+      thd->thread_log << "Query =>" << sql << std::endl;
       if (!result) {
         thd->thread_log << std::endl;
       } else {
@@ -1233,8 +1235,7 @@ void Table::AddIndex(Thd1 *thd) {
 
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
-    auto do_not_add =
-        false; // check if there is already a index  with this name
+    auto do_not_add = false; // check if there is already a index with this name
     for (auto ind : *indexes_) {
       if (ind->name_.compare(id->name_) == 0)
         do_not_add = true;
@@ -1454,7 +1455,7 @@ void alter_tablespace_rename(Thd1 *thd) {
                                    1]; // don't pick innodb_system;
     std::string sql = "ALTER tablespace " + tablespace;
     if (rand_int(1) == 0)
-      sql += "_rename  RENAME TO " + tablespace;
+      sql += "_rename RENAME TO " + tablespace;
     else
       sql += " RENAME TO " + tablespace + "_rename";
     execute_sql(sql, thd);
@@ -1487,7 +1488,7 @@ void save_objects_to_file() {
 }
 
 /* create in memory data about tablespaces, row_format, key_block size and undo
- * tablespaces  */
+ * tablespaces */
 void create_in_memory_data() {
 
   /* Adjust the tablespaces */

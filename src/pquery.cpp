@@ -15,6 +15,7 @@
 #include "common.hpp"
 #include "node.hpp"
 #include "pquery.hpp"
+#include "random_test.hpp"
 #include <INIReader.hpp>
 #include <mysql.h>
 
@@ -23,15 +24,25 @@ pid_t childPID, wPID;
 int status;
 void set_defaults(struct workerParams &Params) {
   // initialize all fields with default values
-  Params.myName = "default";
-  Params.address = "localhost";
-  Params.socket = "/tmp/socket.sock";
-  Params.password = "";
-  Params.infile = "pquery.sql";
-  Params.logdir = "/Users/rahulmalik/pquery/src";
-  Params.threads = 2;
-  Params.verbose = false;
-  Params.debug = false;
+  Params.database = opt_string(DATABASE);
+  Params.address = opt_string(ADDRESS);
+  Params.socket = opt_string(SOCKET);
+  Params.username = opt_string(USER);
+  Params.password = opt_string(PASSWORD);
+  Params.logdir = opt_string(LOGDIR);
+  Params.infile = opt_string(INFILE);
+  Params.port = opt_int(PORT);
+  Params.threads = opt_int(THREADS);
+  Params.queries_per_thread = opt_int(QUERIES_PER_THREAD);
+  Params.log_all_queries = opt_bool(LOG_ALL_QUERIES);
+  Params.log_succeeded_queries = opt_bool(LOG_SUCCEDED_QUERIES);
+  Params.log_failed_queries = opt_bool(LOG_FAILED_QUERIES);
+  Params.log_query_statistics = opt_bool(LOG_QUERY_STATISTICS);
+  Params.log_query_duration = opt_bool(LOG_QUERY_DURATION);
+  Params.log_client_output = opt_bool(LOG_CLIENT_OUTPUT);
+  Params.log_query_numbers = opt_bool(LOG_QUERY_NUMBERS);
+  Params.shuffle = opt_bool(NO_SHUFFLE);
+  Params.test_connection = opt_bool(TEST_CONNECTION);
 }
 
 void read_section_settings(struct workerParams &wParams, std::string secName,
@@ -43,22 +54,20 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
   wParams.username = reader.Get(secName, "user", "test");
   wParams.password = reader.Get(secName, "password", "");
   wParams.socket = reader.Get(secName, "socket", "/tmp/my.sock");
-  // wParams.database = reader.Get(secName, "database", "");
-
+  wParams.database = reader.Get(secName, "database", "");
   wParams.port = reader.GetInteger(secName, "port", 3306);
   wParams.threads = reader.GetInteger(secName, "threads", 10);
+  wParams.queries_per_thread =
+      reader.GetInteger(secName, "queries-per-thread", 10000);
 #ifdef MAXPACKET
   wParams.maxpacket =
       reader.GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
 #endif
   wParams.verbose = reader.GetBoolean(secName, "verbose", false);
   wParams.debug = reader.GetBoolean(secName, "debug", false);
+  wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
   wParams.infile = reader.Get(secName, "infile", "pquery.sql");
   wParams.logdir = reader.Get(secName, "logdir", "/tmp");
-  /*
-  wParams.shuffle = reader.GetBoolean(secName, "shuffle", true);
-  wParams.queries_per_thread =
-      reader.GetInteger(secName, "queries-per-thread", 10000);
   wParams.test_connection =
       reader.GetBoolean(secName, "test-connection", false);
   wParams.log_all_queries =
@@ -75,7 +84,6 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
       reader.GetBoolean(secName, "log-client-output", false);
   wParams.log_query_numbers =
       reader.GetBoolean(secName, "log-query-numbers", false);
-  */
 }
 
 void create_worker(struct workerParams &Params) {
@@ -104,7 +112,6 @@ int main(int argc, char *argv[]) {
   std::ios_base::sync_with_stdio(false);
   confFile.clear();
   static struct workerParams wParams;
-  set_defaults(wParams); // reset all settings in struct to defaults
   add_options();
   int c;
   while (true) {
@@ -205,17 +212,14 @@ int main(int argc, char *argv[]) {
     }
   } // while
 
+  set_defaults(wParams); // reset all settings in struct to defaults
+
   if (options->at(Option::CONFIGFILE)->getString().size() > 0)
     confFile = options->at(Option::CONFIGFILE)->getString();
 
   if (confFile.empty()) {
     /*single node and command line */
-    wParams.socket = options->at(Option::SOCKET)->getString();
-    wParams.username = options->at(Option::USER)->getString();
-    wParams.password = options->at(Option::PASSWORD)->getString();
-    wParams.port = options->at(Option::PORT)->getInt();
-    wParams.threads = options->at(Option::THREADS)->getInt();
-    wParams.logdir = options->at(Option::LOGDIR)->getString();
+
     create_worker(wParams);
   } else {
     INIReader reader(confFile);

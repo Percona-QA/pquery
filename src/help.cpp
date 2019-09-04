@@ -182,14 +182,14 @@ void add_options() {
   opt->setInt(7);
 
   /* algorithm for alter */
-  opt = newOption(Option::STRING, Option::ALGORITHM, "algorith");
+  opt = newOption(Option::STRING, Option::ALGORITHM, "alter-algorith");
   opt->help = "algorithm used in alter table. INPLACE|COPY|DEFAULT\n all "
-              "means randomly one of them  will be picked";
+              "means randomly one of them will be picked";
   opt->setString("all");
 
   /* lock for alter */
-  opt = newOption(Option::STRING, Option::LOCK, "lock");
-  opt->help = "lock mechanism used in alter table.\n  "
+  opt = newOption(Option::STRING, Option::LOCK, "alter-lock");
+  opt->help = "lock mechanism used in alter table.\n "
               "DEFAULT|NONE|SHARED|EXCLUSIVE.\n all means randomly one of them "
               "will be picked";
   opt->setString("all");
@@ -264,11 +264,11 @@ void add_options() {
   /* Row Format */
   opt = newOption(Option::STRING, Option::ROW_FORMAT, "row-format");
   opt->help =
-      "create table row format. it is  the row format of  table. a "
+      "create table row format. it is the row format of table. a "
       "table can have compressed, dynamic, redundant row format.\n "
       "valid values are :\n all: use compressed, dynamic, redundant. all "
       "combination key block size will be used. \n uncompressed: do not use "
-      "compressed row_format, i.e. key block size will not used. \n  "
+      "compressed row_format, i.e. key block size will not used. \n"
       "none: do not use any encryption";
   opt->setString("all");
 
@@ -292,9 +292,10 @@ void add_options() {
 
   /* Set Global */
   opt = newOption(Option::INT, Option::SET_GLOBAL_VARIABLE, "set-variable");
-  opt->help = "set global variable during the load";
+  opt->help = "set mysqld variable during the load.(session|global)";
   opt->setInt(3);
   opt->setSQL();
+  opt->setDDL();
 
   /* alter instance rotate innodb master key */
   opt = newOption(Option::INT, Option::ALTER_MASTER_KEY, "rotate-master-key");
@@ -348,13 +349,13 @@ void add_options() {
 
   /* UPDATE */
   opt = newOption(Option::BOOL, Option::NO_UPDATE, "no-update");
-  opt->help = "do not execute any type  of update on tables";
+  opt->help = "do not execute any type of update on tables";
   opt->setBool(false);
   opt->setArgs(no_argument);
 
   /* DELETE */
   opt = newOption(Option::BOOL, Option::NO_DELETE, "no-delete");
-  opt->help = "do not execute any type of  delete on tables";
+  opt->help = "do not execute any type of delete on tables";
   opt->setBool(false);
   opt->setArgs(no_argument);
 
