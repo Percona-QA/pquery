@@ -18,6 +18,7 @@
 #include "random_test.hpp"
 #include <INIReader.hpp>
 #include <mysql.h>
+#include <thread>
 
 std::string confFile;
 pid_t childPID, wPID;
@@ -71,8 +72,7 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
   wParams.logdir = reader.Get(secName, "logdir", "/tmp");
   wParams.test_connection =
       reader.GetBoolean(secName, "test-connection", false);
-  wParams.log_all_queries =
-      reader.GetBoolean(secName, "log-all-queries", false);
+  wParams.log_all_queries = reader.GetBoolean(secName, "log-all-queries", true);
   wParams.log_succeeded_queries =
       reader.GetBoolean(secName, "log-succeded-queries", false);
   wParams.log_failed_queries =
@@ -88,28 +88,15 @@ void read_section_settings(struct workerParams &wParams, std::string secName,
 }
 
 void create_worker(struct workerParams &Params) {
-  childPID = fork();
-  if (childPID < 0) {
-    std::cerr << "=> Cannot fork() child process: " << strerror(errno)
-              << std::endl;
-    exit(EXIT_FAILURE);
-  }
-  if (childPID > 0) {
-    std::cerr << "* Waiting for created worker " << childPID << std::endl;
-  }
-  if (childPID == 0) {
-    int exitStatus;
-    {
-      Node newNode;
-      newNode.setAllParams(Params);
-      exitStatus = newNode.startWork();
-    }
-    exit(exitStatus);
-  }
+  int exitStatus;
+  Node newNode;
+  newNode.setAllParams(Params);
+  exitStatus = newNode.startWork();
+  exit(exitStatus);
 }
 
 int main(int argc, char *argv[]) {
-
+  std::vector<std::thread> nodes;
   std::ios_base::sync_with_stdio(false);
   confFile.clear();
   static struct workerParams wParams;
@@ -229,6 +216,8 @@ int main(int argc, char *argv[]) {
     sections = reader.GetSections();
     std::vector<std::string>::iterator it;
 
+    nodes.resize(sections.size());
+    int i = 0;
     for (it = sections.begin(); it != sections.end(); it++) {
       std::string secName = *it;
       std::cerr << "=> Master process with PID " << getpid()
@@ -236,7 +225,15 @@ int main(int argc, char *argv[]) {
 
       if (reader.GetBoolean(secName, "run", false)) {
         read_section_settings(wParams, secName, confFile);
-        create_worker(wParams);
+        nodes[i] = std::thread(create_worker, std::ref(wParams));
+      }
+      i++;
+    }
+    i = 0;
+    for (it = sections.begin(); it != sections.end(); it++) {
+      std::string secName = *it;
+      if (reader.GetBoolean(secName, "run", false)) {
+        nodes[i].join();
       }
     }
   }
