@@ -14,7 +14,6 @@ void show_help(std::string option);
 void show_config_help(void);
 void show_cli_help(void);
 
-void
-read_section_settings(struct workerParams&, std::string, std::string);
+void read_section_settings(struct workerParams *, std::string, std::string);
 void create_worker(workerParams *wParams);
 #endif

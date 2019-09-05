@@ -151,7 +151,6 @@ int main(int argc, char *argv[]) {
     /*single node and command line */
     workerParams *wParams = new workerParams;
     create_worker(wParams);
-    delete wParams;
   } else {
     INIReader reader(confFile);
     if (reader.ParseError() < 0) {
@@ -166,14 +165,13 @@ int main(int argc, char *argv[]) {
       if (reader.GetBoolean(secName, "run", false)) {
         workerParams *wParams = new workerParams;
         read_section_settings(wParams, secName, confFile);
-        nodes.push_back(std::thread(&create_worker, wParams));
-        delete wParams;
+        nodes.push_back(std::thread(create_worker, wParams));
       }
     }
 
     /* join all nodes */
-    for (auto &node : nodes)
-      node.join();
+    for (auto node = nodes.begin(); node != nodes.end(); node++)
+      node->join();
   }
 
   mysql_library_end();
