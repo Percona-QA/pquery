@@ -1,18 +1,41 @@
 #ifndef __NODE_HPP__
 #define __NODE_HPP__
 
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <iostream>
-#include <vector>
-#include <thread>
-#include <atomic>
 #include "pquery.hpp"
+#include "random_test.hpp"
+#include <atomic>
+#include <fstream>
+#include <iostream>
 #include <mysql.h>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
 /* struct for node setup */
 struct workerParams {
+  workerParams() {
+    myName = "default.node.tld";
+    database = opt_string(DATABASE);
+    address = opt_string(ADDRESS);
+    socket = opt_string(SOCKET);
+    username = opt_string(USER);
+    password = opt_string(PASSWORD);
+    logdir = opt_string(LOGDIR);
+    infile = opt_string(INFILE);
+    port = opt_int(PORT);
+    threads = opt_int(THREADS);
+    queries_per_thread = opt_int(QUERIES_PER_THREAD);
+    log_all_queries = opt_bool(LOG_ALL_QUERIES);
+    log_succeeded_queries = opt_bool(LOG_SUCCEDED_QUERIES);
+    log_failed_queries = opt_bool(LOG_FAILED_QUERIES);
+    log_query_statistics = opt_bool(LOG_QUERY_STATISTICS);
+    log_query_duration = opt_bool(LOG_QUERY_DURATION);
+    log_client_output = opt_bool(LOG_CLIENT_OUTPUT);
+    log_query_numbers = opt_bool(LOG_QUERY_NUMBERS);
+    shuffle = opt_bool(NO_SHUFFLE);
+    test_connection = opt_bool(TEST_CONNECTION);
+  };
   std::string myName; // unique name for worker
   std::string database;
   std::string address;
@@ -25,8 +48,6 @@ struct workerParams {
   short threads;
   unsigned long queries_per_thread;
   unsigned long maxpacket;
-  bool verbose;
-  bool debug;
   bool log_all_queries;
   bool log_failed_queries;
   bool log_query_statistics;
@@ -58,7 +79,7 @@ class Node {
 public:
   Node();
   ~Node();
-  void setAllParams(struct workerParams &Params) { myParams = Params; }
+  void setAllParams(struct workerParams *Params) { myParams = *Params; }
   int startWork();
 
 private:
