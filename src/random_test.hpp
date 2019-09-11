@@ -3,6 +3,7 @@
 
 #include "common.hpp"
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <document.h>
@@ -17,7 +18,6 @@
 #include <string.h>
 #include <vector>
 #include <writer.h>
-#include <atomic>
 #define INNODB_16K_PAGE_SIZE 16
 #define INNODB_8K_PAGE_SIZE 8
 #define INNODB_32K_PAGE_SIZE 32
@@ -38,7 +38,6 @@ int rand_int(int upper, int lower = 0);
 std::string rand_string(int upper, int lower = 0);
 
 struct Table;
-
 struct Column {
   enum COLUMN_TYPES {
     INT,
@@ -125,25 +124,30 @@ struct Index {
 };
 
 struct Thd1 {
-  Thd1(int id, std::ofstream &tl, std::ofstream &ddl_l, MYSQL *c)
-      : thread_id(id), thread_log(tl), ddl_logs(ddl_l), conn(c),
-        store_result(false){};
+  Thd1(int id, std::ofstream &tl, std::ofstream &ddl_l, std::ofstream &client_l,
+       MYSQL *c)
+      : thread_id(id), thread_log(tl), ddl_logs(ddl_l), client_log(client_l),
+        conn(c), store_result(false){};
   void run_some_query(); // create default tables and run random queries
   bool load_metadata();  // load metada of tool in memory
   int thread_id;
   int seed;
   std::ofstream &thread_log;
   std::ofstream &ddl_logs;
+  std::ofstream &client_log;
   std::string result;
   MYSQL *conn;
-  bool ddl_query = false; // is the query ddl
-  bool success = false;   // if the sql is successfully executed
-  bool store_result = false;        // store result of executed sql
-
-  static bool metadata_loaded;      // set if metadata is loaded successfully
+  bool ddl_query = false;    // is the query ddl
+  bool success = false;      // if the sql is successfully executed
+  bool store_result = false; // store result of executed sql
+  int failed_queries = 0;
+  int total_queries = 0;
+  int max_con_fail_count = 0;        // consecutive failed queries
+  int query_number = 0;
+  static bool metadata_loaded;       // set if metadata is loaded successfully
   static std::mutex metadata_locked; // which thread will lock and execute
-  static std::mutex ddl_logs_write; // mutex used for writing ddl logs
-  static bool connection_lost;      // set if connection to mysql is lost
+  static std::mutex ddl_logs_write;  // mutex used for writing ddl logs
+  static bool connection_lost;       // set if connection to mysql is lost
 };
 
 /* Different table type supported by tool */

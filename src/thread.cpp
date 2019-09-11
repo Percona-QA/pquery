@@ -15,16 +15,9 @@ inline unsigned long long Node::getAffectedRows(MYSQL *connection) {
 
 void Node::workerThread(int number) {
 
-  int failed_queries = 0;
-  int total_queries = 0;
-  int max_con_failures = 250; /* Maximum consecutive failures (likely indicating
-                                 crash/assert, user priveleges drop etc.) */
-  int max_con_fail_count = 0;
-  int res;
-
   std::ofstream thread_log;
   std::ofstream client_log;
-  if (myParams.log_client_output) {
+  if (options->at(Option::LOG_CLIENT_OUTPUT)->getBool()) {
     std::ostringstream cl;
     cl << myParams.logdir << "/" << myParams.myName << "_thread-" << number
        << ".out";
@@ -36,8 +29,10 @@ void Node::workerThread(int number) {
     }
   }
 
-  if ((myParams.log_failed_queries) || (myParams.log_all_queries) ||
-      (myParams.log_query_statistics) || (myParams.log_succeeded_queries)) {
+  if (options->at(Option::LOG_FAILED_QUERIES)->getBool() ||
+      options->at(Option::LOG_ALL_QUERIES)->getBool() ||
+      options->at(Option::LOG_QUERY_STATISTICS)->getBool() ||
+      options->at(Option::LOG_SUCCEDED_QUERIES)->getBool()) {
     std::ostringstream os;
     os << myParams.logdir << "/" << myParams.myName << "_thread-" << number
        << ".sql";
@@ -47,7 +42,8 @@ void Node::workerThread(int number) {
                   << std::strerror(errno) << std::endl;
       return;
     }
-    if (myParams.log_query_duration) {
+
+    if (options->at(Option::LOG_QUERY_DURATION)->getBool()) {
       thread_log.precision(3);
       thread_log << std::fixed;
       std::cerr.precision(3);
@@ -91,11 +87,13 @@ void Node::workerThread(int number) {
     return;
   }
 
+  Thd1 *thd = new Thd1(number, thread_log, general_log, client_log, conn);
+
   /* run pquery in with dynamic generator or infile */
   if (options->at(Option::DYNAMIC_PQUERY)->getBool()) {
-    Thd1 *thd = new Thd1(number, thread_log, general_log, conn);
     static bool success = false;
 
+    /* load metadata */
     if (Thd1::metadata_locked.try_lock()) {
       if (Thd1::metadata_loaded)
         Thd1::metadata_locked.unlock();
@@ -106,159 +104,56 @@ void Node::workerThread(int number) {
       }
     }
 
+    /* wait untill metadata is finished */
     while (!Thd1::metadata_loaded) {
       std::chrono::seconds dura(3);
       std::this_thread::sleep_for(dura);
       thread_log << "waiting for metadata load to finish" << std::endl;
     }
+
     if (!success)
       thread_log << " initial setup failed, check logs for details "
                  << std::endl;
     else
       thd->run_some_query();
-    delete thd;
+
   } else {
-    std::chrono::steady_clock::time_point begin, end;
     std::random_device rd;
     std::mt19937 gen(rd());
     std::uniform_int_distribution<int> dis(0, querylist->size() - 1);
-    unsigned long i;
-    for (i = 0; i < myParams.queries_per_thread; i++) {
-
+    int max_con_failures = 250;
+    for (unsigned long i = 0; i < myParams.queries_per_thread; i++) {
       unsigned long query_number;
       // selecting query #, depends on random or sequential execution
-      if (!myParams.shuffle) {
+      if (options->at(Option::NO_SHUFFLE)->getBool()) {
         query_number = i;
       } else {
         query_number = dis(gen);
       }
-
       // perform the query and getting the result
+      execute_sql((*querylist)[query_number].c_str(), thd);
 
-      if (myParams.log_query_duration) {
-        begin = std::chrono::steady_clock::now();
-      }
-
-      res = mysql_real_query(
-          conn, (*querylist)[query_number].c_str(),
-          (unsigned long)strlen((*querylist)[query_number].c_str()));
-
-      if (myParams.log_query_duration) {
-        end = std::chrono::steady_clock::now();
-      }
-
-      if (res == 0) { // success
-        max_con_fail_count = 0;
-      } else {
-        failed_queries++;
-        max_con_fail_count++;
-        if (max_con_fail_count >= max_con_failures) {
-          std::ostringstream errmsg;
-          errmsg
-              << "* Last " << max_con_fail_count
-              << " consecutive queries all failed. Likely crash/assert, user "
-                 "privileges drop, or similar. Ending run.";
-          std::cerr << errmsg.str() << std::endl;
-          if (thread_log.is_open()) {
-            thread_log << errmsg.str() << std::endl;
-          }
-          break;
-        }
-      }
-
-      total_queries++;
-      do {
-        MYSQL_RES *result = mysql_use_result(conn);
-        if (myParams.log_client_output) {
-          if (result != NULL) {
-            MYSQL_ROW row;
-            unsigned int i, num_fields;
-
-            num_fields = mysql_num_fields(result);
-            while ((row = mysql_fetch_row(result))) {
-              for (i = 0; i < num_fields; i++) {
-                if (row[i]) {
-                  if (strlen(row[i]) == 0) {
-                    client_log << "EMPTY"
-                               << "#";
-                  } else {
-                    client_log << row[i] << "#";
-                  }
-                } else {
-                  client_log << "#NO DATA"
-                             << "#";
-                }
-              }
-              if (myParams.log_query_numbers) {
-                client_log << query_number + 1;
-              }
-              client_log << '\n';
-            }
-          }
-        }
-
-        //
+      if (thd->max_con_fail_count >= max_con_failures) {
+        std::ostringstream errmsg;
+        errmsg << "* Last " << thd->max_con_fail_count
+               << " consecutive queries all failed. Likely crash/assert, user "
+                  "privileges drop, or similar. Ending run.";
+        std::cerr << errmsg.str() << std::endl;
         if (thread_log.is_open()) {
-          if (res == 0) {
-            if ((myParams.log_all_queries) || (myParams.log_query_statistics)) {
-
-              thread_log << (*querylist)[query_number] << "#NOERROR";
-              if (myParams.log_query_statistics) {
-                thread_log << "#WARNINGS: " << mysql_warning_count(conn)
-                           << "#CHANGED: " << getAffectedRows(conn);
-              }
-              if (myParams.log_query_duration) {
-                thread_log
-                    << "#Duration: "
-                    << std::chrono::duration<double>(end - begin).count() * 1000
-                    << " ms";
-              }
-              if (myParams.log_query_numbers) {
-                thread_log << "#" << query_number + 1;
-              }
-              thread_log << "\n";
-            }
-          } else {
-            if ((myParams.log_failed_queries) || (myParams.log_all_queries) ||
-                (myParams.log_query_statistics)) {
-
-              thread_log << (*querylist)[query_number]
-                         << "#ERROR: " << mysql_errno(conn) << " - "
-                         << mysql_error(conn);
-              if (myParams.log_query_statistics) {
-                thread_log << "#WARNINGS: " << mysql_warning_count(conn)
-                           << "#CHANGED: " << getAffectedRows(conn);
-              }
-              if (myParams.log_query_duration) {
-                thread_log
-                    << "#Duration: "
-                    << std::chrono::duration<double>(end - begin).count() * 1000
-                    << " ms";
-              }
-              if (myParams.log_query_numbers) {
-                thread_log << "#" << query_number + 1;
-              }
-              thread_log << "\n";
-            }
-          }
+          thread_log << errmsg.str() << std::endl;
         }
-        if (result != NULL) {
-          mysql_free_result(result);
-        }
-      } while (mysql_next_result(conn) == 0); // while
-    }                                         // for loop
+        break;
+      }
+    }
   }
+  delete thd;
 
-  if (thread_log.is_open()) {
+  if (thread_log.is_open())
     thread_log.close();
-  }
 
-  if (client_log.is_open()) {
+  if (client_log.is_open())
     client_log.close();
-  }
 
   mysql_close(conn);
   mysql_thread_end();
-  performed_queries_total += total_queries;
-  failed_queries_total += failed_queries;
 }

@@ -118,7 +118,7 @@ int Node::startWork() {
                 << myParams.infile << std::endl;
 
     /* log replaying */
-    if (!myParams.shuffle) {
+    if (options->at(Option::NO_SHUFFLE)->getBool()) {
       myParams.threads = 1;
       myParams.queries_per_thread = querylist->size();
     }

@@ -818,10 +818,6 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   static auto no_encryption = opt_bool(NO_ENCRYPTION);
   static auto branch = db_branch();
 
-  if (table->type != TEMPORARY && !no_encryption && g_encryption.size() > 0 &&
-      g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
-    table->encryption = true;
-
   /* temporary table on 8.0 can't have key block size */
   if (!(branch.compare("8.0") == 0 && type == TEMPORARY)) {
     if (g_key_block_size.size() > 0)
@@ -844,22 +840,29 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   if (table->type != TEMPORARY && g_tablespace.size() > 0 &&
       rand_int(tbs_count) != 0) {
     table->tablespace = g_tablespace[rand_int(g_tablespace.size() - 1)];
-    table->encryption =
-        false; // todo add encrypted tablespace in starting if supported //
+
+    if (table->tablespace.substr(table->tablespace.size() - 2, 2)
+            .compare("_e") == 0)
+      table->encryption = true;
+
     table->row_format.clear();
+
     if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
         table->tablespace.compare("innodb_system") == 0 ||
         stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
       table->key_block_size = 0;
     else
       table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
-  }
+
+  } else if (table->type != TEMPORARY && !no_encryption &&
+             g_encryption.size() > 0 &&
+             g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
+    table->encryption = true;
 
   /* if temporary table encrypt variable set create encrypt table */
   static auto temp_table_encrypt =
       get_result("select @@innodb_temp_tablespace_encrypt", thd);
 
-  // todo add assert in case innob_temp_tablespace is encrypt and --no-enc
   if (strcmp(FORK, "Percona-Server") == 0 && db_branch().compare("5.7") == 0 &&
       temp_table_encrypt.compare("1") == 0 && table->type == TEMPORARY)
     table->encryption = true;
@@ -913,10 +916,11 @@ std::string Table::defination() {
   def.erase(def.length() - 2);
 
   def += " )";
+  static auto no_encryption = opt_bool(NO_ENCRYPTION);
 
   if (encryption)
     def += " ENCRYPTION='Y'";
-  else if (type != TEMPORARY && rand_int(1) == 1) // 50% ,set ENCRYPTION='N"
+  else if (type != TEMPORARY && rand_int(1) == 1 && !no_encryption)
     def += " ENCRYPTION='N'";
 
   if (!tablespace.empty())
@@ -951,13 +955,28 @@ void create_default_tables(Thd1 *thd) {
 /* return true if SQL is successful, else return false */
 bool execute_sql(std::string sql, Thd1 *thd) {
   auto query = sql.c_str();
-  auto not_success = mysql_real_query(thd->conn, query, strlen(query));
   static auto log_all = opt_bool(LOG_ALL_QUERIES);
   static auto log_failed = opt_bool(LOG_FAILED_QUERIES);
   static auto log_success = opt_bool(LOG_SUCCEDED_QUERIES);
-  sql += ";";
+  static auto log_query_duration = opt_bool(LOG_QUERY_DURATION);
+  static auto log_client_output = opt_bool(LOG_CLIENT_OUTPUT);
+  static auto log_query_numbers = opt_bool(LOG_QUERY_NUMBERS);
+  std::chrono::steady_clock::time_point begin, end;
 
-  if (not_success == 1) { // query failed
+  if (log_query_duration) {
+    begin = std::chrono::steady_clock::now();
+  }
+
+  auto res = mysql_real_query(thd->conn, query, strlen(query));
+
+  if (log_query_duration) {
+    end = std::chrono::steady_clock::now();
+  }
+  thd->total_queries++;
+
+  if (res == 1) { // query failed
+    thd->failed_queries++;
+    thd->max_con_fail_count++;
     if (log_all || log_failed) {
       thd->thread_log << "Query =>" << sql << std::endl;
       thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
@@ -967,6 +986,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
       thd->connection_lost = true;
     }
   } else {
+    thd->max_con_fail_count = 0;
     thd->success = true;
     MYSQL_RES *result;
     result = mysql_store_result(thd->conn);
@@ -977,6 +997,32 @@ bool execute_sql(std::string sql, Thd1 *thd) {
         throw std::runtime_error(sql + " doest not return result set");
       auto row = mysql_fetch_row(result);
       thd->result = row[0];
+    } else if (log_client_output) {
+      if (result != NULL) {
+        MYSQL_ROW row;
+        unsigned int i, num_fields;
+
+        num_fields = mysql_num_fields(result);
+        while ((row = mysql_fetch_row(result))) {
+          for (i = 0; i < num_fields; i++) {
+            if (row[i]) {
+              if (strlen(row[i]) == 0) {
+                thd->client_log << "EMPTY"
+                                << "#";
+              } else {
+                thd->client_log << row[i] << "#";
+              }
+            } else {
+              thd->client_log << "#NO DATA"
+                              << "#";
+            }
+          }
+          if (log_query_numbers) {
+            thd->client_log << ++thd->query_number;
+          }
+          thd->client_log << '\n';
+        }
+      }
     }
 
     /* log successful query */
@@ -998,7 +1044,8 @@ bool execute_sql(std::string sql, Thd1 *thd) {
                   << mysql_error(thd->conn) << std::endl;
     thd->ddl_logs_write.unlock();
   }
-  return (not_success == 0 ? 1 : 0);
+
+  return (res == 0 ? 1 : 0);
 }
 
 /* load some records in table */
@@ -1242,10 +1289,9 @@ void Table::AddIndex(Thd1 *thd) {
     }
     if (!do_not_add)
       AddInternalIndex(id);
-    else {
-      std::cout << "already index exist " << name_ << id->name_;
+    else
       delete id;
-    }
+
     table_mutex.unlock();
   } else {
     delete id;
@@ -1493,7 +1539,7 @@ void create_in_memory_data() {
 
   /* Adjust the tablespaces */
   if (!options->at(Option::NO_TABLESPACE)->getBool()) {
-    g_tablespace = {"innodb_system", "tab02k", "tab04k"};
+    g_tablespace = {"tab02k", "tab04k"};
     if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
       g_tablespace.push_back("tab08k");
     }
@@ -1512,13 +1558,23 @@ void create_in_memory_data() {
     if (tbs_count > 1) {
       auto current_size = g_tablespace.size();
       for (size_t i = 0; i < current_size; i++) {
-        if (g_tablespace[i].compare("innodb_system") == 0)
-          continue;
         for (int j = 1; j <= tbs_count; j++)
           g_tablespace.push_back(g_tablespace[i] + to_string(j));
       }
     }
   }
+
+  /* set some of tablespace encrypt */
+  if (!options->at(Option::NO_ENCRYPTION)->getBool() &&
+      !(strcmp(FORK, "MySQL") == 0 && db_branch().compare("5.7") == 0)) {
+    int i = 0;
+    for (auto &tablespace : g_tablespace) {
+      if (i++ % 2 == 0) // alternate tbs are encrypt
+        tablespace += "_e";
+    }
+  }
+
+  g_tablespace.push_back("innodb_system");
 
   std::string row_format = opt_string(ROW_FORMAT);
   if (row_format.compare("uncompressed") == 0) {
@@ -1645,18 +1701,26 @@ void create_database_tablespace(Thd1 *thd) {
   for (auto &tab : g_tablespace) {
     if (tab.compare("innodb_system") == 0)
       continue;
+
     std::string sql =
         "CREATE TABLESPACE " + tab + " ADD DATAFILE '" + tab + ".ibd' ";
-    // todo encrypt tablespace
 
     if (g_innodb_page_size <= INNODB_16K_PAGE_SIZE) {
       sql += " FILE_BLOCK_SIZE " + tab.substr(3, 3);
     }
 
+    /* encrypt tablespace */
+    if (tab.substr(tab.size() - 2, 2).compare("_e") == 0)
+      sql += " ENCRYPTION='Y'";
+
+    /* firest try to rename tablespace back */
     if (db_branch().compare("5.7") != 0)
       execute_sql("ALTER TABLESPACE " + tab + "_rename rename to " + tab, thd);
+
     execute_sql("DROP TABLESPACE " + tab, thd);
-    execute_sql(sql, thd);
+
+    if (!execute_sql(sql, thd))
+      throw std::runtime_error("error in " + sql);
   }
 
   if (db_branch().compare("5.7") != 0) {

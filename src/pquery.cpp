@@ -37,25 +37,8 @@ void read_section_settings(struct workerParams *wParams, std::string secName,
   wParams->maxpacket =
       reader.GetInteger(secName, "max-packet-size", MAX_PACKET_DEFAULT);
 #endif
-  wParams->shuffle = reader.GetBoolean(secName, "shuffle", true);
   wParams->infile = reader.Get(secName, "infile", "pquery.sql");
   wParams->logdir = reader.Get(secName, "logdir", "/tmp");
-  wParams->test_connection =
-      reader.GetBoolean(secName, "test-connection", false);
-  wParams->log_all_queries =
-      reader.GetBoolean(secName, "log-all-queries", true);
-  wParams->log_succeeded_queries =
-      reader.GetBoolean(secName, "log-succeded-queries", false);
-  wParams->log_failed_queries =
-      reader.GetBoolean(secName, "log-failed-queries", false);
-  wParams->log_query_statistics =
-      reader.GetBoolean(secName, "log-query-statistics", false);
-  wParams->log_query_duration =
-      reader.GetBoolean(secName, "log-query-duration", false);
-  wParams->log_client_output =
-      reader.GetBoolean(secName, "log-client-output", false);
-  wParams->log_query_numbers =
-      reader.GetBoolean(secName, "log-query-numbers", false);
 }
 
 void create_worker(struct workerParams *Params) {
