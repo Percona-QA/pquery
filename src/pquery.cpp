@@ -46,6 +46,7 @@ void create_worker(struct workerParams *Params) {
   Node newNode;
   newNode.setAllParams(Params);
   exitStatus = newNode.startWork();
+  newNode.end_node();
   exit(exitStatus);
 }
 
@@ -129,6 +130,11 @@ int main(int argc, char *argv[]) {
     }
   } // while
 
+  std::cout << "runnning pquery with "
+            << (options->at(Option::DYNAMIC_PQUERY)->getBool() ? "dynamic"
+                                                               : "static")
+            << " mode" << std::endl;
+
   auto confFile = options->at(Option::CONFIGFILE)->getString();
   if (confFile.empty()) {
     /*single node and command line */
@@ -157,6 +163,8 @@ int main(int argc, char *argv[]) {
       node->join();
   }
 
+  save_objects_to_file();
+  clean_up_at_end();
   mysql_library_end();
   delete_options();
 

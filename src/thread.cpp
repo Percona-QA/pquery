@@ -5,6 +5,8 @@
 #include <chrono>
 #include <cstring>
 #include <random>
+std::atomic_flag lock_metadata = ATOMIC_FLAG_INIT;
+std::atomic<bool> metadata_loaded(false);
 
 inline unsigned long long Node::getAffectedRows(MYSQL *connection) {
   if (mysql_affected_rows(connection) == ~(unsigned long long)0) {
@@ -87,25 +89,21 @@ void Node::workerThread(int number) {
     return;
   }
 
-  Thd1 *thd = new Thd1(number, thread_log, general_log, client_log, conn);
+  Thd1 *thd = new Thd1(number, thread_log, general_log, client_log, conn,
+                       performed_queries_total, failed_queries_total);
 
   /* run pquery in with dynamic generator or infile */
   if (options->at(Option::DYNAMIC_PQUERY)->getBool()) {
     static bool success = false;
 
     /* load metadata */
-    if (Thd1::metadata_locked.try_lock()) {
-      if (Thd1::metadata_loaded)
-        Thd1::metadata_locked.unlock();
-      else {
-        success = thd->load_metadata();
-        Thd1::metadata_loaded = true;
-        Thd1::metadata_locked.unlock();
-      }
+    if (!lock_metadata.test_and_set()) {
+      success = thd->load_metadata();
+      metadata_loaded = true;
     }
 
     /* wait untill metadata is finished */
-    while (!Thd1::metadata_loaded) {
+    while (!metadata_loaded) {
       std::chrono::seconds dura(3);
       std::this_thread::sleep_for(dura);
       thread_log << "waiting for metadata load to finish" << std::endl;

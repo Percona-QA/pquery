@@ -11,21 +11,14 @@ Node::Node() {
   failed_queries_total = 0;
 }
 
-Node::~Node() {
+void Node::end_node() {
   writeFinalReport();
-  if (general_log) {
+  if (general_log)
     general_log.close();
-  }
-  /* if mode is query generator*/
-  if (options->at(Option::DYNAMIC_PQUERY)) {
-    save_objects_to_file();
-    clean_up_at_end();
-  } else {
-    if (querylist) {
-      delete querylist;
-    }
-  }
+  if (querylist)
+    delete querylist;
 }
+
 bool Node::createGeneralLog() {
   std::string logName;
   logName = myParams.logdir + "/" + myParams.myName + "_general" + ".log";
@@ -47,38 +40,14 @@ void Node::writeFinalReport() {
     std::ostringstream exitmsg;
     exitmsg.precision(2);
     exitmsg << std::fixed;
-
-    if (options->at(Option::DYNAMIC_PQUERY)->getBool() == false) {
-      exitmsg << "* NODE SUMMARY: " << failed_queries_total << "/"
-              << performed_queries_total << " queries failed, ("
-              << (performed_queries_total - failed_queries_total) * 100.0 /
-                     performed_queries_total
-              << "% were successful)";
-    } else {
-      unsigned long int success_queries = 0;
-      unsigned long int total_queries = 0;
-      for (auto op : *options) {
-        if (op == nullptr)
-          continue;
-        if (op->total_queries > 0) {
-          total_queries += op->total_queries;
-          success_queries += op->success_queries;
-          general_log << op->help << ", total=>" << op->total_queries
-                      << ", success=> " << op->success_queries << std::endl;
-        }
-      }
-
-      unsigned long int percentage =
-          total_queries == 0 ? 0 : success_queries * 100 / total_queries;
-
-      exitmsg << "* SUMMAR: " << total_queries - success_queries << "/"
-              << total_queries << "queries failed, (" << percentage
-              << "% were successful)";
-    }
-      general_log << exitmsg.str() << std::endl;
-      exitmsg.str(std::string());
+    exitmsg << "* NODE SUMMARY: " << failed_queries_total << "/"
+            << performed_queries_total << " queries failed, ("
+            << (performed_queries_total - failed_queries_total) * 100.0 /
+                   performed_queries_total
+            << "% were successful)";
+    general_log << exitmsg.str() << std::endl;
   }
-}
+  }
 
 int Node::startWork() {
 

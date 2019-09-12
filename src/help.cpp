@@ -141,6 +141,20 @@ void add_options() {
   opt->setBool(false);
   opt->setArgs(no_argument);
 
+  /* disable table compression */
+  opt = newOption(Option::BOOL, Option::NO_TABLE_COMPRESSION,
+                  "no-table-compression");
+  opt->help = "Disable table compression";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
+  /* disable column compression */
+  opt = newOption(Option::BOOL, Option::NO_COLUMN_COMPRESSION,
+                  "no-columnn-compression");
+  opt->help = "Disable column compression. It is percona style compression";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* disable all type of encrytion */
   opt = newOption(Option::BOOL, Option::NO_ENCRYPTION, "no-encryption");
   opt->help = "Disable All type of encrytion";
@@ -258,6 +272,22 @@ void add_options() {
   opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION,
                   "alter-table-encrypt");
   opt->help = "Alter table set Encrytion";
+  opt->setInt(10);
+  opt->setSQL();
+  opt->setDDL();
+
+  /*compress table */
+  opt = newOption(Option::INT, Option::ALTER_TABLE_COMPRESSION,
+                  "alter-column-compress");
+  opt->help = "Alter column compression";
+  opt->setInt(10);
+  opt->setSQL();
+  opt->setDDL();
+
+  /*compress table */
+  opt = newOption(Option::INT, Option::ALTER_TABLE_COMPRESSION,
+                  "alter-table-compress");
+  opt->help = "Alter table compression";
   opt->setInt(10);
   opt->setSQL();
   opt->setDDL();

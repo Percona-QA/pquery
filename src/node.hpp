@@ -60,7 +60,7 @@ It represents standalone MySQL server or MySQL node in cluster (PXC) setup
 class Node {
 public:
   Node();
-  ~Node();
+  void end_node();
   void setAllParams(struct workerParams *Params) { myParams = *Params; }
   int startWork();
 

@@ -79,6 +79,7 @@ struct Column {
   std::string default_value;
   bool primary_key = false;
   bool auto_increment = false;
+  bool compressed = false; // percona type compressed
   Table *table_;
 };
 
@@ -125,32 +126,30 @@ struct Index {
 
 struct Thd1 {
   Thd1(int id, std::ofstream &tl, std::ofstream &ddl_l, std::ofstream &client_l,
-       MYSQL *c)
+       MYSQL *c, std::atomic<unsigned long long> &p,
+       std::atomic<unsigned long long> &f)
       : thread_id(id), thread_log(tl), ddl_logs(ddl_l), client_log(client_l),
-        conn(c), store_result(false){};
+        conn(c), performed_queries_total(p), failed_queries_total(f){};
+
   void run_some_query(); // create default tables and run random queries
   bool load_metadata();  // load metada of tool in memory
+
   int thread_id;
   int seed;
   std::ofstream &thread_log;
   std::ofstream &ddl_logs;
   std::ofstream &client_log;
-  std::string result;
   MYSQL *conn;
+  std::atomic<unsigned long long> &performed_queries_total;
+  std::atomic<unsigned long long> &failed_queries_total;
+  std::string result;        // resul of sql
   bool ddl_query = false;    // is the query ddl
   bool success = false;      // if the sql is successfully executed
   bool store_result = false; // store result of executed sql
-  int failed_queries = 0;
-  int total_queries = 0;
   int max_con_fail_count = 0;        // consecutive failed queries
   int query_number = 0;
-  static bool metadata_loaded;       // set if metadata is loaded successfully
-  static std::mutex metadata_locked; // which thread will lock and execute
-  static std::mutex ddl_logs_write;  // mutex used for writing ddl logs
-  static bool connection_lost;       // set if connection to mysql is lost
 };
 
-/* Different table type supported by tool */
 
 /* Table basic properties */
 struct Table {
@@ -177,6 +176,8 @@ public:
   void Analyze(Thd1 *thd);
   void Truncate(Thd1 *thd);
   void SetEncryption(Thd1 *thd);
+  void SetTableCompression(Thd1 *thd);
+  void SetColumnCompression(Thd1 *thd);
   void InsertRandomRow(Thd1 *thd, bool islock);
   void DropColumn(Thd1 *thd);
   void AddColumn(Thd1 *thd);
@@ -195,6 +196,7 @@ public:
   std::string engine;
   std::string row_format;
   std::string tablespace;
+  std::string compression;
   bool encryption = false;
   int key_block_size = 0;
   // std::string data_directory; todo add corressponding code

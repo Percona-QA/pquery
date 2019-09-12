@@ -10,23 +10,22 @@ const std::string partition_string = "_p";
 const int version = 1;
 
 /* set static variable related to thread */
-bool Thd1::connection_lost = false;
-std::mutex Thd1::metadata_locked;
-bool Thd1::metadata_loaded = false;
-std::mutex Thd1::ddl_logs_write;
+bool connection_lost = false;
+std::mutex ddl_logs_write;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
 
 static std::vector<std::string> g_undo_tablespace;
 static std::vector<std::string> g_encryption = {"Y", "N"};
+static std::vector<std::string> g_compression = {"none", "zlib", "lz4"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
 static std::vector<int> g_key_block_size;
 static int g_max_columns_length = 30;
 static int g_innodb_page_size;
-
 static std::atomic<size_t> table_started(0);
 static std::atomic<size_t> table_completed(0);
+static std::atomic_flag lock_stream = ATOMIC_FLAG_INIT;
 
 static int sum_of_all_opts = 0; // sum of all probablility
 
@@ -80,6 +79,12 @@ int sum_of_all_options(Thd1 *thd) {
     opt_int_set(ALTER_MASTER_KEY, 0);
     opt_int_set(ROTATE_REDO_LOG_KEY, 0);
     opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
+  }
+
+  /* If no-table-encryption is set, disable all compression */
+  if (options->at(Option::NO_TABLE_COMPRESSION)->getBool()) {
+    opt_int_set(ALTER_TABLE_COMPRESSION, 0);
+    g_compression.clear();
   }
 
   /* for 5.7 disable some features */
@@ -206,7 +211,7 @@ inline static std::string pick_algorithm_lock() {
 int set_seed(Thd1 *thd) {
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
-  thd->thread_log << "Initial seed " << initial_seed;
+  thd->thread_log << "Initial seed " << initial_seed << std::endl;
   for (int i = 0; i < thd->thread_id; i++)
     rand_int(MIN_SEED_SIZE, MAX_SEED_SIZE);
   thd->seed = rand_int(MAX_SEED_SIZE, MIN_SEED_SIZE);
@@ -337,6 +342,10 @@ std::string Column::defination() {
     def += " NOT NULL";
   if (auto_increment)
     def += " AUTO_INCREMENT";
+  if (compressed) {
+    std::cout << table_->name_ << std::endl;
+    def += " COLUMN_FORMAT COMPRESSED";
+  }
   return def;
 }
 
@@ -400,21 +409,24 @@ Generated_Column::Generated_Column(std::string name, Table *table)
   name_ = "g" + name;
   auto blob_supported = !options->at(Option::NO_BLOB)->getBool();
   g_type = COLUMN_MAX;
-  /* Generated columns are 5:4:3:1 (INT:VARCHAR:CHAR:BLOB) */
+  /* Generated columns are 2:2:2:2 (INT:VARCHAR:CHAR:BLOB) */
   while (g_type == COLUMN_MAX) {
-    auto x = rand_int(14, 1);
-    if (x <= 5)
+    auto x = rand_int(4, 1);
+    if (x <= 1)
       g_type = INT;
-    if (x <= 9)
+    if (x <= 2)
       g_type = VARCHAR;
-    else if (x <= 12)
+    else if (x <= 3)
       g_type = CHAR;
-    else if (blob_supported && x <= 13) {
+    else if (blob_supported && x <= 4) {
       g_type = BLOB;
     }
   }
 
-  g_type = BLOB;
+  static auto no_column_compression = opt_bool(NO_COLUMN_COMPRESSION);
+  if (!no_column_compression && g_type == BLOB) {
+    compressed = true;
+  }
 
   /*number of columns in generated columns */
   size_t columns = rand_int(.6 * table->columns_->size()) + 1;
@@ -458,8 +470,9 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         break;
       case VARCHAR:
       case CHAR:
-      case BLOB:
         column_size = col->length;
+      case BLOB:
+        column_size = 5000; // todo set it different subtype
         break;
       case COLUMN_MAX:
       case GENERATED:
@@ -487,6 +500,8 @@ Generated_Column::Generated_Column(std::string name, Table *table)
                              " at line " + to_string(__LINE__));
   }
   str += ")";
+  if (rand_int(2) == 1 || compressed)
+    str += " STORED";
 }
 
 template <typename Writer> void Column::Serialize(Writer &writer) const {
@@ -500,6 +515,8 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.Bool(null);
   writer.String("primary_key");
   writer.Bool(primary_key);
+  writer.String("compressed");
+  writer.Bool(compressed);
   writer.String("auto_increment");
   writer.Bool(auto_increment);
   writer.String("lenght");
@@ -565,6 +582,10 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
 
   writer.String("encryption");
   writer.Bool(encryption);
+
+  writer.String("compression");
+  writer.String(compression.c_str(),
+                static_cast<SizeType>(compression.length()));
 
   writer.String("key_block_size");
   writer.Int(key_block_size);
@@ -698,9 +719,9 @@ void Table::CreateDefaultColumn() {
         /* columns are 4:3:2:1:1 INT:VARCHAR:CHAR:BLOB:BOOL */
         auto prob = rand_int(10);
 
-        /* intial columns can't be generated columns. also 33% of tables last
+        /* intial columns can't be generated columns. also 50% of tables last
          * columns are virtuals */
-        if (!no_virtual_col && i >= .8 * max_columns && rand_int(2) == 1)
+        if (!no_virtual_col && i >= .8 * max_columns && rand_int(1) == 1)
           col_type = Column::GENERATED;
         else if (prob < 4)
           col_type = Column::INT;
@@ -735,19 +756,25 @@ void Table::CreateDefaultColumn() {
 /* create default indexes */
 void Table::CreateDefaultIndex() {
 
-  int auto_inc_col = -1; // auto_inc_column_position
+  int auto_inc_pos = -1; // auto_inc_column_position
 
   static size_t max_indexes = opt_int(INDEXES);
+
+  if (max_indexes == 0)
+    return;
+
+  /* if table have few column , decrease number of  indexes */
   int indexes = rand_int(
-      (max_indexes < columns_->size() ? max_indexes : columns_->size()), 1);
+      columns_->size() < max_indexes ? columns_->size() : max_indexes, 1);
 
   /* for auto-inc columns handling, we need to add auto_inc as first column */
   for (size_t i = 0; i < columns_->size(); i++) {
     if (columns_->at(i)->auto_increment) {
-      auto_inc_col = i;
+      auto_inc_pos = i;
     }
   }
 
+  /*which column will hve auto_inc */
   int auto_inc_index = rand_int(indexes - 1, 0);
 
   for (int i = 0; i < indexes; i++) {
@@ -755,18 +782,31 @@ void Table::CreateDefaultIndex() {
 
     static size_t max_columns = opt_int(INDEX_COLUMNS);
 
-    /* number of columns to be added */
-    int no_of_columns = rand_int(
-        (max_columns < columns_->size() ? max_columns : columns_->size()), 1);
+    int number_of_compressed = 0;
+
+    for (auto column : *columns_)
+      if (column->compressed)
+        number_of_compressed++;
+
+    size_t number_of_columns = columns_->size() - number_of_compressed;
+
+    /* only compressed columns */
+    if (number_of_columns == 0)
+      return;
+
+    number_of_columns = rand_int(
+        (max_columns < number_of_columns ? max_columns : number_of_columns), 1);
 
     std::vector<int> col_pos; // position of columns
 
     /* pick some columns */
-    while (col_pos.size() < (size_t)no_of_columns) {
+    while (col_pos.size() < number_of_columns) {
       int current = rand_int(columns_->size() - 1);
+      if (columns_->at(current)->compressed)
+        continue;
       /* auto-inc column should be first column in auto_inc_index */
-      if (auto_inc_col != -1 && i == auto_inc_index && col_pos.size() == 0)
-        col_pos.push_back(auto_inc_col);
+      if (auto_inc_pos != -1 && i == auto_inc_index && col_pos.size() == 0)
+        col_pos.push_back(auto_inc_pos);
       else {
         bool already_added = false;
         for (auto id : col_pos) {
@@ -859,6 +899,7 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
              g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
     table->encryption = true;
 
+
   /* if temporary table encrypt variable set create encrypt table */
   static auto temp_table_encrypt =
       get_result("select @@innodb_temp_tablespace_encrypt", thd);
@@ -875,6 +916,14 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
       table->tablespace.compare("innodb_system") == 0 &&
       system_table_encrypt.compare("1") == 0) {
     table->encryption = true;
+  }
+
+  /* 25 % tables are compress */
+  if (table->type != TEMPORARY && table->tablespace.empty() and
+      rand_int(3) == 1 && g_compression.size() > 0) {
+    table->compression = g_compression[rand_int(g_compression.size() - 1)];
+    table->row_format.clear();
+    table->key_block_size = 0;
   }
 
   static auto engine = options->at(Option::ENGINE)->getString();
@@ -922,6 +971,9 @@ std::string Table::defination() {
     def += " ENCRYPTION='Y'";
   else if (type != TEMPORARY && rand_int(1) == 1 && !no_encryption)
     def += " ENCRYPTION='N'";
+
+  if (!compression.empty())
+    def += " COMPRESSION='" + compression + "'";
 
   if (!tablespace.empty())
     def += " TABLESPACE=" + tablespace;
@@ -972,10 +1024,10 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   if (log_query_duration) {
     end = std::chrono::steady_clock::now();
   }
-  thd->total_queries++;
+  thd->performed_queries_total++;
 
   if (res == 1) { // query failed
-    thd->failed_queries++;
+    thd->failed_queries_total++;
     thd->max_con_fail_count++;
     if (log_all || log_failed) {
       thd->thread_log << "Query =>" << sql << std::endl;
@@ -983,7 +1035,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
     }
     if (mysql_errno(thd->conn) == 2006) {
       thd->thread_log << "server gone, while processing " + sql;
-      thd->connection_lost = true;
+      connection_lost = true;
     }
   } else {
     thd->max_con_fail_count = 0;
@@ -1027,22 +1079,22 @@ bool execute_sql(std::string sql, Thd1 *thd) {
 
     /* log successful query */
     if (log_all || log_success) {
-      thd->thread_log << "Query =>" << sql << std::endl;
-      if (!result) {
+      thd->thread_log << "Query =>" << sql;
+      if (result == NULL) {
         thd->thread_log << std::endl;
       } else {
-        auto no = mysql_num_rows(result);
-        thd->thread_log << " rows:" << no << std::endl;
+        auto number = mysql_num_rows(result);
+        thd->thread_log << " rows:" << number << std::endl;
       }
     }
     mysql_free_result(result);
   }
 
   if (thd->ddl_query) {
-    thd->ddl_logs_write.lock();
+    ddl_logs_write.lock();
     thd->ddl_logs << thd->thread_id << " " << sql << " "
                   << mysql_error(thd->conn) << std::endl;
-    thd->ddl_logs_write.unlock();
+    ddl_logs_write.unlock();
   }
 
   return (res == 0 ? 1 : 0);
@@ -1073,6 +1125,29 @@ void Table::SetEncryption(Thd1 *thd) {
   }
 }
 
+// todo pick relevant table //
+void Table::SetTableCompression(Thd1 *thd) {
+  std::string sql = "ALTER TABLE " + name_ + " COMPRESSION= '";
+  std::string comp = g_compression[rand_int(g_compression.size() - 1)];
+  sql += comp + "'";
+  if (execute_sql(sql, thd)) {
+    table_mutex.lock();
+    compression = comp;
+    table_mutex.unlock();
+  }
+}
+
+// todo pick relevent table//
+void Table::SetColumnCompression(Thd1 *thd) {
+  std::string sql = "ALTER TABLE " + name_ + " COMPRESSION= '";
+  std::string comp = g_compression[rand_int(g_compression.size() - 1)];
+  sql += comp + "'";
+  if (execute_sql(sql, thd)) {
+    table_mutex.lock();
+    compression = comp;
+    table_mutex.unlock();
+  }
+}
 /* alter table drop column */
 void Table::DropColumn(Thd1 *thd) {
   table_mutex.lock();
@@ -1510,7 +1585,6 @@ void alter_tablespace_rename(Thd1 *thd) {
 
 /* save objects to a file */
 void save_objects_to_file() {
-  //  rapidjson::Writer<Stream> writer(stream);
 
   StringBuffer sb;
   PrettyWriter<StringBuffer> writer(sb);
@@ -1647,6 +1721,7 @@ void load_objects_from_file(Thd1 *thd) {
     }
 
     table->encryption = tab["encryption"].GetBool();
+    table->compression = tab["compression"].GetString();
 
     table->key_block_size = tab["key_block_size"].GetInt();
 
@@ -1657,6 +1732,7 @@ void load_objects_from_file(Thd1 *thd) {
       a->auto_increment = col["auto_increment"].GetBool();
       a->length = col["lenght"].GetInt(),
       a->primary_key = col["primary_key"].GetBool();
+      a->compressed = col["compressed"].GetBool();
       table->AddInternalColumn(a);
     }
 
@@ -1820,9 +1896,11 @@ void Thd1::run_some_query() {
 
   while (table_completed < size) {
     thread_log << "Waiting for all threds to finish initial load " << std::endl;
-    std::chrono::seconds dura(3);
+    std::chrono::seconds dura(1);
     std::this_thread::sleep_for(dura);
   }
+  if (!lock_stream.test_and_set())
+    std::cout << "default load completed" << std::endl;
 
   auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
@@ -1843,9 +1921,10 @@ void Thd1::run_some_query() {
   while (std::chrono::system_clock::now() < end) {
 
     auto curr = rand_int(total_size - 1);
+
+    auto option = pick_some_option();
     auto table = (curr < temp_tables) ? all_temp_tables->at(curr)
                                       : all_tables->at(curr - temp_tables);
-    auto option = pick_some_option();
 
     ddl_query = options->at(option)->ddl == true ? true : false;
 
@@ -1870,6 +1949,12 @@ void Thd1::run_some_query() {
       break;
     case Option::ALTER_TABLE_ENCRYPTION:
       table->SetEncryption(this);
+      break;
+    case Option::ALTER_TABLE_COMPRESSION:
+      table->SetTableCompression(this);
+      break;
+    case Option::ALTER_COLUMN_COMPRESSION:
+      table->SetColumnCompression(this);
       break;
     case Option::SET_GLOBAL_VARIABLE:
       set_mysqld_variable(this);
