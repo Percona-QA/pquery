@@ -49,6 +49,25 @@ static std::string db_branch() {
 /* disable some feature based on user request/ branch/ fork */
 int sum_of_all_options(Thd1 *thd) {
 
+  /* for 5.7 disable some features */
+  if (db_branch().compare("5.7") == 0) {
+    opt_int_set(ALTER_TABLESPACE_RENAME, 0);
+    opt_int_set(RENAME_COLUMN, 0);
+    opt_int_set(UNDO_SQL, 0);
+  }
+
+  /* feature not supported by oracle */
+  if (strcmp(FORK, "MySQL") == 0) {
+    options->at(Option::ALTER_DATABASE_ENCRYPTION)->setInt(0);
+    options->at(Option::NO_COLUMN_COMPRESSION)->setBool("true");
+  }
+
+  if (db_branch().compare("8.0") == 0) {
+    /* for 8.0 default columns set default colums */
+    if (!options->at(Option::COLUMNS)->cl)
+      options->at(Option::COLUMNS)->setInt(7);
+  }
+
   /* if select is set as zero, disable all type of selects */
   if (options->at(Option::NO_SELECT)->getBool()) {
     options->at(Option::SELECT_ALL_ROW)->setInt(0);
@@ -87,26 +106,9 @@ int sum_of_all_options(Thd1 *thd) {
     g_compression.clear();
   }
 
-  /* for 5.7 disable some features */
-  if (db_branch().compare("5.7") == 0) {
-    opt_int_set(ALTER_TABLESPACE_RENAME, 0);
-    opt_int_set(RENAME_COLUMN, 0);
-    opt_int_set(UNDO_SQL, 0);
-  }
-
-  /*database encryption is not supported in oracle */
-  if (strcmp(FORK, "Percona-Server") != 0)
-    opt_int_set(ALTER_DATABASE_ENCRYPTION, 0);
-
   /* if no dynamic variables is passed set-global to zero */
   if (server_options->empty())
     opt_int_set(SET_GLOBAL_VARIABLE, 0);
-
-  /* for 8.0 default columns */
-  if (db_branch().compare("8.0") == 0) {
-    if (!options->at(Option::COLUMNS)->cl)
-      options->at(Option::COLUMNS)->setInt(7);
-  }
 
   auto only_cl_ddl = opt_bool(ONLY_CL_DDL);
   auto only_cl_sql = opt_bool(ONLY_CL_SQL);
@@ -379,6 +381,10 @@ Column::Column(std::string name, Table *table, COLUMN_TYPES type)
 /* add new blobl column, part of create table or Alter table */
 Blob_Column::Blob_Column(std::string name, Table *table)
     : Column(table, Column::BLOB) {
+
+  if (options->at(Option::NO_COLUMN_COMPRESSION)->getBool() == false &&
+      rand_int(1) == 1)
+    compressed = true;
   switch (rand_int(5, 1)) {
   case 1:
     sub_type = "MEDIUMTEXT";
@@ -423,10 +429,9 @@ Generated_Column::Generated_Column(std::string name, Table *table)
     }
   }
 
-  static auto no_column_compression = opt_bool(NO_COLUMN_COMPRESSION);
-  if (!no_column_compression && g_type == BLOB) {
+  if (options->at(Option::NO_COLUMN_COMPRESSION)->getBool() == false &&
+      rand_int(1) == 1 && g_type == BLOB)
     compressed = true;
-  }
 
   /*number of columns in generated columns */
   size_t columns = rand_int(.6 * table->columns_->size()) + 1;
@@ -471,6 +476,7 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       case VARCHAR:
       case CHAR:
         column_size = col->length;
+        break;
       case BLOB:
         column_size = 5000; // todo set it different subtype
         break;
@@ -500,6 +506,7 @@ Generated_Column::Generated_Column(std::string name, Table *table)
                              " at line " + to_string(__LINE__));
   }
   str += ")";
+
   if (rand_int(2) == 1 || compressed)
     str += " STORED";
 }
@@ -2010,7 +2017,7 @@ void Thd1::run_some_query() {
 
     options->at(option)->total_queries++;
 
-    /* sql executed is at [0], and if successful at [1] */
+    /* sql executed is at 0 index, and if successful at 1 */
     opt_feq[option][0]++;
     if (success) {
       options->at(option)->success_queries++;

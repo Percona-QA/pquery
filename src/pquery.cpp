@@ -42,12 +42,10 @@ void read_section_settings(struct workerParams *wParams, std::string secName,
 }
 
 void create_worker(struct workerParams *Params) {
-  int exitStatus;
   Node newNode;
   newNode.setAllParams(Params);
-  exitStatus = newNode.startWork();
+  newNode.startWork();
   newNode.end_node();
-  exit(exitStatus);
 }
 
 int main(int argc, char *argv[]) {
@@ -167,6 +165,7 @@ int main(int argc, char *argv[]) {
   clean_up_at_end();
   mysql_library_end();
   delete_options();
+  std::cout << "COMPLTED" << std::endl;
 
   return EXIT_SUCCESS;
 }

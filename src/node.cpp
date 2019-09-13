@@ -15,7 +15,7 @@ void Node::end_node() {
   writeFinalReport();
   if (general_log)
     general_log.close();
-  if (querylist)
+  if (options->at(Option::DYNAMIC_PQUERY)->getBool() == false && querylist)
     delete querylist;
 }
 
