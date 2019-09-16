@@ -534,6 +534,11 @@ void add_options() {
   opt->help = "user asked for help";
   opt->setArgs(optional_argument);
 
+  opt = newOption(Option::BOOL, Option::VERBOSE, "verbose");
+  opt->help = "verbose";
+  opt->setBool(false);
+  opt->setArgs(no_argument);
+
   /* Threads */
   opt = newOption(Option::INT, Option::THREADS, "threads");
   opt->help = "The number of threads to use";
@@ -663,15 +668,21 @@ void print_version(void) {
 
 void show_help(std::string help) {
   if (help.compare("verbose") == 0) {
+
     for (auto &op : *options) {
       if (op != nullptr)
         op->print_pretty();
     }
   }
+  bool help_found = false;
   for (auto &op : *options) {
-    if (op != nullptr && help.size() > 0 && help.compare(op->getName()) == 0)
+    if (op != nullptr && help.size() > 0 && help.compare(op->getName()) == 0) {
+      help_found = true;
       op->print_pretty();
     }
+  }
+  if (!help_found)
+    std::cout << "Not a valid option! " << help << std::endl;
 }
 
   void show_help() {

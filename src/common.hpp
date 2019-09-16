@@ -90,7 +90,8 @@ struct Option {
     ANALYZE,
     TRUNCATE,
     DROP_CREATE,
-    MYSQLD_SERVER_OPTION,
+    INVALID_OPTION = 63,
+    LOG_ALL_QUERIES = 'A',
     DYNAMIC_PQUERY = 'k',
     DATABASE = 'd',
     ADDRESS = 'a',
@@ -100,10 +101,8 @@ struct Option {
     CONFIGFILE = 'c',
     PORT = 'p',
     PASSWORD = 'P',
-    HELP = 'h',
     NO_SHUFFLE = 'n',
     THREADS = 't',
-    LOG_ALL_QUERIES = 'A',
     LOG_FAILED_QUERIES = 'F',
     LOG_SUCCEDED_QUERIES = 'S',
     LOG_QUERY_STATISTICS = 'L',
@@ -113,7 +112,10 @@ struct Option {
     TEST_CONNECTION = 'T',
     QUERIES_PER_THREAD = 'q',
     USER = 'u',
-    MAX = 'z'
+    HELP = 'h',
+    VERBOSE = 'v',
+    MYSQLD_SERVER_OPTION = 'z',
+    MAX
   } option;
   Option(Type t, Opt o, std::string n)
       : type(t), option(o), name(n), sql(false), ddl(false), total_queries(0),

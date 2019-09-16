@@ -69,15 +69,8 @@ int main(int argc, char *argv[]) {
       break;
       exit(EXIT_FAILURE);
     }
+
     switch (c) {
-    case 'h':
-      if (optarg) {
-        std::string s(optarg);
-        show_help(s);
-      } else {
-        show_help();
-      }
-      exit(EXIT_FAILURE);
     case 'I':
       show_config_help();
       exit(EXIT_FAILURE);
@@ -86,17 +79,24 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
       break;
     case Option::MYSQLD_SERVER_OPTION:
+      std::cout << optarg << std::endl;
       add_server_options(optarg);
       break;
     case Option::SERVER_OPTION_FILE:
       add_server_options_file(optarg);
+      break;
+    case Option::INVALID_OPTION:
+      std::cout << "Invalid option , exiting" << std::endl;
+      exit(EXIT_FAILURE);
       break;
     default:
       if (c >= Option::MAX) {
         break;
       }
       if (options->at(c) == nullptr) {
-        throw std::runtime_error("INVALID OPTION");
+        throw std::runtime_error("INVALID OPTION at line " +
+                                 std::to_string(__LINE__) + " file " +
+                                 __FILE__);
         break;
       }
       auto op = options->at(c);
@@ -118,15 +118,25 @@ int main(int argc, char *argv[]) {
       } else if (op->getArgs() == no_argument) {
         op->setBool(true);
       } else if (op->getArgs() == optional_argument) {
-        if (optarg) {
-          std::string s(optarg);
-          op->setBool(s);
-        } else
-          op->setBool(true);
+        op->setBool(true);
+        if (optarg)
+          op->setString(optarg);
         break;
       }
     }
   } // while
+
+  /* check if user has asked for help */
+  if (options->at(Option::HELP)->getBool() == true) {
+    if (options->at(Option::VERBOSE)->getBool() == true)
+      show_help("verbose");
+    else if (options->at(Option::HELP)->getString().empty())
+      show_help();
+    else
+      show_help(options->at(Option::HELP)->getString());
+    delete_options();
+    exit(0);
+  }
 
   std::cout << "runnning pquery with "
             << (options->at(Option::DYNAMIC_PQUERY)->getBool() ? "dynamic"
