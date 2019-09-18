@@ -1,3 +1,8 @@
+/*
+ =========================================================
+ #       Created by Rahul Malik, Percona LLC             #
+ =========================================================
+*/
 #include "random_test.hpp"
 #include "common.hpp"
 #include "node.hpp"
@@ -9,12 +14,7 @@ std::mt19937 rng;
 const std::string partition_string = "_p";
 const int version = 1;
 
-/* set static variable related to thread */
-bool connection_lost = false;
-std::mutex ddl_logs_write;
-
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
-
 static std::vector<std::string> g_undo_tablespace;
 static std::vector<std::string> g_encryption = {"Y", "N"};
 static std::vector<std::string> g_compression = {"none", "zlib", "lz4"};
@@ -23,11 +23,13 @@ static std::vector<std::string> g_tablespace;
 static std::vector<int> g_key_block_size;
 static int g_max_columns_length = 30;
 static int g_innodb_page_size;
-static std::atomic<size_t> table_started(0);
-static std::atomic<size_t> table_completed(0);
-static std::atomic_flag lock_stream = ATOMIC_FLAG_INIT;
-
 static int sum_of_all_opts = 0; // sum of all probablility
+std::mutex ddl_logs_write;
+
+std::atomic<size_t> table_started(0);
+std::atomic<size_t> table_completed(0);
+std::atomic_flag lock_stream = ATOMIC_FLAG_INIT;
+std::atomic<bool> connection_lost(false);
 
 /* get result of sql */
 static std::string get_result(std::string sql, Thd1 *thd) {
@@ -46,7 +48,8 @@ static std::string db_branch() {
   return branch;
 }
 
-/* disable some feature based on user request/ branch/ fork */
+/* return probabality of all options and  disable some feature based on user
+ * request/ branch/ fork */
 int sum_of_all_options(Thd1 *thd) {
 
   /* for 5.7 disable some features */
@@ -168,7 +171,6 @@ Option::Opt pick_some_option() {
   return Option::MAX;
 }
 
-/* sum of _all_server_option */
 int sum_of_all_server_options() {
   int total = 0;
   for (auto &opt : *server_options) {
@@ -345,7 +347,6 @@ std::string Column::defination() {
   if (auto_increment)
     def += " AUTO_INCREMENT";
   if (compressed) {
-    std::cout << table_->name_ << std::endl;
     def += " COLUMN_FORMAT COMPRESSED";
   }
   return def;
@@ -378,7 +379,7 @@ Column::Column(std::string name, Table *table, COLUMN_TYPES type)
   }
 }
 
-/* add new blobl column, part of create table or Alter table */
+/* add new blob column, part of create table or Alter table */
 Blob_Column::Blob_Column(std::string name, Table *table)
     : Column(table, Column::BLOB) {
 
@@ -678,6 +679,7 @@ Table::~Table() {
   for (auto ind : *indexes_)
     delete ind;
   for (auto col : *columns_) {
+    col->mutex.lock();
     delete col;
   }
   delete columns_;
@@ -1145,79 +1147,133 @@ void Table::SetTableCompression(Thd1 *thd) {
 }
 
 // todo pick relevent table//
-void Table::SetColumnCompression(Thd1 *thd) {
-  std::string sql = "ALTER TABLE " + name_ + " COMPRESSION= '";
-  std::string comp = g_compression[rand_int(g_compression.size() - 1)];
-  sql += comp + "'";
-  if (execute_sql(sql, thd)) {
-    table_mutex.lock();
-    compression = comp;
-    table_mutex.unlock();
+void Table::ModifyColumn(Thd1 *thd) {
+  std::string sql = "ALTER TABLE " + name_ + " MODIFY COLUMN ";
+  int i = 0;
+  Column *col = nullptr;
+  /* store old value */
+  int length = 0;
+  std::string default_value;
+  bool auto_increment = false;
+  bool compressed = false; // percona type compressed
+
+  // try maximum 50 times to get a valid column
+  while (i < 50 && col == nullptr) {
+    auto col1 = columns_->at(rand_int(columns_->size() - 1));
+    switch (col1->type_) {
+    case Column::BLOB:
+    case Column::GENERATED:
+    case Column::VARCHAR:
+    case Column::CHAR:
+    case Column::INT:
+      col = col1;
+      length = col->length;
+      auto_increment = col->auto_increment;
+      compressed = col->compressed;
+      col->mutex.lock(); // lock column so no one can modify it //
+      break;
+      /* todo no support for BOOL INT so far */
+    case Column::BOOL:
+    case Column::COLUMN_MAX:
+      break;
+    }
+      i++;
   }
+
+  /* could not find a valid column to process */
+  if (col == nullptr)
+    return;
+
+  col->length = rand_int(g_max_columns_length, 0);
+
+  if (col->auto_increment == true and rand_int(5) == 0)
+    col->auto_increment = false;
+
+  if (col->compressed == true and rand_int(4) == 0)
+    col->compressed = false;
+  else if (options->at(Option::NO_COLUMN_COMPRESSION)->getBool() == false &&
+           (col->type_ == Column::BLOB || col->type_ == Column::GENERATED ||
+            col->type_ == Column::VARCHAR))
+    col->compressed = true;
+
+  sql += " " + col->defination() + pick_algorithm_lock();
+
+  /* if not successful rollback */
+  if (!execute_sql(sql, thd)) {
+    std::cout << "rollbacking " << sql << std::endl;
+    col->length = length;
+    col->auto_increment = auto_increment;
+    col->compressed = compressed;
+  }
+
+  col->mutex.unlock();
 }
+
 /* alter table drop column */
-void Table::DropColumn(Thd1 *thd) {
-  table_mutex.lock();
-
-  /* do not drop last column */
-  if (columns_->size() == 1) {
-    table_mutex.unlock();
-    return;
-  }
-  auto ps = rand_int(columns_->size() - 1); // position
-
-  auto name = columns_->at(ps)->name_;
-
-  if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
-    table_mutex.unlock();
-    return;
-  }
-
-  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
-
-  sql += pick_algorithm_lock();
-  table_mutex.unlock();
-
-  if (execute_sql(sql, thd)) {
+  void Table::DropColumn(Thd1 * thd) {
     table_mutex.lock();
 
-    std::vector<int> indexes_to_drop;
-    for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
-      auto index = *id;
+    /* do not drop last column */
+    if (columns_->size() == 1) {
+      table_mutex.unlock();
+      return;
+    }
+    auto ps = rand_int(columns_->size() - 1); // position
 
-      for (auto id_col = index->columns_->begin();
-           id_col != index->columns_->end(); id_col++) {
-        auto ic = *id_col;
-        if (ic->column->name_.compare(name) == 0) {
-          if (index->columns_->size() == 1) {
-            delete index;
-            indexes_to_drop.push_back(id - indexes_->begin());
-          } else {
-            delete ic;
-            index->columns_->erase(id_col);
+    auto name = columns_->at(ps)->name_;
+
+    if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
+      table_mutex.unlock();
+      return;
+    }
+
+    std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
+
+    sql += pick_algorithm_lock();
+    table_mutex.unlock();
+
+    if (execute_sql(sql, thd)) {
+      table_mutex.lock();
+
+      std::vector<int> indexes_to_drop;
+      for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
+        auto index = *id;
+
+        for (auto id_col = index->columns_->begin();
+             id_col != index->columns_->end(); id_col++) {
+          auto ic = *id_col;
+          if (ic->column->name_.compare(name) == 0) {
+            if (index->columns_->size() == 1) {
+              delete index;
+              indexes_to_drop.push_back(id - indexes_->begin());
+            } else {
+              delete ic;
+              index->columns_->erase(id_col);
+            }
+            break;
           }
+        }
+      }
+      std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
+                std::greater<int>());
+
+      for (auto &i : indexes_to_drop) {
+        indexes_->at(i) = indexes_->back();
+        indexes_->pop_back();
+      }
+      // table->indexes_->erase(id);
+
+      for (auto pos = columns_->begin(); pos != columns_->end(); pos++) {
+        auto col = *pos;
+        if (col->name_.compare(name) == 0) {
+          col->mutex.lock();
+          delete col;
+          columns_->erase(pos);
           break;
         }
       }
+      table_mutex.unlock();
     }
-    std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
-              std::greater<int>());
-
-    for (auto &i : indexes_to_drop) {
-      indexes_->at(i) = indexes_->back();
-      indexes_->pop_back();
-    }
-    // table->indexes_->erase(id);
-
-    for (auto pos = columns_->begin(); pos != columns_->end(); pos++) {
-      if ((*pos)->name_.compare(name) == 0) {
-        delete *pos;
-        columns_->erase(pos);
-        break;
-      }
-    }
-    table_mutex.unlock();
-  }
 }
 
 /* alter table add random column */
@@ -1227,13 +1283,12 @@ void Table::AddColumn(Thd1 *thd) {
   static auto use_blob = !options->at(Option::NO_BLOB)->getBool();
 
   std::string sql = "ALTER TABLE " + name_ + " ADD COLUMN ";
-  std::string name;
-  name = "N" + std::to_string(rand_int(300));
-  sql += name;
 
   Column::COLUMN_TYPES col_type = Column::COLUMN_MAX;
 
   auto use_virtual = true;
+
+  // lock table to create defination
   table_mutex.lock();
 
   if (no_use_virtual ||
@@ -1260,6 +1315,8 @@ void Table::AddColumn(Thd1 *thd) {
 
   Column *tc;
 
+  std::string name = "N" + std::to_string(rand_int(300));
+
   if (col_type == Column::GENERATED)
     tc = new Generated_Column(name, this);
   else if (col_type == Column::BLOB)
@@ -1267,7 +1324,7 @@ void Table::AddColumn(Thd1 *thd) {
   else
     tc = new Column(name, this, col_type);
 
-  sql += " " + tc->clause();
+  sql += " " + tc->defination();
   sql += pick_algorithm_lock();
 
   table_mutex.unlock();
@@ -1689,6 +1746,10 @@ void load_objects_from_file(Thd1 *thd) {
   thd->thread_log << "reading metadata from file " << file_read_path
                   << std::endl;
   FILE *fp = fopen(file_read_path.c_str(), "r");
+
+  if (fp == nullptr)
+    throw std::runtime_error("unable to open file " + file_read_path);
+
   char readBuffer[65536];
   FileReadStream is(fp, readBuffer, sizeof(readBuffer));
   Document d;
@@ -1960,8 +2021,8 @@ void Thd1::run_some_query() {
     case Option::ALTER_TABLE_COMPRESSION:
       table->SetTableCompression(this);
       break;
-    case Option::ALTER_COLUMN_COMPRESSION:
-      table->SetColumnCompression(this);
+    case Option::ALTER_COLUMN_MODIFY:
+      table->ModifyColumn(this);
       break;
     case Option::SET_GLOBAL_VARIABLE:
       set_mysqld_variable(this);

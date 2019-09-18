@@ -277,9 +277,8 @@ void add_options() {
   opt->setDDL();
 
   /*compress table */
-  opt = newOption(Option::INT, Option::ALTER_TABLE_COMPRESSION,
-                  "alter-column-compress");
-  opt->help = "Alter column compression";
+  opt = newOption(Option::INT, Option::ALTER_COLUMN_MODIFY, "modify-column");
+  opt->help = "Alter table column modify";
   opt->setInt(10);
   opt->setSQL();
   opt->setDDL();

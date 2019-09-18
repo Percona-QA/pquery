@@ -38,7 +38,8 @@ int rand_int(int upper, int lower = 0);
 std::string rand_string(int upper, int lower = 0);
 
 struct Table;
-struct Column {
+class Column {
+public:
   enum COLUMN_TYPES {
     INT,
     CHAR,
@@ -65,6 +66,7 @@ struct Column {
   /* used to create_metadata */
   template <typename Writer> void Serialize(Writer &writer) const;
   /* return the caluse of column */
+private:
   virtual std::string clause() {
     std::string str;
     str = col_type_to_string(type_);
@@ -72,8 +74,11 @@ struct Column {
       str += "(" + std::to_string(length) + ")";
     return str;
   };
+
+public:
   virtual ~Column(){};
   std::string name_;
+  std::mutex mutex;
   bool null = false;
   int length = 0;
   std::string default_value;
@@ -177,7 +182,7 @@ public:
   void Truncate(Thd1 *thd);
   void SetEncryption(Thd1 *thd);
   void SetTableCompression(Thd1 *thd);
-  void SetColumnCompression(Thd1 *thd);
+  void ModifyColumn(Thd1 *thd);
   void InsertRandomRow(Thd1 *thd, bool islock);
   void DropColumn(Thd1 *thd);
   void AddColumn(Thd1 *thd);
@@ -243,5 +248,4 @@ void alter_database_encryption(Thd1 *thd);
 void create_in_memory_data();
 void create_default_tables(Thd1 *thd);
 void create_database_tablespace(Thd1 *thd);
-
 #endif
