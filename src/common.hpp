@@ -115,6 +115,10 @@ struct Option {
     HELP = 'h',
     VERBOSE = 'v',
     MYSQLD_SERVER_OPTION = 'z',
+    TRANSATION_PRB_K,
+    TRANSACTIONS_SIZE,
+    COMMMIT_TO_ROLLBACK_RATIO,
+    SAVEPOINT_PRB_K,
     MAX
   } option;
   Option(Type t, Opt o, std::string n)

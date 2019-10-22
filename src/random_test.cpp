@@ -908,7 +908,6 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
              g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
     table->encryption = true;
 
-
   /* if temporary table encrypt variable set create encrypt table */
   static auto temp_table_encrypt =
       get_result("select @@innodb_temp_tablespace_encrypt", thd);
@@ -1177,7 +1176,7 @@ void Table::ModifyColumn(Thd1 *thd) {
     case Column::COLUMN_MAX:
       break;
     }
-      i++;
+    i++;
   }
 
   /* could not find a valid column to process */
@@ -1200,7 +1199,6 @@ void Table::ModifyColumn(Thd1 *thd) {
 
   /* if not successful rollback */
   if (!execute_sql(sql, thd)) {
-    std::cout << "rollbacking " << sql << std::endl;
     col->length = length;
     col->auto_increment = auto_increment;
     col->compressed = compressed;
@@ -1210,70 +1208,70 @@ void Table::ModifyColumn(Thd1 *thd) {
 }
 
 /* alter table drop column */
-  void Table::DropColumn(Thd1 * thd) {
+void Table::DropColumn(Thd1 *thd) {
+  table_mutex.lock();
+
+  /* do not drop last column */
+  if (columns_->size() == 1) {
+    table_mutex.unlock();
+    return;
+  }
+  auto ps = rand_int(columns_->size() - 1); // position
+
+  auto name = columns_->at(ps)->name_;
+
+  if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
+    table_mutex.unlock();
+    return;
+  }
+
+  std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
+
+  sql += pick_algorithm_lock();
+  table_mutex.unlock();
+
+  if (execute_sql(sql, thd)) {
     table_mutex.lock();
 
-    /* do not drop last column */
-    if (columns_->size() == 1) {
-      table_mutex.unlock();
-      return;
-    }
-    auto ps = rand_int(columns_->size() - 1); // position
+    std::vector<int> indexes_to_drop;
+    for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
+      auto index = *id;
 
-    auto name = columns_->at(ps)->name_;
-
-    if (name.compare("pkey") == 0 || name.compare("pkey_rename") == 0) {
-      table_mutex.unlock();
-      return;
-    }
-
-    std::string sql = "ALTER TABLE " + name_ + " DROP COLUMN " + name;
-
-    sql += pick_algorithm_lock();
-    table_mutex.unlock();
-
-    if (execute_sql(sql, thd)) {
-      table_mutex.lock();
-
-      std::vector<int> indexes_to_drop;
-      for (auto id = indexes_->begin(); id != indexes_->end(); id++) {
-        auto index = *id;
-
-        for (auto id_col = index->columns_->begin();
-             id_col != index->columns_->end(); id_col++) {
-          auto ic = *id_col;
-          if (ic->column->name_.compare(name) == 0) {
-            if (index->columns_->size() == 1) {
-              delete index;
-              indexes_to_drop.push_back(id - indexes_->begin());
-            } else {
-              delete ic;
-              index->columns_->erase(id_col);
-            }
-            break;
+      for (auto id_col = index->columns_->begin();
+           id_col != index->columns_->end(); id_col++) {
+        auto ic = *id_col;
+        if (ic->column->name_.compare(name) == 0) {
+          if (index->columns_->size() == 1) {
+            delete index;
+            indexes_to_drop.push_back(id - indexes_->begin());
+          } else {
+            delete ic;
+            index->columns_->erase(id_col);
           }
-        }
-      }
-      std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
-                std::greater<int>());
-
-      for (auto &i : indexes_to_drop) {
-        indexes_->at(i) = indexes_->back();
-        indexes_->pop_back();
-      }
-      // table->indexes_->erase(id);
-
-      for (auto pos = columns_->begin(); pos != columns_->end(); pos++) {
-        auto col = *pos;
-        if (col->name_.compare(name) == 0) {
-          col->mutex.lock();
-          delete col;
-          columns_->erase(pos);
           break;
         }
       }
-      table_mutex.unlock();
     }
+    std::sort(indexes_to_drop.begin(), indexes_to_drop.end(),
+              std::greater<int>());
+
+    for (auto &i : indexes_to_drop) {
+      indexes_->at(i) = indexes_->back();
+      indexes_->pop_back();
+    }
+    // table->indexes_->erase(id);
+
+    for (auto pos = columns_->begin(); pos != columns_->end(); pos++) {
+      auto col = *pos;
+      if (col->name_.compare(name) == 0) {
+        col->mutex.lock();
+        delete col;
+        columns_->erase(pos);
+        break;
+      }
+    }
+    table_mutex.unlock();
+  }
 }
 
 /* alter table add random column */
@@ -1507,7 +1505,7 @@ void Table::DeleteRandomRow(Thd1 *thd) {
       case Column::COLUMN_MAX:
         break;
       }
-  }
+    }
   }
 
   std::string sql = "DELETE FROM " + name_ + " WHERE " +
@@ -1911,11 +1909,11 @@ bool Thd1::load_metadata() {
 }
 
 void Thd1::run_some_query() {
-  static bool just_ddl = opt_bool(JUST_LOAD_DDL);
+  bool just_ddl = opt_bool(JUST_LOAD_DDL);
   auto size = all_tables->size();
   execute_sql("USE " + options->at(Option::DATABASE)->getString(), this);
 
-  /* first create temporary tables if requried */
+  /* first create temporary tables metadata if requried */
   int temp_tables;
   if (options->at(Option::ONLY_TEMPORARY)->getBool())
     temp_tables = options->at(Option::TABLES)->getInt();
@@ -1925,8 +1923,10 @@ void Thd1::run_some_query() {
     temp_tables = options->at(Option::TABLES)->getInt() /
                   options->at(Option::TEMPORARY_TO_NORMAL_RATIO)->getInt();
 
+  /* create temporary table */
   std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
   for (int i = 0; i < temp_tables; i++) {
+
     ddl_query = true;
     Table *table = Table::table_id(Table::TEMPORARY, i, this);
     if (!execute_sql(table->defination(), this))
@@ -1986,14 +1986,55 @@ void Thd1::run_some_query() {
   /* freqency of all options per thread */
   int opt_feq[Option::MAX][2] = {{0, 0}};
 
+  /* variables related to trxs */
+  static auto trx_prob = options->at(Option::TRANSATION_PRB_K)->getInt();
+  static auto trx_max_size = options->at(Option::TRANSACTIONS_SIZE)->getInt();
+  static auto commit_to_rollback =
+      options->at(Option::COMMMIT_TO_ROLLBACK_RATIO)->getInt();
+  static auto savepoint_prob = options->at(Option::SAVEPOINT_PRB_K)->getInt();
+
+  int trx_left = -1; // -1 for single trx
+  int current_save_point = 0;
   while (std::chrono::system_clock::now() < end) {
+
+    /* check if we need to make sql as part of existing or new trx */
+    if (trx_prob > 0) {
+      if (trx_left == 0)
+        execute_sql((rand_int(commit_to_rollback) == 0 ? "ROLLBACK" : "COMMIT"),
+                    this);
+
+      /*  check if sql are chossen as part of statement or single trx */
+      if (trx_left <= 0 && trx_max_size > 0 && rand_int(1000) < trx_prob) {
+        current_save_point = 0;
+        if (rand_int(1000) == 1)
+          trx_left = trx_max_size * 100;
+        else
+          trx_left = rand_int(trx_max_size);
+        execute_sql("START TRANSACTION", this);
+      }
+
+      /* use savepoint or rollback to savepoint */
+      if (trx_left > 0 && savepoint_prob > 0) {
+        if (rand_int(1000) < savepoint_prob)
+          execute_sql("SAVEPOINT SAVE" + to_string(++current_save_point), this);
+
+        /* 1/4 chances of rollbacking to savepoint */
+        if (current_save_point > 0 && rand_int(1000 * 4) < savepoint_prob) {
+          auto sv = rand_int(current_save_point, 1);
+          execute_sql("ROLLBACK TO SAVEPOINT SAVE" + to_string(sv), this);
+          current_save_point = sv - 1;
+        }
+
+        trx_left--;
+      }
+    }
 
     auto curr = rand_int(total_size - 1);
 
-    auto option = pick_some_option();
     auto table = (curr < temp_tables) ? all_temp_tables->at(curr)
                                       : all_tables->at(curr - temp_tables);
 
+    auto option = pick_some_option();
     ddl_query = options->at(option)->ddl == true ? true : false;
 
     switch (option) {

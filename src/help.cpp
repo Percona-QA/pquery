@@ -276,7 +276,7 @@ void add_options() {
   opt->setSQL();
   opt->setDDL();
 
-  /*compress table */
+  /* modify column */
   opt = newOption(Option::INT, Option::ALTER_COLUMN_MODIFY, "modify-column");
   opt->help = "Alter table column modify";
   opt->setInt(10);
@@ -611,6 +611,30 @@ void add_options() {
   opt->help = "Test connection to server and exit";
   opt->setBool(false);
   opt->setArgs(no_argument);
+
+  /* transaction probability */
+  opt = newOption(Option::INT, Option::TRANSATION_PRB_K, "trx-prb-k");
+  opt->help = "probability(out of 1000) of combining sql as single trx";
+  opt->setInt(10);
+
+  /* tranasaction size */
+  opt = newOption(Option::INT, Option::TRANSACTIONS_SIZE, "trx-size");
+  opt->help = "average size of each trx";
+  opt->setInt(100);
+
+  /* commit to rollback ratio */
+  opt = newOption(Option::INT, Option::COMMMIT_TO_ROLLBACK_RATIO,
+                  "commit-rollback-ratio");
+  opt->help = "ratio of commit to rollback. e.g.\nif 5, then 5 "
+              "transactions will be committed and 1 will be rollback.\n"
+              "if 0 then all transactions will be rollback";
+  opt->setInt(5);
+
+  /* number of savepoints in trxs */
+  opt = newOption(Option::INT, Option::SAVEPOINT_PRB_K, "savepoint-prb-k");
+  opt->help = "probability of using savepoint in a transaction.\n Also 25% "
+              "such transaction will be rollback to some savepoint";
+  opt->setInt(50);
 }
 
 Option::~Option() {}
