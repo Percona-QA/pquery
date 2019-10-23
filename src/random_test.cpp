@@ -1764,11 +1764,13 @@ void load_objects_from_file(Thd1 *thd) {
     Table *table;
     std::string name = tab["name"].GetString();
 
-    std::string table_type = name.substr(name.size() - 2, 2);
-
-    if (table_type.compare(partition_string) == 0)
-      table = new Partition_table(name);
-    else
+    if (std::count(name.begin(), name.end(), '_') > 1) {
+      std::string table_type = name.substr(name.size() - 2, 2);
+      if (table_type.compare(partition_string) == 0)
+        table = new Partition_table(name);
+      else
+        throw std::runtime_error("unhandled table type");
+    } else
       table = new Table(name);
 
     std::string engine = tab["engine"].GetString();
@@ -1792,8 +1794,19 @@ void load_objects_from_file(Thd1 *thd) {
     table->key_block_size = tab["key_block_size"].GetInt();
 
     for (auto &col : tab["columns"].GetArray()) {
-      Column *a =
-          new Column(col["name"].GetString(), col["type"].GetString(), table);
+      Column *a;
+      std::string type = col["type"].GetString();
+
+      if (type.compare("INT") == 0 || type.compare("CHAR") == 0 ||
+          type.compare("VARCHAR") == 0 || type.compare("BOOL") == 0)
+        a = new Column(col["name"].GetString(), type, table);
+      else if (type.compare("GENERATED") == 0)
+        a = new Generated_Column(col["name"].GetString(), table);
+      else if (type.compare("BLOB") == 0)
+        a = new Blob_Column(col["name"].GetString(), table);
+      else
+        throw std::runtime_error("unhandled column type");
+
       a->null = col["null"].GetBool();
       a->auto_increment = col["auto_increment"].GetBool();
       a->length = col["lenght"].GetInt(),
@@ -1910,7 +1923,6 @@ bool Thd1::load_metadata() {
 
 void Thd1::run_some_query() {
   bool just_ddl = opt_bool(JUST_LOAD_DDL);
-  auto size = all_tables->size();
   execute_sql("USE " + options->at(Option::DATABASE)->getString(), this);
 
   /* first create temporary tables metadata if requried */
@@ -1940,33 +1952,32 @@ void Thd1::run_some_query() {
   }
 
   if (!options->at(Option::METADATA_READ)->getBool()) {
-    while (1) {
-      auto current = table_started++;
-      if (current < size) {
-        auto table = all_tables->at(current);
-        ddl_query = true;
-        if (!execute_sql(table->defination(), this))
-          throw std::runtime_error("Create table failed " + table->name_);
+    auto current = table_started++;
+    while (current < all_tables->size()) {
+      auto table = all_tables->at(current);
+      ddl_query = true;
+      if (!execute_sql(table->defination(), this))
+        throw std::runtime_error("Create table failed " + table->name_);
+      /* load default data in table*/
+      if (!just_ddl) {
+        load_default_data(table, this);
+      }
+      table_completed++;
+      current = table_started++;
+    }
 
-        /* load default data in table*/
-        // todo only_initial_ddl
-        if (!just_ddl) {
-          load_default_data(table, this);
-        }
-        table_completed++;
-      } else
-        break;
+    // wait for all tables to finish loading
+    while (table_completed < all_tables->size()) {
+      thread_log << "Waiting for all threds to finish initial load "
+                 << std::endl;
+      std::chrono::seconds dura(1);
+      std::this_thread::sleep_for(dura);
     }
   }
 
   if (just_ddl)
     return;
 
-  while (table_completed < size) {
-    thread_log << "Waiting for all threds to finish initial load " << std::endl;
-    std::chrono::seconds dura(1);
-    std::this_thread::sleep_for(dura);
-  }
   if (!lock_stream.test_and_set())
     std::cout << "default load completed" << std::endl;
 
@@ -1981,7 +1992,7 @@ void Thd1::run_some_query() {
              << std::endl;
 
   /* combine all_tables with temp_tables */
-  int total_size = size + temp_tables;
+  int total_size = all_tables->size() + temp_tables;
 
   /* freqency of all options per thread */
   int opt_feq[Option::MAX][2] = {{0, 0}};
