@@ -38,7 +38,6 @@ void add_server_options(std::string str) {
 
 /* process file. and push to mysqld server options */
 void add_server_options_file(std::string file_name) {
-  std::cout << "file_name " << file_name << std::endl;
   std::ifstream f1;
   f1.open(file_name);
   if (!f1)
@@ -69,31 +68,6 @@ void add_options() {
       "from --infine in some order based on shuffle. you can also use -k";
   opt->setBool(false);
   opt->setArgs(no_argument);
-
-  /* Load metadata */
-  opt = newOption(Option::BOOL, Option::METADATA_READ, "metadata-read");
-  opt->help = "Load table structures from a json file or created then randomly";
-  opt->setBool(false);
-  opt->setArgs(no_argument);
-
-  /* write metadata */
-  opt = newOption(Option::BOOL, Option::METADATA_WRITE, "metadata-write");
-  opt->help = "write metadata to a file. see option --metadata-write-file and "
-              "--metadata-read-file";
-  opt->setBool(true);
-
-  /* Save metadata to a file */
-  opt = newOption(Option::STRING, Option::METADATA_READ_FILE,
-                  "metadata-read-file");
-  opt->help = "read metadata from file name";
-  opt->setString("data.dll");
-
-  /* Read metadata from file */
-  opt = newOption(Option::STRING, Option::METADATA_WRITE_FILE,
-                  "metadata-write-file");
-  opt->help = "write metadata to a file, see option --metadata-read, "
-              "--metadata-write ";
-  opt->setString("new_data.dll");
 
   /* Intial Seed for test */
   opt = newOption(Option::INT, Option::INITIAL_SEED, "seed");
@@ -635,6 +609,15 @@ void add_options() {
   opt->help = "probability of using savepoint in a transaction.\n Also 25% "
               "such transaction will be rollback to some savepoint";
   opt->setInt(50);
+
+  /* steps */
+  opt = newOption(Option::INT, Option::STEP, "step");
+  opt->help = "current step in pquery script";
+  opt->setInt(0);
+
+  /* metadata file path */
+  opt = newOption(Option::STRING, Option::METADATA_PATH, "metadata-path");
+  opt->help = "path of metadata file";
 }
 
 Option::~Option() {}

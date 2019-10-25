@@ -171,7 +171,7 @@ int main(int argc, char *argv[]) {
       node->join();
   }
 
-  save_objects_to_file();
+  save_metadata_to_file();
   clean_up_at_end();
   mysql_library_end();
   delete_options();

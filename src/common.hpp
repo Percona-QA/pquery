@@ -27,10 +27,6 @@
 struct Option {
   enum Type { BOOL, INT, STRING } type;
   enum Opt {
-    METADATA_READ,
-    METADATA_READ_FILE,
-    METADATA_WRITE,
-    METADATA_WRITE_FILE,
     INITIAL_SEED,
     NUMBER_OF_GENERAL_TABLESPACE,
     NUMBER_OF_UNDO_TABLESPACE,
@@ -119,6 +115,8 @@ struct Option {
     TRANSACTIONS_SIZE,
     COMMMIT_TO_ROLLBACK_RATIO,
     SAVEPOINT_PRB_K,
+    METADATA_PATH,
+    STEP,
     MAX
   } option;
   Option(Type t, Opt o, std::string n)

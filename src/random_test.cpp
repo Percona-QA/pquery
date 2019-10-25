@@ -1645,15 +1645,20 @@ void alter_tablespace_rename(Thd1 *thd) {
   }
 }
 
-/* save objects to a file */
-void save_objects_to_file() {
+/* save metadata to a file */
+void save_metadata_to_file() {
+  std::string path = opt_string(METADATA_PATH);
+  if (path.size() == 0)
+    path = opt_string(LOGDIR);
+  auto file =
+      path + "/step_" + to_string(options->at(Option::STEP)->getInt()) + ".dll";
+  std::cout << "Saving metadata to file " << file << std::endl;
 
   StringBuffer sb;
   PrettyWriter<StringBuffer> writer(sb);
   writer.StartObject();
   writer.String("version");
   writer.Uint(version);
-
   writer.String(("tables"));
   writer.StartArray();
   for (auto j = all_tables->begin(); j != all_tables->end(); j++) {
@@ -1662,9 +1667,9 @@ void save_objects_to_file() {
   }
   writer.EndArray();
   writer.EndObject();
-  auto file = opt_string(METADATA_WRITE_FILE);
   std::ofstream of(file);
   of << sb.GetString();
+
   if (!of.good())
     throw std::runtime_error("can't write the JSON string to the file!");
 }
@@ -1738,15 +1743,16 @@ void create_in_memory_data() {
 }
 
 /*load objects from a file */
-void load_objects_from_file(Thd1 *thd) {
-  std::string file_read_path = opt_string(LOGDIR);
-  file_read_path += "/" + opt_string(METADATA_READ_FILE);
-  thd->thread_log << "reading metadata from file " << file_read_path
-                  << std::endl;
-  FILE *fp = fopen(file_read_path.c_str(), "r");
+static std::string load_objects_from_file() {
+  auto previous_step = options->at(Option::STEP)->getInt() - 1;
+  auto path = opt_string(METADATA_PATH);
+  if (path.size() == 0)
+    path = opt_string(LOGDIR);
+  auto file = path + "/step_" + to_string(previous_step) + ".dll";
+  FILE *fp = fopen(file.c_str(), "r");
 
   if (fp == nullptr)
-    throw std::runtime_error("unable to open file " + file_read_path);
+    throw std::runtime_error("unable to open file " + file);
 
   char readBuffer[65536];
   FileReadStream is(fp, readBuffer, sizeof(readBuffer));
@@ -1755,7 +1761,7 @@ void load_objects_from_file(Thd1 *thd) {
   auto v = d["version"].GetInt();
 
   if (d["version"].GetInt() != version)
-    throw std::runtime_error("version mismatch between " + file_read_path +
+    throw std::runtime_error("version mismatch between " + file +
                              " and codebase " + " file::version is " +
                              std::to_string(v) + " code::version is " +
                              std::to_string(version));
@@ -1836,6 +1842,7 @@ void load_objects_from_file(Thd1 *thd) {
     options->at(Option::TABLES)->setInt(all_tables->size());
   }
   fclose(fp);
+  return file;
 }
 
 /* clean tables from memory,random_strs */
@@ -1891,14 +1898,14 @@ void create_database_tablespace(Thd1 *thd) {
 bool Thd1::load_metadata() {
   sum_of_all_opts = sum_of_all_options(this);
 
-  random_strs =
-      random_strs_generator(options->at(Option::INITIAL_SEED)->getInt());
+  auto seed = opt_int(INITIAL_SEED);
+  seed += options->at(Option::STEP)->getInt();
+  random_strs = random_strs_generator(seed);
 
   /*set seed for current thread*/
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
 
-  auto load_from_file = opt_bool(METADATA_READ);
 
   /* find out innodb page_size */
   if (options->at(Option::ENGINE)->getString().compare("INNODB") == 0)
@@ -1908,11 +1915,13 @@ bool Thd1::load_metadata() {
   /* create in-memory data for general tablespaces */
   create_in_memory_data();
 
-  if (load_from_file) {
-    load_objects_from_file(this);
+  if (options->at(Option::STEP)->getInt() > 1) {
+    auto file = load_objects_from_file();
+    std::cout << "metadata loaded from " << file << std::endl;
   } else {
     create_database_tablespace(this);
     create_default_tables(this);
+    std::cout << "metadata created randomly" << std::endl;
   }
 
   if (options->at(Option::TABLES)->getInt() <= 0)
@@ -1951,7 +1960,8 @@ void Thd1::run_some_query() {
     }
   }
 
-  if (!options->at(Option::METADATA_READ)->getBool()) {
+  /* if step is 1 then , create all tables */
+  if (options->at(Option::STEP)->getInt() == 1) {
     auto current = table_started++;
     while (current < all_tables->size()) {
       auto table = all_tables->at(current);
@@ -1979,7 +1989,9 @@ void Thd1::run_some_query() {
     return;
 
   if (!lock_stream.test_and_set())
-    std::cout << "default load completed" << std::endl;
+    std::cout << "starting random load in "
+              << options->at(Option::THREADS)->getInt() << " threads."
+              << std::endl;
 
   auto sec = opt_int(NUMBER_OF_SECONDS_WORKLOAD);
   auto begin = std::chrono::system_clock::now();
