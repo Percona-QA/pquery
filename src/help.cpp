@@ -66,7 +66,7 @@ void add_options() {
       "run pquery from generator or infine.\n If set, then query will be "
       "dynamically generated using random generator else sqls will be executed "
       "from --infine in some order based on shuffle. you can also use -k";
-  opt->setBool(false);
+  opt->setBool(true); // todo disable in release
   opt->setArgs(no_argument);
 
   /* Intial Seed for test */
@@ -525,7 +525,7 @@ void add_options() {
   /* log all queries */
   opt = newOption(Option::BOOL, Option::LOG_ALL_QUERIES, "log-all-queries");
   opt->help = "Log all queries (succeeded and failed)";
-  opt->setBool(false);
+  opt->setBool(true); // todo diable while merge
   opt->setArgs(no_argument);
 
   /* execute sql sequentially */
@@ -613,11 +613,25 @@ void add_options() {
   /* steps */
   opt = newOption(Option::INT, Option::STEP, "step");
   opt->help = "current step in pquery script";
-  opt->setInt(0);
+  opt->setInt(1);
 
   /* metadata file path */
   opt = newOption(Option::STRING, Option::METADATA_PATH, "metadata-path");
   opt->help = "path of metadata file";
+
+  /* sql format for */
+  opt = newOption(Option::INT, Option::SPECIAL_SQL, "special-sql");
+  opt->help = "special sql";
+  opt->setInt(10);
+  opt->setSQL();
+
+  /* file name of special sql */
+  opt = newOption(Option::STRING, Option::SQL_FILE, "sql-file");
+  opt->help =
+      "file to be used  for special sql\nT1_INT_1, T1_INT_2 will be replaced "
+      "with int columns of some table\n in database T1_VARCHAR_1, T1_VARCHAR_2 "
+      "will be replaced with varchar columns of some table in database";
+  opt->setString("grammer.sql");
 }
 
 Option::~Option() {}

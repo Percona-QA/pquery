@@ -115,8 +115,10 @@ struct Option {
     TRANSACTIONS_SIZE,
     COMMMIT_TO_ROLLBACK_RATIO,
     SAVEPOINT_PRB_K,
-    METADATA_PATH,
     STEP,
+    METADATA_PATH,
+    SPECIAL_SQL,
+    SQL_FILE,
     MAX
   } option;
   Option(Type t, Opt o, std::string n)

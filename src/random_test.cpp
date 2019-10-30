@@ -6,6 +6,7 @@
 #include "random_test.hpp"
 #include "common.hpp"
 #include "node.hpp"
+#include <regex>
 
 using namespace rapidjson;
 using namespace std;
@@ -1645,6 +1646,154 @@ void alter_tablespace_rename(Thd1 *thd) {
   }
 }
 
+/* load special sql from a file */
+static std::vector<std::string> load_special_sql_from() {
+  std::vector<std::string> array;
+  auto file = opt_string(SQL_FILE);
+  std::string line;
+
+  ifstream myfile(file);
+  if (myfile.is_open()) {
+    while (!myfile.eof()) {
+      getline(myfile, line);
+      array.push_back(line);
+    }
+    myfile.close();
+  } else
+    throw std::runtime_error("unable to open file " + file);
+  return array;
+}
+/* return preformatted sql */
+static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
+
+  static std::vector<std::string> all_sql = load_special_sql_from();
+  enum sql_col_types { INT, VARCHAR };
+
+  if (all_sql.size() == 0)
+    return;
+  std::cout << "size " << all_sql.size() << std::endl;
+
+  struct table {
+    table(std::string n, std::vector<std::string> i, std::vector<std::string> v)
+        : name(n), int_col(i), varchar_col(v){};
+    std::string name;
+    std::vector<std::string> int_col;
+    std::vector<std::string> varchar_col;
+  };
+
+  auto sql = all_sql[rand_int(all_sql.size() - 1)];
+
+  /* parse SQL in table */
+  std::vector<std::vector<int>> sql_tables;
+
+  int tab_sql = 1; // number of tables in sql
+  bool table_found;
+
+  do { // search for table
+    smatch match;
+    std::string tab_p = "T" + to_string(tab_sql); // table pattern
+
+    if (regex_search(sql, match, std::regex(tab_p))) {
+      table_found = true;
+      sql_tables.push_back({0, 0});
+
+      int col_sql = 1;
+      bool column_found;
+
+      do { // search of int column
+        std::string col_p = tab_p + "_INT_" + to_string(col_sql);
+        if (regex_search(sql, match, std::regex(col_p))) {
+          column_found = true;
+          sql_tables.at(tab_sql - 1).at(INT)++;
+          col_sql++;
+        } else
+          column_found = false;
+      } while (column_found);
+
+      col_sql = 1;
+      do {
+        std::string col_p = tab_p + "_VARCHAR_" + to_string(col_sql);
+        if (regex_search(sql, match, std::regex(col_p))) {
+          column_found = true;
+          sql_tables.at(tab_sql - 1).at(VARCHAR)++;
+          col_sql++;
+        } else
+          column_found = false;
+      } while (column_found);
+    } else
+      table_found = false;
+    tab_sql++;
+  } while (table_found);
+
+  std::vector<table> final_tables;
+
+  /* try at max 100 times */
+  int table_check = 100;
+
+  while (sql_tables.size() > 0 && table_check-- > 0) {
+
+    auto int_columns = sql_tables.back().at(INT);
+    auto varchar_columns = sql_tables.back().at(VARCHAR);
+    vector<std::string> int_cols_str, var_cols_str;
+    int column_check = 20;
+    auto table = all_tables->at(rand_int(all_tables->size() - 1));
+    table->table_mutex.lock();
+    auto columns = table->columns_;
+
+    // find columns in table //
+    do {
+      auto col = columns->at(rand_int(columns->size() - 1));
+
+      if (int_columns > 0 && col->type_ == Column::INT) {
+        int_cols_str.push_back(col->name_);
+        int_columns--;
+      }
+      if (varchar_columns > 0 && col->type_ == Column::VARCHAR) {
+        var_cols_str.push_back(col->name_);
+        varchar_columns--;
+      }
+
+      if (int_columns == 0 && varchar_columns == 0) {
+        final_tables.emplace_back(table->name_, int_cols_str, var_cols_str);
+        sql_tables.pop_back();
+      }
+    } while (!(int_columns == 0 && varchar_columns == 0) && column_check-- > 0);
+
+    table->table_mutex.unlock();
+  }
+
+  if (sql_tables.size() == 0) {
+
+    for (size_t i = 0; i < final_tables.size(); i++) {
+      auto table = final_tables.at(i);
+      auto table_name = "T" + to_string(i + 1);
+
+      /* replace int column */
+      for (size_t j = 0; j < table.int_col.size(); j++)
+        sql = std::regex_replace(
+            sql, std::regex(table_name + "_INT_" + to_string(j + 1)),
+            table_name + "." + table.int_col.at(j));
+
+      /* replace varchar column */
+      for (size_t j = 0; j < table.varchar_col.size(); j++)
+        sql = std::regex_replace(
+            sql, std::regex(table_name + "_VARCHAR_" + to_string(j + 1)),
+            table_name + "." + table.varchar_col.at(j));
+
+      /* replace table "T1 " => tt_N T1 */
+      sql = std::regex_replace(sql, std::regex(table_name + " "),
+                               table.name + " " + table_name + " ");
+      /* replace table "T1$" => tt_N T1*/
+      sql = std::regex_replace(sql, std::regex(table_name + "$"),
+                               table.name + " " + table_name + "");
+    }
+
+    std::cout << sql << std::endl;
+    execute_sql(sql, thd);
+  } else
+    std::cout << "NOT ABLE TO FIND any SQL" << std::endl;
+};
+
 /* save metadata to a file */
 void save_metadata_to_file() {
   std::string path = opt_string(METADATA_PATH);
@@ -1743,7 +1892,7 @@ void create_in_memory_data() {
 }
 
 /*load objects from a file */
-static std::string load_objects_from_file() {
+static std::string load_metadata_from_file() {
   auto previous_step = options->at(Option::STEP)->getInt() - 1;
   auto path = opt_string(METADATA_PATH);
   if (path.size() == 0)
@@ -1906,7 +2055,6 @@ bool Thd1::load_metadata() {
   auto initial_seed = opt_int(INITIAL_SEED);
   rng = std::mt19937(initial_seed);
 
-
   /* find out innodb page_size */
   if (options->at(Option::ENGINE)->getString().compare("INNODB") == 0)
     g_innodb_page_size =
@@ -1916,7 +2064,7 @@ bool Thd1::load_metadata() {
   create_in_memory_data();
 
   if (options->at(Option::STEP)->getInt() > 1) {
-    auto file = load_objects_from_file();
+    auto file = load_metadata_from_file();
     std::cout << "metadata loaded from " << file << std::endl;
   } else {
     create_database_tablespace(this);
@@ -1945,14 +2093,14 @@ void Thd1::run_some_query() {
                   options->at(Option::TEMPORARY_TO_NORMAL_RATIO)->getInt();
 
   /* create temporary table */
-  std::vector<Table *> *all_temp_tables = new std::vector<Table *>;
+  std::vector<Table *> *all_session_tables = new std::vector<Table *>;
   for (int i = 0; i < temp_tables; i++) {
 
     ddl_query = true;
     Table *table = Table::table_id(Table::TEMPORARY, i, this);
     if (!execute_sql(table->defination(), this))
       throw std::runtime_error("Create table failed " + table->name_);
-    all_temp_tables->push_back(table);
+    all_session_tables->push_back(table);
 
     /* load default data in temporary table */
     if (!just_ddl) {
@@ -2003,8 +2151,9 @@ void Thd1::run_some_query() {
   thread_log << thread_id << " value of rand_int(100) " << rand_int(100)
              << std::endl;
 
-  /* combine all_tables with temp_tables */
-  int total_size = all_tables->size() + temp_tables;
+  /* combine session tables with all tables */
+  all_session_tables->insert(all_session_tables->end(), all_tables->begin(),
+                             all_tables->end());
 
   /* freqency of all options per thread */
   int opt_feq[Option::MAX][2] = {{0, 0}};
@@ -2052,11 +2201,8 @@ void Thd1::run_some_query() {
       }
     }
 
-    auto curr = rand_int(total_size - 1);
-
-    auto table = (curr < temp_tables) ? all_temp_tables->at(curr)
-                                      : all_tables->at(curr - temp_tables);
-
+    auto table =
+        all_session_tables->at(rand_int(all_session_tables->size() - 1));
     auto option = pick_some_option();
     ddl_query = options->at(option)->ddl == true ? true : false;
 
@@ -2136,6 +2282,10 @@ void Thd1::run_some_query() {
     case Option::UNDO_SQL:
       create_alter_drop_undo(this);
       break;
+    case Option::SPECIAL_SQL:
+      special_sql(all_tables, this);
+      break;
+
     default:
       throw std::runtime_error("invalid options");
     }
@@ -2162,8 +2312,9 @@ void Thd1::run_some_query() {
                  << ", success=> " << opt_feq[i][1] << std::endl;
   }
 
-  /* cleanup session tables */
-  for (auto &table : *all_temp_tables)
-    delete table;
-  delete all_temp_tables;
+  /* cleanup session temporary tables tables */
+  for (auto &table : *all_session_tables)
+    if (table->type == Table::TEMPORARY)
+      delete table;
+  delete all_session_tables;
 }
