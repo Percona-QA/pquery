@@ -1792,7 +1792,7 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
     execute_sql(sql, thd);
   } else
     std::cout << "NOT ABLE TO FIND any SQL" << std::endl;
-};
+}
 
 /* save metadata to a file */
 void save_metadata_to_file() {
