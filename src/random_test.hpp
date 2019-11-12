@@ -35,6 +35,7 @@
 
 
 int rand_int(int upper, int lower = 0);
+float rand_float(float upper, float lower = 0);
 std::string rand_string(int upper, int lower = 0);
 
 struct Table;
@@ -44,19 +45,21 @@ public:
     INT,
     CHAR,
     VARCHAR,
+    FLOAT,
+    DOUBLE,
     BOOL,
     BLOB,
     GENERATED,
     COLUMN_MAX // should be last
   } type_;
-  /* used for create new table/alter table add column*/
+  /* used to create new table/alter table add column*/
   Column(std::string name, Table *table, COLUMN_TYPES type);
   Column(Table *table, COLUMN_TYPES type) : type_(type), table_(table){};
-  /* used for read meta data */
+  /* used to read meta data */
   Column(std::string name, std::string type, Table *table)
       : type_(col_type(type)), name_(name), table_(table){};
-  /* table defination */
-  std::string defination();
+  /* table definition */
+  std::string definition();
   /* return random value of that column */
   virtual std::string rand_value();
   /* return string to call type */
@@ -65,7 +68,7 @@ public:
   COLUMN_TYPES col_type(std::string type);
   /* used to create_metadata */
   template <typename Writer> void Serialize(Writer &writer) const;
-  /* return the caluse of column */
+  /* return the clause of column */
 private:
   virtual std::string clause() {
     std::string str;
@@ -123,7 +126,7 @@ struct Index {
   template <typename Writer> void Serialize(Writer &writer) const;
   ~Index();
 
-  std::string defination();
+  std::string definition();
 
   std::string name_;
   std::vector<Ind_col *> *columns_;
@@ -168,7 +171,7 @@ public:
 
   Table(std::string n);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
-  std::string defination();
+  std::string definition();
   /* methods to create table of choice */
   void AddInternalColumn(Column *column) { columns_->push_back(column); }
   void AddInternalIndex(Index *index) { indexes_->push_back(index); }

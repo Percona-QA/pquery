@@ -47,7 +47,7 @@ void Node::writeFinalReport() {
             << "% were successful)";
     general_log << exitmsg.str() << std::endl;
   }
-  }
+}
 
 int Node::startWork() {
 
