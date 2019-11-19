@@ -1852,6 +1852,7 @@ void create_in_memory_data() {
           g_tablespace.push_back(g_tablespace[i] + to_string(j));
       }
     }
+    g_tablespace.push_back("innodb_system");
   }
 
   /* set some of tablespace encrypt */
@@ -1864,7 +1865,6 @@ void create_in_memory_data() {
     }
   }
 
-  g_tablespace.push_back("innodb_system");
 
   std::string row_format = opt_string(ROW_FORMAT);
   if (row_format.compare("uncompressed") == 0) {
