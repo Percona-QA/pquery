@@ -33,7 +33,6 @@
 #define opt_bool(a) options->at(Option::a)->getBool();
 #define opt_string(a) options->at(Option::a)->getString();
 
-
 int rand_int(int upper, int lower = 0);
 std::string rand_string(int upper, int lower = 0);
 
@@ -51,10 +50,12 @@ public:
   } type_;
   /* used for create new table/alter table add column*/
   Column(std::string name, Table *table, COLUMN_TYPES type);
+
   Column(Table *table, COLUMN_TYPES type) : type_(type), table_(table){};
-  /* used for read meta data */
+
   Column(std::string name, std::string type, Table *table)
       : type_(col_type(type)), name_(name), table_(table){};
+
   /* table defination */
   std::string defination();
   /* return random value of that column */
@@ -90,23 +91,30 @@ public:
 
 struct Blob_Column : public Column {
   Blob_Column(std::string name, Table *table);
-  std::string sub_type;
-  std::string clause() {
-    return sub_type;
-  };
+  Blob_Column(std::string name, Table *table, std::string sub_type_);
+  std::string sub_type; // sub_type can be tiny, medium, large blob
+  std::string clause() { return sub_type; };
   std::string rand_value() { return "\'" + rand_string(1000) + "\'"; }
+  template <typename Writer> void Serialize(Writer &writer) const;
 };
 
 struct Generated_Column : public Column {
+
+  /* constructor for new random generated column */
   Generated_Column(std::string name, Table *table);
+
+  /* constructor used to prepare metadata */
+  Generated_Column(std::string name, Table *table, std::string clause,
+                   std::string sub_type);
+
+  template <typename Writer> void Serialize(Writer &writer) const;
+
   std::string str;
   std::string clause() { return str; };
   std::string rand_value() { return "default"; };
   ~Generated_Column(){};
-  COLUMN_TYPES g_type;
-  COLUMN_TYPES generate_type() {
-    return g_type;
-  };
+  COLUMN_TYPES g_type; // sub type can be blob,int, varchar
+  COLUMN_TYPES generate_type() { return g_type; };
 };
 
 struct Ind_col {
@@ -147,24 +155,18 @@ struct Thd1 {
   MYSQL *conn;
   std::atomic<unsigned long long> &performed_queries_total;
   std::atomic<unsigned long long> &failed_queries_total;
-  std::string result;        // resul of sql
-  bool ddl_query = false;    // is the query ddl
-  bool success = false;      // if the sql is successfully executed
-  bool store_result = false; // store result of executed sql
-  int max_con_fail_count = 0;        // consecutive failed queries
+  std::string result;         // resul of sql
+  bool ddl_query = false;     // is the query ddl
+  bool success = false;       // if the sql is successfully executed
+  bool store_result = false;  // store result of executed sql
+  int max_con_fail_count = 0; // consecutive failed queries
   int query_number = 0;
 };
-
 
 /* Table basic properties */
 struct Table {
 public:
-  enum TABLE_TYPES {
-    PARTITION,
-    NORMAL,
-    TEMPORARY,
-    TABLE_MAX
-  } type;
+  enum TABLE_TYPES { PARTITION, NORMAL, TEMPORARY, TABLE_MAX } type;
 
   Table(std::string n);
   static Table *table_id(TABLE_TYPES choice, int id, Thd1 *thd);
@@ -225,7 +227,6 @@ public:
   Temporary_table(std::string n) : Table(n){};
   Temporary_table(const Temporary_table &table) : Table(table.name_){};
 };
-
 
 int set_seed(Thd1 *thd);
 int sum_of_all_options(Thd1 *thd);
