@@ -424,7 +424,7 @@ Generated_Column::Generated_Column(std::string name, Table *table,
   name_ = name;
   str = clause;
   g_type = Column::col_type(sub_type);
-};
+}
 
 /* Generated column constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
