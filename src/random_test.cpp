@@ -2331,7 +2331,7 @@ void Thd1::run_some_query() {
       create_alter_drop_undo(this);
       break;
     case Option::SPECIAL_SQL:
-      special_sql(all_tables, this);
+      special_sql(all_session_tables, this);
       break;
 
     default:
