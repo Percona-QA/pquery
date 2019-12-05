@@ -7,6 +7,8 @@
 #include "common.hpp"
 #include "node.hpp"
 #include <regex>
+#include <sstream>
+#include <iomanip>
 
 using namespace rapidjson;
 using namespace std;
@@ -260,8 +262,10 @@ int rand_int(int upper, int lower) {
 
 /* return random float number in the range of upper and lower */
 float rand_float(float upper, float lower) {
-  float r = (rand() / (float)RAND_MAX * (upper - 1)) + lower;
-  return r;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dis(lower, upper);
+  return (int)(dis(gen)*100.0)/100.0;
 }
 
 /* return random string in range of upper and lower */
@@ -340,13 +344,25 @@ std::string Column::rand_value() {
     return std::to_string(rand_int(rec));
     break;
   case (COLUMN_TYPES::FLOAT):
-    static auto rec1 = opt_int(INITIAL_RECORDS_IN_TABLE);
-    return std::to_string(rand_float(rec1));
+  {
+    int rec1 = opt_int(INITIAL_RECORDS_IN_TABLE);
+    rec1 /= 100;
+    std::ostringstream out;
+    out << std::fixed;
+    out << std::setprecision(2) << rand_float(rec1);
+    return out.str();
     break;
+  }
   case (COLUMN_TYPES::DOUBLE):
-    static auto rec2 = opt_int(INITIAL_RECORDS_IN_TABLE);
-    return std::to_string(rand_float(rec2));
+  {
+    int rec2 = opt_int(INITIAL_RECORDS_IN_TABLE);
+    rec2 /= 100;
+    std::ostringstream out;
+    out << std::fixed;
+    out << std::setprecision(5) << rand_float(rec2);
+    return out.str();
     break;
+  }
   case CHAR:
   case VARCHAR:
     return "\'" + rand_string(length) + "\'";
@@ -1711,7 +1727,6 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
 
   if (all_sql.size() == 0)
     return;
-  std::cout << "size " << all_sql.size() << std::endl;
 
   struct table {
     table(std::string n, std::vector<std::string> i, std::vector<std::string> v)
@@ -1828,7 +1843,6 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
                                table.name + " " + table_name + "");
     }
 
-    std::cout << sql << std::endl;
     execute_sql(sql, thd);
   } else
     std::cout << "NOT ABLE TO FIND any SQL" << std::endl;
