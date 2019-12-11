@@ -343,8 +343,7 @@ std::string Column::rand_value() {
     break;
   case (COLUMN_TYPES::FLOAT):
   {
-    float rec1 = opt_int(INITIAL_RECORDS_IN_TABLE);
-    rec1 /= 100;
+    static float rec1 = 0.01 * opt_int(INITIAL_RECORDS_IN_TABLE);
     std::ostringstream out;
     out << std::fixed;
     out << std::setprecision(2) << rand_float(rec1);
@@ -353,8 +352,7 @@ std::string Column::rand_value() {
   }
   case (COLUMN_TYPES::DOUBLE):
   {
-    double rec2 = opt_int(INITIAL_RECORDS_IN_TABLE);
-    rec2 /= 100000;
+    static float rec2 = 0.00001 * opt_int(INITIAL_RECORDS_IN_TABLE);
     std::ostringstream out;
     out << std::fixed;
     out << std::setprecision(5) << rand_float(rec2);
@@ -814,8 +812,8 @@ void Table::CreateDefaultColumn() {
       /* loop untill we select some column */
       while (col_type == Column::COLUMN_MAX) {
 
-        /* columns are 6:2:2:2:2:2:1 INT:FLOAT:DOUBLE:VARCHAR:CHAR:BLOB:BOOL */
-        auto prob = rand_int(17);
+        /* columns are 6:2:2:4:2:2:1 INT:FLOAT:DOUBLE:VARCHAR:CHAR:BLOB:BOOL */
+        auto prob = rand_int(19);
 
         /* intial columns can't be generated columns. also 50% of tables last
          * columns are virtuals */
@@ -827,13 +825,13 @@ void Table::CreateDefaultColumn() {
           col_type = Column::FLOAT;
         else if (prob < 10)
           col_type = Column::DOUBLE;
-        else if (prob < 12)
-          col_type = Column::VARCHAR;
         else if (prob < 14)
+          col_type = Column::VARCHAR;
+        else if (prob < 16)
           col_type = Column::CHAR;
-        else if (!no_blob_col && prob < 16)
+        else if (!no_blob_col && prob < 18)
           col_type = Column::BLOB;
-        else if (prob == 17)
+        else if (prob == 19)
           col_type = Column::BOOL;
       }
 
