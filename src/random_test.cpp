@@ -262,10 +262,8 @@ int rand_int(int upper, int lower) {
 
 /* return random float number in the range of upper and lower */
 float rand_float(float upper, float lower) {
-  std::random_device rd;
-  std::mt19937 gen(rd());
   std::uniform_real_distribution<> dis(lower, upper);
-  return (int)(dis(gen)*100.0)/100.0;
+  return (float)(dis(rng)*100.0)/100.0;
 }
 
 /* return random string in range of upper and lower */
@@ -345,7 +343,7 @@ std::string Column::rand_value() {
     break;
   case (COLUMN_TYPES::FLOAT):
   {
-    int rec1 = opt_int(INITIAL_RECORDS_IN_TABLE);
+    float rec1 = opt_int(INITIAL_RECORDS_IN_TABLE);
     rec1 /= 100;
     std::ostringstream out;
     out << std::fixed;
@@ -355,8 +353,8 @@ std::string Column::rand_value() {
   }
   case (COLUMN_TYPES::DOUBLE):
   {
-    int rec2 = opt_int(INITIAL_RECORDS_IN_TABLE);
-    rec2 /= 100;
+    double rec2 = opt_int(INITIAL_RECORDS_IN_TABLE);
+    rec2 /= 100000;
     std::ostringstream out;
     out << std::fixed;
     out << std::setprecision(5) << rand_float(rec2);
@@ -774,14 +772,14 @@ void Table::CreateDefaultColumn() {
       /* loop untill we select some column */
       while (col_type == Column::COLUMN_MAX) {
 
-        /* columns are 4:4:2:2:2:2:1 INT:FLOAT:DOUBLE:VARCHAR:CHAR:BLOB:BOOL */
+        /* columns are 6:2:2:2:2:2:1 INT:FLOAT:DOUBLE:VARCHAR:CHAR:BLOB:BOOL */
         auto prob = rand_int(17);
 
         /* intial columns can't be generated columns. also 50% of tables last
          * columns are virtuals */
         if (!no_virtual_col && i >= .8 * max_columns && rand_int(1) == 1)
           col_type = Column::GENERATED;
-        else if (prob < 4)
+        else if (prob < 6)
           col_type = Column::INT;
         else if (prob < 8)
           col_type = Column::FLOAT;
@@ -2007,7 +2005,8 @@ static std::string load_metadata_from_file() {
       std::string type = col["type"].GetString();
 
       if (type.compare("INT") == 0 || type.compare("CHAR") == 0 ||
-          type.compare("VARCHAR") == 0 || type.compare("BOOL") == 0)
+          type.compare("VARCHAR") == 0 || type.compare("BOOL") == 0 ||
+          type.compare("FLOAT") == 0 || type.compare("DOUBLE") == 0)
         a = new Column(col["name"].GetString(), type, table);
       else if (type.compare("GENERATED") == 0)
         a = new Generated_Column(col["name"].GetString(), table);
