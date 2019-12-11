@@ -261,9 +261,12 @@ int rand_int(int upper, int lower) {
 }
 
 /* return random float number in the range of upper and lower */
-float rand_float(float upper, float lower) {
+std::string rand_float(float upper, float lower, int precision) {
   std::uniform_real_distribution<> dis(lower, upper);
-  return (float)(dis(rng)*100.0)/100.0;
+  std::ostringstream out;
+  out << std::fixed;
+  out << std::setprecision(precision) << (float)(dis(rng)*100.0)/100.0;
+  return out.str();
 }
 
 /* return random string in range of upper and lower */
@@ -344,19 +347,13 @@ std::string Column::rand_value() {
   case (COLUMN_TYPES::FLOAT):
   {
     static float rec1 = 0.01 * opt_int(INITIAL_RECORDS_IN_TABLE);
-    std::ostringstream out;
-    out << std::fixed;
-    out << std::setprecision(2) << rand_float(rec1);
-    return out.str();
+    return rand_float(rec1);
     break;
   }
   case (COLUMN_TYPES::DOUBLE):
   {
     static float rec2 = 0.00001 * opt_int(INITIAL_RECORDS_IN_TABLE);
-    std::ostringstream out;
-    out << std::fixed;
-    out << std::setprecision(5) << rand_float(rec2);
-    return out.str();
+    return rand_float(rec2,0,5);
     break;
   }
   case CHAR:

@@ -34,7 +34,7 @@
 #define opt_string(a) options->at(Option::a)->getString();
 
 int rand_int(int upper, int lower = 0);
-float rand_float(float upper, float lower = 0);
+std::string rand_float(float upper, float lower = 0, int precision = 2);
 std::string rand_string(int upper, int lower = 0);
 
 struct Table;
