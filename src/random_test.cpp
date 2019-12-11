@@ -51,7 +51,7 @@ static std::string db_branch() {
   return branch;
 }
 
-/* return probabality of all options and  disable some feature based on user
+/* return probabality of all options and disable some feature based on user
  * request/ branch/ fork */
 int sum_of_all_options(Thd1 *thd) {
 
@@ -453,6 +453,21 @@ Blob_Column::Blob_Column(std::string name, Table *table)
   }
 }
 
+Blob_Column::Blob_Column(std::string name, Table *table, std::string sub_type_)
+    : Column(table, Column::BLOB) {
+  name_ = name;
+  sub_type = sub_type_;
+}
+
+/* Constructor used for load  metadata */
+Generated_Column::Generated_Column(std::string name, Table *table,
+                                   std::string clause, std::string sub_type)
+    : Column(table, Column::GENERATED) {
+  name_ = name;
+  str = clause;
+  g_type = Column::col_type(sub_type);
+}
+
 /* Generated column constructor. lock table before calling */
 Generated_Column::Generated_Column(std::string name, Table *table)
     : Column(table, Column::GENERATED) {
@@ -549,6 +564,7 @@ Generated_Column::Generated_Column(std::string name, Table *table)
     str += " AS  (CONCAT(";
     str += gen_sql;
     str += ")";
+    length = actual_size;
   } else {
     throw std::runtime_error("unhandled " + col_type_to_string(g_type) +
                              " at line " + to_string(__LINE__));
@@ -560,7 +576,6 @@ Generated_Column::Generated_Column(std::string name, Table *table)
 }
 
 template <typename Writer> void Column::Serialize(Writer &writer) const {
-  writer.StartObject();
   writer.String("name");
   writer.String(name_.c_str(), static_cast<SizeType>(name_.length()));
   writer.String("type");
@@ -576,7 +591,22 @@ template <typename Writer> void Column::Serialize(Writer &writer) const {
   writer.Bool(auto_increment);
   writer.String("lenght");
   writer.Int(length);
-  writer.EndObject();
+}
+
+/* add sub_type metadata */
+template <typename Writer> void Blob_Column::Serialize(Writer &writer) const {
+  writer.String("sub_type");
+  writer.String(sub_type.c_str(), static_cast<SizeType>(sub_type.length()));
+}
+
+/* add sub_type and clause in metadata */
+template <typename Writer>
+void Generated_Column::Serialize(Writer &writer) const {
+  writer.String("sub_type");
+  auto type = col_type_to_string(g_type);
+  writer.String(type.c_str(), static_cast<SizeType>(type.length()));
+  writer.String("clause");
+  writer.String(str.c_str(), static_cast<SizeType>(str.length()));
 }
 
 template <typename Writer> void Ind_col::Serialize(Writer &writer) const {
@@ -602,6 +632,7 @@ template <typename Writer> void Index::Serialize(Writer &writer) const {
   writer.EndArray();
   writer.EndObject();
 }
+
 Index::~Index() {
   for (auto id_col : *columns_) {
     delete id_col;
@@ -647,8 +678,19 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
 
   writer.String(("columns"));
   writer.StartArray();
-  for (auto &col : *columns_)
+
+  /* write all colummns */
+  for (auto &col : *columns_) {
+    writer.StartObject();
     col->Serialize(writer);
+    if (col->type_ == Column::GENERATED) {
+      static_cast<Generated_Column *>(col)->Serialize(writer);
+    } else if (col->type_ == Column::BLOB) {
+      static_cast<Blob_Column *>(col)->Serialize(writer);
+    }
+    writer.EndObject();
+  }
+
   writer.EndArray();
 
   writer.String(("indexes"));
@@ -823,7 +865,7 @@ void Table::CreateDefaultIndex() {
   if (max_indexes == 0)
     return;
 
-  /* if table have few column , decrease number of  indexes */
+  /* if table have few column, decrease number of indexes */
   int indexes = rand_int(
       columns_->size() < max_indexes ? columns_->size() : max_indexes, 1);
 
@@ -1717,6 +1759,7 @@ static std::vector<std::string> load_special_sql_from() {
     throw std::runtime_error("unable to open file " + file);
   return array;
 }
+
 /* return preformatted sql */
 static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
 
@@ -1882,6 +1925,7 @@ void create_in_memory_data() {
   /* Adjust the tablespaces */
   if (!options->at(Option::NO_TABLESPACE)->getBool()) {
     g_tablespace = {"tab02k", "tab04k"};
+    g_tablespace.push_back("innodb_system");
     if (g_innodb_page_size >= INNODB_8K_PAGE_SIZE) {
       g_tablespace.push_back("tab08k");
     }
@@ -1911,12 +1955,11 @@ void create_in_memory_data() {
       !(strcmp(FORK, "MySQL") == 0 && db_branch().compare("5.7") == 0)) {
     int i = 0;
     for (auto &tablespace : g_tablespace) {
-      if (i++ % 2 == 0) // alternate tbs are encrypt
+      if (i++ % 2 == 0 &&
+          tablespace.compare("innodb_system") != 0) // alternate tbs are encrypt
         tablespace += "_e";
     }
   }
-
-  g_tablespace.push_back("innodb_system");
 
   std::string row_format = opt_string(ROW_FORMAT);
   if (row_format.compare("uncompressed") == 0) {
@@ -2000,19 +2043,24 @@ static std::string load_metadata_from_file() {
 
     table->key_block_size = tab["key_block_size"].GetInt();
 
+    /* save columns */
     for (auto &col : tab["columns"].GetArray()) {
       Column *a;
       std::string type = col["type"].GetString();
 
       if (type.compare("INT") == 0 || type.compare("CHAR") == 0 ||
           type.compare("VARCHAR") == 0 || type.compare("BOOL") == 0 ||
-          type.compare("FLOAT") == 0 || type.compare("DOUBLE") == 0)
+          type.compare("FLOAT") == 0 || type.compare("DOUBLE") == 0) {
         a = new Column(col["name"].GetString(), type, table);
-      else if (type.compare("GENERATED") == 0)
-        a = new Generated_Column(col["name"].GetString(), table);
-      else if (type.compare("BLOB") == 0)
-        a = new Blob_Column(col["name"].GetString(), table);
-      else
+      } else if (type.compare("GENERATED") == 0) {
+        auto name = col["name"].GetString();
+        auto clause = col["clause"].GetString();
+        auto sub_type = col["sub_type"].GetString();
+        a = new Generated_Column(name, table, clause, sub_type);
+      } else if (type.compare("BLOB") == 0) {
+        auto sub_type = col["sub_type"].GetString();
+        a = new Blob_Column(col["name"].GetString(), table, sub_type);
+      } else
         throw std::runtime_error("unhandled column type");
 
       a->null = col["null"].GetBool();
@@ -2336,7 +2384,7 @@ void Thd1::run_some_query() {
       create_alter_drop_undo(this);
       break;
     case Option::SPECIAL_SQL:
-      special_sql(all_tables, this);
+      special_sql(all_session_tables, this);
       break;
 
     default:
