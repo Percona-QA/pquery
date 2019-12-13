@@ -1,5 +1,5 @@
 IF (MYSQL_FOUND)
-  SET (BINARY_NAME "pquery2")
+  SET (BINARY_NAME "pquery3")
   ADD_SUBDIRECTORY(third_party)
   INCLUDE_DIRECTORIES(third_party/inih++/include third_party/rapidjson/include)
   IF (MARIADB)
