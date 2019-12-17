@@ -533,9 +533,9 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         column_size = 10; // interger max string size is 10
         break;
       case FLOAT:
-        column_size = 10;
       case DOUBLE:
         column_size = 10;
+        break;
       case BOOL:
         column_size = 1;
         break;
