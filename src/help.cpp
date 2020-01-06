@@ -342,7 +342,7 @@ void add_options() {
   /* SELECT */
   opt = newOption(Option::BOOL, Option::NO_SELECT, "no-select");
   opt->help = "do not execute any type select on tables";
-  opt->setBool("false");
+  opt->setBool(false);
   opt->setArgs(no_argument);
 
   /* INSERT */
