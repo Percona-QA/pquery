@@ -1570,6 +1570,7 @@ void Table::ColumnRename(Thd1 *thd) {
 void Table::DeleteRandomRow(Thd1 *thd) {
   table_mutex.lock();
   auto where = -1;
+  auto prob = rand_int(98);
   bool only_bool = true;
   int pk_pos = -1;
 
@@ -1607,10 +1608,27 @@ void Table::DeleteRandomRow(Thd1 *thd) {
       }
     }
   }
-
   std::string sql = "DELETE FROM " + name_ + " WHERE " +
-                    columns_->at(where)->name_ + "=" +
-                    columns_->at(where)->rand_value();
+                   columns_->at(where)->name_;
+  if (prob <= 90)
+    sql += " = " + columns_->at(where)->rand_value();
+  else if (prob <= 92)
+    sql += " >= " +
+          columns_->at(where)->rand_value() + " AND " +
+          columns_->at(where)->name_ + " <= " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 94)
+    sql += " IN (" +
+          columns_->at(where)->rand_value() + "," +
+          columns_->at(where)->rand_value() + ")";
+  else if (prob <= 96)
+    sql += " BETWEEN " +
+          columns_->at(where)->rand_value() + " AND " +
+          columns_->at(where)->rand_value();
+  else
+    sql += " LIKE '%" +
+          columns_->at(where)->rand_value() + "%'";
+
   table_mutex.unlock();
   execute_sql(sql, thd);
 }
@@ -1618,9 +1636,36 @@ void Table::DeleteRandomRow(Thd1 *thd) {
 void Table::SelectRandomRow(Thd1 *thd) {
   table_mutex.lock();
   auto where = rand_int(columns_->size() - 1);
+  auto prob = rand_int(100);
   std::string sql = "SELECT * FROM " + name_ + " WHERE " +
-                    columns_->at(where)->name_ + "=" +
-                    columns_->at(where)->rand_value();
+                   columns_->at(where)->name_;
+  if (rand_int(1000) < 2)
+    sql += " NOT BETWEEN " +
+          columns_->at(where)->rand_value() + " AND " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 90)
+    sql += " = " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 92)
+    sql += " >= " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 94)
+    sql += " >= " +
+          columns_->at(where)->rand_value() + " AND " +
+          columns_->at(where)->name_ + " <= " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 96)
+    sql += " IN (" +
+          columns_->at(where)->rand_value() + ", " +
+          columns_->at(where)->rand_value() + ")";
+  else if (prob <= 98)
+    sql += " LIKE '%" +
+          columns_->at(where)->rand_value() + "%'";
+  else
+    sql += " BETWEEN " +
+          columns_->at(where)->rand_value() + " AND " +
+          columns_->at(where)->rand_value();
+
   table_mutex.unlock();
   execute_sql(sql, thd);
 }
@@ -1630,6 +1675,10 @@ void Table::UpdateRandomROW(Thd1 *thd) {
   table_mutex.lock();
   auto set = rand_int(columns_->size() - 1);
   auto where = rand_int(columns_->size() - 1);
+  auto prob = rand_int(98);
+  std::string sql = "UPDATE " + name_ + " SET " +
+                   columns_->at(set)->name_ + " = " +
+                   columns_->at(set)->rand_value() + " WHERE ";
 
   /* if tables has pkey try to use that in where clause for 50% cases */
   for (size_t i = 0; i < columns_->size(); i++) {
@@ -1638,11 +1687,25 @@ void Table::UpdateRandomROW(Thd1 *thd) {
       break;
     }
   }
+  if (prob <= 90)
+    sql += columns_->at(where)->name_ + " = " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 92)
+    sql += columns_->at(where)->name_ + " >= " +
+          columns_->at(where)->rand_value() + " AND " + " <= " +
+          columns_->at(where)->rand_value();
+  else if (prob <= 94)
+    sql += columns_->at(where)->name_ + " IN (" +
+          columns_->at(where)->rand_value() + "," +
+          columns_->at(where)->rand_value() + ")";
+  else if (prob <= 96)
+    sql += columns_->at(where)->name_ + " BETWEEN " +
+          columns_->at(where)->rand_value() + " AND " +
+          columns_->at(where)->rand_value();
+  else
+    sql += columns_->at(where)->name_ + " LIKE '%" +
+          columns_->at(where)->rand_value() + "%'";
 
-  std::string sql = "UPDATE " + name_ + " SET " + columns_->at(set)->name_ +
-                    "=" + columns_->at(set)->rand_value() + " WHERE " +
-                    columns_->at(where)->name_ + "=" +
-                    columns_->at(where)->rand_value();
   table_mutex.unlock();
   execute_sql(sql, thd);
 }
