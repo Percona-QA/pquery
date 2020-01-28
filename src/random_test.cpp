@@ -68,6 +68,10 @@ int sum_of_all_options(Thd1 *thd) {
     options->at(Option::NO_COLUMN_COMPRESSION)->setBool("true");
   }
 
+  /* addition features in percona-server */
+  if (strcmp(FORK,"Percona-Server") == 0)
+	  g_encryption = {"Y","N","KEYRING"};
+
   if (db_branch().compare("8.0") == 0) {
     /* for 8.0 default columns set default colums */
     if (!options->at(Option::COLUMNS)->cl)
@@ -462,7 +466,7 @@ Blob_Column::Blob_Column(std::string name, Table *table, std::string sub_type_)
   sub_type = sub_type_;
 }
 
-/* Constructor used for load  metadata */
+/* Constructor used for load metadata */
 Generated_Column::Generated_Column(std::string name, Table *table,
                                    std::string clause, std::string sub_type)
     : Column(table, Column::GENERATED) {
@@ -670,7 +674,7 @@ template <typename Writer> void Table::Serialize(Writer &writer) const {
     writer.String("file_per_table");
 
   writer.String("encryption");
-  writer.Bool(encryption);
+  writer.String(encryption.c_str(), static_cast<SizeType>(encryption.length()));
 
   writer.String("compression");
   writer.String(compression.c_str(),
@@ -747,15 +751,17 @@ void Table::DropCreate(Thd1 *thd) {
 
     auto no_encryption = opt_bool(NO_ENCRYPTION);
 
-    std::string encrypt_sql = " ENCRYPTION = ";
-    encrypt_sql += (encryption == false ? "'y' " : "'n'");
+    std::string encrypt_sql = " ENCRYPTION = " + encryption;
 
-    /* If tablespace is rename or encrypted,  or tablespace rename/encrypted */
+    /* If tablespace is rename or encrypted, or tablespace rename/encrypted */
     if (!execute_sql(def + tbs, thd))
       if (!no_encryption && (execute_sql(def + encrypt_sql, thd) ||
                              execute_sql(def + encrypt_sql + tbs, thd))) {
         table_mutex.lock();
-        encryption = !encryption;
+        if (encryption.compare("Y") == 0)
+          encryption = 'N';
+        else if (encryption.compare("N") == 0)
+          encryption = 'Y';
         table_mutex.unlock();
       }
   }
@@ -988,21 +994,18 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
 
     if (table->tablespace.substr(table->tablespace.size() - 2, 2)
             .compare("_e") == 0)
-      table->encryption = true;
-
+      table->encryption = "Y";
     table->row_format.clear();
-
     if (g_innodb_page_size > INNODB_16K_PAGE_SIZE ||
         table->tablespace.compare("innodb_system") == 0 ||
         stoi(table->tablespace.substr(3, 2)) == g_innodb_page_size)
       table->key_block_size = 0;
     else
       table->key_block_size = std::stoi(table->tablespace.substr(3, 2));
-
   } else if (table->type != TEMPORARY && !no_encryption &&
-             g_encryption.size() > 0 &&
-             g_encryption[rand_int(g_encryption.size() - 1)].compare("Y") == 0)
-    table->encryption = true;
+             g_encryption.size() > 0) {
+    table->encryption = g_encryption[rand_int(g_encryption.size() - 1)];
+  }
 
   /* if temporary table encrypt variable set create encrypt table */
   static auto temp_table_encrypt =
@@ -1010,7 +1013,7 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
 
   if (strcmp(FORK, "Percona-Server") == 0 && db_branch().compare("5.7") == 0 &&
       temp_table_encrypt.compare("1") == 0 && table->type == TEMPORARY)
-    table->encryption = true;
+    table->encryption = 'y';
 
   /* if innodb system is encrypt , create encrypt table */
   static auto system_table_encrypt =
@@ -1019,7 +1022,7 @@ Table *Table::table_id(TABLE_TYPES type, int id, Thd1 *thd) {
   if (strcmp(FORK, "Percona-Server") == 0 && table->tablespace.size() > 0 &&
       table->tablespace.compare("innodb_system") == 0 &&
       system_table_encrypt.compare("1") == 0) {
-    table->encryption = true;
+    table->encryption = 'y';
   }
 
   /* 25 % tables are compress */
@@ -1071,10 +1074,10 @@ std::string Table::definition() {
   def += " )";
   static auto no_encryption = opt_bool(NO_ENCRYPTION);
 
-  if (encryption)
-    def += " ENCRYPTION='Y'";
-  else if (type != TEMPORARY && rand_int(1) == 1 && !no_encryption)
-    def += " ENCRYPTION='N'";
+  if (!no_encryption && type != TEMPORARY) {
+    if (encryption.compare("N") != 0 || rand_int(1) == 0)
+      def += " ENCRYPTION='" + encryption + "'";
+  }
 
   if (!compression.empty())
     def += " COMPRESSION='" + compression + "'";
@@ -1221,10 +1224,7 @@ void Table::SetEncryption(Thd1 *thd) {
   sql += enc + "'";
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
-    if (enc.compare("Y"))
-      encryption = true;
-    else
-      encryption = false;
+    encryption = enc;
     table_mutex.unlock();
   }
 }
@@ -2104,7 +2104,7 @@ static std::string load_metadata_from_file() {
       table->tablespace = tablespace;
     }
 
-    table->encryption = tab["encryption"].GetBool();
+    table->encryption = tab["encryption"].GetString();
     table->compression = tab["compression"].GetString();
 
     table->key_block_size = tab["key_block_size"].GetInt();

@@ -208,7 +208,7 @@ public:
   std::string row_format;
   std::string tablespace;
   std::string compression;
-  bool encryption = false;
+  std::string encryption = "N";
   int key_block_size = 0;
   // std::string data_directory; todo add corressponding code
   std::vector<Column *> *columns_;
