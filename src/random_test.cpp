@@ -19,7 +19,7 @@ const int version = 1;
 
 static std::vector<Table *> *all_tables = new std::vector<Table *>;
 static std::vector<std::string> g_undo_tablespace;
-static std::vector<std::string> g_encryption = {"Y", "N"};
+static std::vector<std::string> g_encryption;
 static std::vector<std::string> g_compression = {"none", "zlib", "lz4"};
 static std::vector<std::string> g_row_format;
 static std::vector<std::string> g_tablespace;
@@ -62,15 +62,24 @@ int sum_of_all_options(Thd1 *thd) {
     opt_int_set(UNDO_SQL, 0);
   }
 
+  auto enc_type = options->at(Option::ENCRYPTION_TYPE)->getString();
+
+  /* for percona-server we have additional encryption type keyring */
+  if (enc_type.compare("all") == 0) {
+    g_encryption = {"Y", "N"};
+    if (strcmp(FORK, "Percona-Server") == 0) {
+      g_encryption.push_back("KEYRING");
+    }
+  } else if (enc_type.compare("oracle") == 0)
+    g_encryption = {"Y", "N"};
+  else
+    g_encryption = {enc_type};
+
   /* feature not supported by oracle */
   if (strcmp(FORK, "MySQL") == 0) {
     options->at(Option::ALTER_DATABASE_ENCRYPTION)->setInt(0);
     options->at(Option::NO_COLUMN_COMPRESSION)->setBool("true");
   }
-
-  /* addition features in percona-server */
-  if (strcmp(FORK,"Percona-Server") == 0)
-	  g_encryption = {"Y","N","KEYRING"};
 
   if (db_branch().compare("8.0") == 0) {
     /* for 8.0 default columns set default colums */

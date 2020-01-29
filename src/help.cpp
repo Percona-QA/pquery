@@ -98,7 +98,7 @@ void add_options() {
   opt->setArgs(no_argument);
 
   /* DDL option */
-  opt = newOption(Option::BOOL, Option::NO_DDL, "noddl");
+  opt = newOption(Option::BOOL, Option::NO_DDL, "no-ddl");
   opt->help = "do not use ddl in workload";
   opt->setBool(false);
   opt->setArgs(no_argument);
@@ -134,6 +134,13 @@ void add_options() {
   opt->help = "Disable All type of encrytion";
   opt->setBool(false);
   opt->setArgs(no_argument);
+
+  /* todo set default to all */
+  opt = newOption(Option::STRING, Option::ENCRYPTION_TYPE, "encryption-type");
+  opt->help =
+      "all ==> keyring/Y/N \n oracle ==> Y/N \n x ==> x \n if some string "
+      "other than all/oracle is given it would use it as encryption type";
+  opt->setString("oracle");
 
   /* create,alter,drop undo tablespace */
   opt = newOption(Option::INT, Option::UNDO_SQL, "undo-tbs-sql");
