@@ -1083,10 +1083,8 @@ std::string Table::definition() {
   def += " )";
   static auto no_encryption = opt_bool(NO_ENCRYPTION);
 
-  if (!no_encryption && type != TEMPORARY) {
-    if (encryption.compare("N") != 0 || rand_int(1) == 0)
-      def += " ENCRYPTION='" + encryption + "'";
-  }
+  if (!no_encryption && type != TEMPORARY)
+    def += " ENCRYPTION='" + encryption + "'";
 
   if (!compression.empty())
     def += " COMPRESSION='" + compression + "'";
@@ -2020,7 +2018,10 @@ void create_in_memory_data() {
       auto current_size = g_tablespace.size();
       for (size_t i = 0; i < current_size; i++) {
         for (int j = 1; j <= tbs_count; j++)
-          g_tablespace.push_back(g_tablespace[i] + to_string(j));
+          if (g_tablespace[i].compare("innodb_system") == 0)
+            continue;
+          else
+            g_tablespace.push_back(g_tablespace[i] + to_string(j));
       }
     }
   }
@@ -2197,8 +2198,12 @@ void create_database_tablespace(Thd1 *thd) {
     }
 
     /* encrypt tablespace */
-    if (tab.substr(tab.size() - 2, 2).compare("_e") == 0)
-      sql += " ENCRYPTION='Y'";
+    if (!options->at(Option::NO_ENCRYPTION)->getBool()) {
+      if (tab.substr(tab.size() - 2, 2).compare("_e") == 0)
+        sql += " ENCRYPTION='Y'";
+      else if (db_branch().compare("5.7") != 0)
+        sql += " ENCRYPTION='N'";
+    }
 
     /* firest try to rename tablespace back */
     if (db_branch().compare("5.7") != 0)
