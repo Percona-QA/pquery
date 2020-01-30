@@ -249,10 +249,18 @@ void add_options() {
   opt->help = "Probability of adding primary key in a table";
   opt->setInt(50);
 
+  /*Encrypt table inplace encryption */
+  opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION_INPLACE,
+                  "alter-table-encrypt-inplace");
+  opt->help = "Alter table set Encryption inplace.\nOnly available for ps";
+  opt->setInt(10);
+  opt->setSQL();
+  opt->setDDL();
+
   /*Encrypt table */
   opt = newOption(Option::INT, Option::ALTER_TABLE_ENCRYPTION,
                   "alter-table-encrypt");
-  opt->help = "Alter table set Encrytion";
+  opt->help = "Alter table set Encryption";
   opt->setInt(10);
   opt->setSQL();
   opt->setDDL();

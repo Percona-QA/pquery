@@ -187,6 +187,7 @@ public:
   void Analyze(Thd1 *thd);
   void Truncate(Thd1 *thd);
   void SetEncryption(Thd1 *thd);
+  void SetEncryptionInplace(Thd1 *thd);
   void SetTableCompression(Thd1 *thd);
   void ModifyColumn(Thd1 *thd);
   void InsertRandomRow(Thd1 *thd, bool islock);
