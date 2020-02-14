@@ -6,9 +6,9 @@
 #include "random_test.hpp"
 #include "common.hpp"
 #include "node.hpp"
+#include <iomanip>
 #include <regex>
 #include <sstream>
-#include <iomanip>
 
 using namespace rapidjson;
 using namespace std;
@@ -28,6 +28,8 @@ static int g_max_columns_length = 30;
 static int g_innodb_page_size;
 static int sum_of_all_opts = 0; // sum of all probablility
 std::mutex ddl_logs_write;
+static std::chrono::system_clock::time_point start_time =
+    std::chrono::system_clock::now();
 
 std::atomic<size_t> table_started(0);
 std::atomic<size_t> table_completed(0);
@@ -1130,16 +1132,29 @@ bool execute_sql(std::string sql, Thd1 *thd) {
   static auto log_query_duration = opt_bool(LOG_QUERY_DURATION);
   static auto log_client_output = opt_bool(LOG_CLIENT_OUTPUT);
   static auto log_query_numbers = opt_bool(LOG_QUERY_NUMBERS);
-  std::chrono::steady_clock::time_point begin, end;
+  std::chrono::system_clock::time_point begin, end;
 
   if (log_query_duration) {
-    begin = std::chrono::steady_clock::now();
+    begin = std::chrono::system_clock::now();
   }
 
   auto res = mysql_real_query(thd->conn, query, strlen(query));
 
   if (log_query_duration) {
-    end = std::chrono::steady_clock::now();
+    end = std::chrono::system_clock::now();
+
+    /* elpased time in micro-seconds */
+    auto te_start = std::chrono::duration_cast<std::chrono::microseconds>(
+        begin - start_time);
+    auto te_query =
+        std::chrono::duration_cast<std::chrono::microseconds>(end - begin);
+    auto in_time_t = std::chrono::system_clock::to_time_t(begin);
+
+    std::stringstream ss;
+    ss << std::put_time(std::localtime(&in_time_t), "%Y-%m-%dT%X");
+
+    thd->thread_log << ss.str() << " " << te_start.count() << "=>"
+                    << te_query.count() << "ms ";
   }
   thd->performed_queries_total++;
 
@@ -1147,7 +1162,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
     thd->failed_queries_total++;
     thd->max_con_fail_count++;
     if (log_all || log_failed) {
-      thd->thread_log << "Query =>" << sql << std::endl;
+      thd->thread_log << " F " << sql << std::endl;
       thd->thread_log << "Error " << mysql_error(thd->conn) << std::endl;
     }
     if (mysql_errno(thd->conn) == 2006) {
@@ -1196,7 +1211,7 @@ bool execute_sql(std::string sql, Thd1 *thd) {
 
     /* log successful query */
     if (log_all || log_success) {
-      thd->thread_log << "Query =>" << sql;
+      thd->thread_log << " S " << sql;
       if (result == NULL) {
         thd->thread_log << std::endl;
       } else {
