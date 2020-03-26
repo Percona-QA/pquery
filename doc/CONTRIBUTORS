@@ -1,18 +1,8 @@
-#                PQuery 
+#                PStress
 # ===========================================  #
-# Invented by Roel Van de Paar, Percona LLC    #
-# Created by Alexey Bychko, Percona LLC        #
-# Expanded by Roel Van de Paar, Percona LLC    #
-# Expanded by Sergei Glushchenko, Percona LLC  #
+# Developed and Maintained by Percona team
+# Developed on top of Pquery
+# Contributers to Pstress
+# Rahul Malik <rahul.malik@percona.com>
+# Mohit Joshi <mohit.joshi@percona.com>
 # ===========================================  #
-
-#            PQuery Framework
-# ============================================ #
-# Invented by Roel Van de Paar, Percona LLC    #
-# Created by Roel Van de Paar, Percona LLC     #
-# Created by Ramesh Sivaraman, Percona LLC     #
-# Expanded by David Bennett, Percona LLC       #
-# Expanded by Tomislav Plavic, Percona LLC     #
-# Expanded by Hrvoje Matijakovic, Percona LLC  #
-# Expanded by Shahriyar Rzayev, Percona LLC    #
-# ============================================ #

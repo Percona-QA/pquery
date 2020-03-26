@@ -2,7 +2,7 @@
 #define __COMMON_HPP__
 
 #ifndef PQVERSION
-#define PQVERSION "3"
+#define PQVERSION "1"
 #endif
 #ifdef MAXPACKET
   #ifndef MAX_PACKET_DEFAULT
@@ -90,7 +90,7 @@ struct Option {
     DROP_CREATE,
     INVALID_OPTION = 63,
     LOG_ALL_QUERIES = 'A',
-    DYNAMIC_PQUERY = 'k',
+    PQUERY = 'k',
     DATABASE = 'd',
     ADDRESS = 'a',
     INFILE = 'i',

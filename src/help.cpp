@@ -1,5 +1,5 @@
 #include "common.hpp"
-#include "pquery.hpp"
+#include "pstress.hpp"
 #include <iostream>
 
 Opx *options = new Opx;
@@ -60,13 +60,12 @@ void add_options() {
   options->resize(Option::MAX);
   Option *opt;
 
-  /* Mode of Pquery */
-  opt = newOption(Option::BOOL, Option::DYNAMIC_PQUERY, "dynamic-pquery");
-  opt->help =
-      "run pquery from generator or infine.\n If set, then query will be "
-      "dynamically generated using random generator else sqls will be executed "
-      "from --infine in some order based on shuffle. you can also use -k";
-  opt->setBool(true); // todo disable in release
+  /* Mode of Pstress */
+  opt = newOption(Option::BOOL, Option::PQUERY, "pquery");
+  opt->help = "run pstress as pquery 2.0. sqls will be executed from --infine "
+              "in some order based on shuffle. basically it will run in pquery "
+              "mode you can also use -k";
+  opt->setBool(false); // todo disable in release
   opt->setArgs(no_argument);
 
   /* Intial Seed for test */
@@ -627,7 +626,7 @@ void add_options() {
 
   /* steps */
   opt = newOption(Option::INT, Option::STEP, "step");
-  opt->help = "current step in pquery script";
+  opt->help = "current step in pstress script";
   opt->setInt(1);
 
   /* metadata file path */
@@ -696,7 +695,7 @@ void show_help(Option::Opt option) {
 }
 
 void print_version(void) {
-  std::cout << " - PQuery v" << PQVERSION << "-" << PQREVISION
+  std::cout << " - PStress v" << PQVERSION << "-" << PQREVISION
             << " compiled with " << FORK << "-" << mysql_get_client_info()
             << std::endl;
 }
@@ -722,28 +721,28 @@ void show_help(std::string help) {
 
   void show_help() {
     print_version();
-    std::cout << " - pquery supports two different use/configuration modes; "
+    std::cout << " - pstress supports two different use/configuration modes; "
                  "commandline or INI-file. Please see specific help:"
               << std::endl;
-    std::cout << "=> pquery --config-help for INI-config help, this mode "
+    std::cout << "=> pstress --config-help for INI-config help, this mode "
                  "supports SINGLE and MULTIPLE node(s)"
               << std::endl;
-    std::cout << "=> pquery --cli-help for commandline options, this mode "
+    std::cout << "=> pstress --cli-help for commandline options, this mode "
                  "supports a SINGLE node only"
               << std::endl;
-    std::cout << " - For complete help use => pquery  --help --verbose"
+    std::cout << " - For complete help use => pstress  --help --verbose"
               << std::endl;
-    std::cout << " - For help on any option => pquery --help=OPTION e.g. \n "
-                 "            pquery --help=ddl"
+    std::cout << " - For help on any option => pstress --help=OPTION e.g. \n "
+                 "            pstress --help=ddl"
               << std::endl;
   }
 
   void show_cli_help(void) {
     print_version();
-    std::cout << " - General usage: pquery --user=USER --password=PASSWORD "
+    std::cout << " - General usage: pstress --user=USER --password=PASSWORD "
                  "--database=DATABASE"
               << std::endl;
-    std::cout << "=> pquery doesn't support multiple nodes when using "
+    std::cout << "=> pstress doesn't support multiple nodes when using "
                  "commandline options mode!"
               << std::endl;
     std::cout
@@ -800,7 +799,7 @@ void show_help(std::string help) {
 
     print_version();
 
-    std::cout << " - Usage: pquery --config-file=pquery.cfg" << std::endl;
+    std::cout << " - Usage: pstress --config-file=pstress.cfg" << std::endl;
     std::cout << " - CLI params has been replaced by config file (INI format)"
               << std::endl;
     std::cout << " - You can redefine any global param=value pair in "

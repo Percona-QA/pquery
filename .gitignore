@@ -4,4 +4,4 @@ CMakeCache.txt
 CMakeFiles
 Makefile
 *.a
-src/pquery2-*
+src/pstress-*

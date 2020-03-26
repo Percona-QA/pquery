@@ -1,5 +1,5 @@
-#ifndef __PQUERY_HPP__
-#define __PQUERY_HPP__
+#ifndef __PSTRESS_HPP__
+#define __PSTRESS_HPP__
 
 #include "common.hpp"
 #include "node.hpp"

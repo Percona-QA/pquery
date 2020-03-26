@@ -25,7 +25,7 @@ MESSAGE(STATUS "Architecture is ${ARCH}")
 OPTION(STRICT_FLAGS "Turn on a lot of compiler warnings" ON)
 OPTION(ASAN "Turn ON Address sanitizer feature" OFF)
 OPTION(DEBUG "Add debug info for GDB" OFF)
-OPTION(STATIC_LIBRARY "Statically compile MySQL library into PQuery" ON)
+OPTION(STATIC_LIBRARY "Statically compile MySQL library into PStress" ON)
 OPTION(STRICT_CPU "Strictly bind the binary to current CPU" OFF)
 #
 # Debug Release RelWithDebInfo MinSizeRel

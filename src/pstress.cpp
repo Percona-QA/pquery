@@ -14,7 +14,7 @@
 
 #include "common.hpp"
 #include "node.hpp"
-#include "pquery.hpp"
+#include "pstress.hpp"
 #include "random_test.hpp"
 #include <INIReader.hpp>
 #include <mysql.h>
@@ -138,10 +138,9 @@ int main(int argc, char *argv[]) {
     exit(0);
   }
 
-  std::cout << "runnning pquery with "
-            << (options->at(Option::DYNAMIC_PQUERY)->getBool() ? "dynamic"
-                                                               : "static")
-            << " mode" << std::endl;
+  if (options->at(Option::PQUERY)->getBool()) {
+    std::cout << "runnng as pquery" << std::endl;
+  }
 
   auto confFile = options->at(Option::CONFIGFILE)->getString();
   if (confFile.empty()) {

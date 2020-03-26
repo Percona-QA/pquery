@@ -1,7 +1,7 @@
 #ifndef __NODE_HPP__
 #define __NODE_HPP__
 
-#include "pquery.hpp"
+#include "pstress.hpp"
 #include "random_test.hpp"
 #include <atomic>
 #include <fstream>

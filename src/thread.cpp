@@ -92,8 +92,8 @@ void Node::workerThread(int number) {
   Thd1 *thd = new Thd1(number, thread_log, general_log, client_log, conn,
                        performed_queries_total, failed_queries_total);
 
-  /* run pquery in with dynamic generator or infile */
-  if (options->at(Option::DYNAMIC_PQUERY)->getBool()) {
+  /* run pstress in with dynamic generator or infile */
+  if (options->at(Option::PQUERY)->getBool() == false) {
     static bool success = false;
 
     /* load metadata */

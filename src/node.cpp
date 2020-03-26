@@ -15,7 +15,7 @@ void Node::end_node() {
   writeFinalReport();
   if (general_log)
     general_log.close();
-  if (options->at(Option::DYNAMIC_PQUERY)->getBool() == false && querylist)
+  if (options->at(Option::PQUERY)->getBool() && querylist)
     delete querylist;
 }
 
@@ -23,7 +23,7 @@ bool Node::createGeneralLog() {
   std::string logName;
   logName = myParams.logdir + "/" + myParams.myName + "_general" + ".log";
   general_log.open(logName, std::ios::out | std::ios::trunc);
-  general_log << "- PQuery v" << PQVERSION << "-" << PQREVISION
+  general_log << "- PStress v" << PQVERSION << "-" << PQREVISION
               << " compiled with " << FORK << "-" << mysql_get_client_info()
               << std::endl;
 
@@ -62,7 +62,7 @@ int Node::startWork() {
               << myParams.address << "]..." << std::endl;
   tryConnect();
 
-  if (options->at(Option::DYNAMIC_PQUERY)->getBool() == false) {
+  if (options->at(Option::PQUERY)->getBool()) {
     std::ifstream sqlfile_in;
     sqlfile_in.open(myParams.infile);
 
@@ -111,10 +111,10 @@ void Node::tryConnect() {
   if (conn == NULL) {
     std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn)
               << std::endl;
-    std::cerr << "* PQUERY: Unable to continue [1], exiting" << std::endl;
+    std::cerr << "* PSTRESS: Unable to continue [1], exiting" << std::endl;
     general_log << "Error " << mysql_errno(conn) << ": " << mysql_error(conn)
                 << std::endl;
-    general_log << "* PQUERY: Unable to continue [1], exiting" << std::endl;
+    general_log << "* PSTRESS: Unable to continue [1], exiting" << std::endl;
     mysql_close(conn);
     mysql_library_end();
     exit(EXIT_FAILURE);
@@ -125,10 +125,10 @@ void Node::tryConnect() {
                          myParams.port, myParams.socket.c_str(), 0) == NULL) {
     std::cerr << "Error " << mysql_errno(conn) << ": " << mysql_error(conn)
               << std::endl;
-    std::cerr << "* PQUERY: Unable to continue [2], exiting" << std::endl;
+    std::cerr << "* PSTRESS: Unable to continue [2], exiting" << std::endl;
     general_log << "Error " << mysql_errno(conn) << ": " << mysql_error(conn)
                 << std::endl;
-    general_log << "* PQUERY: Unable to continue [2], exiting" << std::endl;
+    general_log << "* PSTRESS: Unable to continue [2], exiting" << std::endl;
     mysql_close(conn);
     mysql_library_end();
     exit(EXIT_FAILURE);

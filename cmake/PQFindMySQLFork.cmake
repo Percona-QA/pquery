@@ -5,11 +5,11 @@
 #  MYSQL_FOUND       - True if MySQL found.                 #
 #############################################################
 #
-OPTION (MYSQL         "Build PQuery with MySQL support" OFF)
-OPTION (PERCONASERVER "Build PQuery with Percona Server support" OFF)
-OPTION (PERCONACLUSTER "Build PQuery with Percona XtraDB Cluster support" OFF)
-OPTION (WEBSCALESQL   "Build PQuery with WebScaleSQL support" OFF)
-OPTION (MARIADB       "Build PQuery with MariaDB support" OFF)
+OPTION (MYSQL         "Build Pstress with MySQL support" OFF)
+OPTION (PERCONASERVER "Build Pstress with Percona Server support" OFF)
+OPTION (PERCONACLUSTER "Build Pstress with Percona XtraDB Cluster support" OFF)
+OPTION (WEBSCALESQL   "Build Pstress with WebScaleSQL support" OFF)
+OPTION (MARIADB       "Build Pstress with MariaDB support" OFF)
 #
 # Also use MYSQL for MariaDB, as library names and all locations are the same
 #
@@ -18,21 +18,21 @@ IF (MYSQL OR MARIADB)
 ENDIF(MYSQL OR MARIADB)
 #
 IF(MYSQL)
-  SET(PQUERY_EXT "ms")
+  SET(PSTRESS_EXT "ms")
   SET(FORK "MySQL")
   ADD_DEFINITIONS(-DFORK="MySQL")
   ADD_DEFINITIONS(-DMAXPACKET)
 ENDIF(MYSQL)
 #
 IF(MARIADB)
-  SET(PQUERY_EXT "md")
+  SET(PSTRESS_EXT "md")
   SET(FORK "MariaDB")
   ADD_DEFINITIONS(-DFORK="MariaDB")
 ENDIF(MARIADB)
 #
 IF (PERCONASERVER)
   SET(MYSQL_NAMES perconaserverclient perconaserverclient_r)
-  SET(PQUERY_EXT "ps")
+  SET(PSTRESS_EXT "ps")
   SET(FORK "Percona Server")
   ADD_DEFINITIONS(-DFORK="Percona-Server")
   ADD_DEFINITIONS(-DMAXPACKET)
@@ -40,14 +40,14 @@ ENDIF()
 #
 IF (PERCONACLUSTER)
   SET(MYSQL_NAMES perconaserverclient mysqlclient mysqlclient_r)
-  SET(PQUERY_EXT "pxc")
+  SET(PSTRESS_EXT "pxc")
   SET(FORK "Percona XtraDB Cluster")
   ADD_DEFINITIONS(-DFORK="Percona-XtraDB-Cluster")
 ENDIF()
 #
 IF (WEBSCALESQL)
   SET(MYSQL_NAMES webscalesqlclient webscalesqlclient_r)
-  SET(PQUERY_EXT "ws")
+  SET(PSTRESS_EXT "ws")
   SET(FORK "WebScaleSQL")
   ADD_DEFINITIONS(-DFORK="WebScaleSQL")
 ENDIF()
