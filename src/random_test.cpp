@@ -1258,7 +1258,6 @@ void Table::SetEncryptionInplace(Thd1 *thd) {
   std::string sql = "ALTER TABLESPACE `test/" + name_ + "` ENCRYPTION = '";
   std::string enc = g_encryption[rand_int(g_encryption.size() - 1)];
   sql += enc + "'";
-  std::cout << sql << std::endl;
   if (execute_sql(sql, thd)) {
     table_mutex.lock();
     encryption = enc;
