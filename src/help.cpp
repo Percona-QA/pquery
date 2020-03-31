@@ -8,9 +8,9 @@ Ser_Opx *server_options = new Ser_Opx;
 /* Process --mso=abc=30=40 to abc,{30,40}*/
 void add_server_options(std::string str) {
   auto found = str.find_first_of(":", 0);
-  int probablity = 100;
+  int probability = 100;
   if (found != std::string::npos) {
-    probablity = std::stoi(str.substr(0, found));
+    probability = std::stoi(str.substr(0, found));
     str = str.substr(found + 1, str.size());
   }
 
@@ -21,7 +21,7 @@ void add_server_options(std::string str) {
 
   std::string name = str.substr(0, found);
   Server_Option *so = new Server_Option(name);
-  so->prob = probablity;
+  so->prob = probability;
   server_options->push_back(so);
   str = str.substr(found + 1, str.size());
 
@@ -243,8 +243,8 @@ void add_options() {
   opt->help = "Number of seconds to execute workload";
   opt->setInt(1000);
 
-  /* primary key probablity */
-  opt = newOption(Option::INT, Option::PRIMARY_KEY, "primary-key-probablity");
+  /* primary key probability */
+  opt = newOption(Option::INT, Option::PRIMARY_KEY, "primary-key-probability");
   opt->help = "Probability of adding primary key in a table";
   opt->setInt(50);
 
@@ -379,7 +379,7 @@ void add_options() {
 
   /* Select all row */
   opt = newOption(Option::INT, Option::SELECT_ALL_ROW, "select-all-row");
-  opt->help = "select all data probablity";
+  opt->help = "select all data probability";
   opt->setInt(8);
   opt->setSQL();
 
