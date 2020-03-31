@@ -123,7 +123,7 @@ void add_options() {
 
   /* disable column compression */
   opt = newOption(Option::BOOL, Option::NO_COLUMN_COMPRESSION,
-                  "no-columnn-compression");
+                  "no-column-compression");
   opt->help = "Disable column compression. It is percona style compression";
   opt->setBool(false);
   opt->setArgs(no_argument);
