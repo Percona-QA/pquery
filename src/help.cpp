@@ -215,13 +215,13 @@ void add_options() {
 
   /* Only Temporary tables */
   opt = newOption(Option::BOOL, Option::ONLY_TEMPORARY, "only-temp-tables");
-  opt->help = "Work only on tempoary tables";
+  opt->help = "Work only on temporary tables";
   opt->setArgs(no_argument);
   opt->setBool(false);
 
   /* NO Temporary tables */
   opt = newOption(Option::BOOL, Option::NO_TEMPORARY, "no-temp-tables");
-  opt->help = "do not work on tempoary tables";
+  opt->help = "do not work on temporary tables";
   opt->setArgs(no_argument);
   opt->setBool(false);
 
