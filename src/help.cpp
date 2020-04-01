@@ -333,7 +333,7 @@ void add_options() {
   /*Tablespace Encrytion */
   opt = newOption(Option::INT, Option::ALTER_TABLESPACE_ENCRYPTION,
                   "alt-tbs-enc");
-  opt->help = "Alter tablespace set Encrytion";
+  opt->help = "Alter tablespace set Encryption";
   opt->setInt(1);
   opt->setSQL();
   opt->setDDL();
@@ -398,7 +398,7 @@ void add_options() {
   /* Update row using pkey */
   opt =
       newOption(Option::INT, Option::UPDATE_ROW_USING_PKEY, "update-with-cond");
-  opt->help = "Update row using using where caluse";
+  opt->help = "Update row using where clause";
   opt->setInt(200);
   opt->setSQL();
 
