@@ -11,7 +11,6 @@
 #include <sstream>
 
 using namespace rapidjson;
-using namespace std;
 std::mt19937 rng;
 
 const std::string partition_string = "_p";
@@ -335,7 +334,7 @@ Column::COLUMN_TYPES Column::col_type(std::string type) {
     return DOUBLE;
   else
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
-                             " at line " + to_string(__LINE__));
+                             " at line " + std::to_string(__LINE__));
 }
 
 /* return string from a column type */
@@ -392,7 +391,7 @@ std::string Column::rand_value() {
   case GENERATED:
   case COLUMN_MAX:
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
-                             " at line " + to_string(__LINE__));
+                             " at line " + std::to_string(__LINE__));
   }
   return "";
 }
@@ -439,7 +438,7 @@ Column::Column(std::string name, Table *table, COLUMN_TYPES type)
     break;
   default:
     throw std::runtime_error("unhandled " + col_type_to_string(type_) +
-                             " at line " + to_string(__LINE__));
+                             " at line " + std::to_string(__LINE__));
   }
 }
 
@@ -534,13 +533,13 @@ Generated_Column::Generated_Column(std::string name, Table *table)
         str += " " + col->name_ + "+";
       else
         throw std::runtime_error("unhandled " + col_type_to_string(col->type_) +
-                                 " at line " + to_string(__LINE__));
+                                 " at line " + std::to_string(__LINE__));
     }
     str.pop_back();
   } else if (g_type == VARCHAR || g_type == CHAR || g_type == BLOB) {
     auto size = rand_int(g_max_columns_length, col_pos.size());
     int actual_size = 0;
-    string gen_sql;
+    std::string gen_sql;
     for (auto pos : col_pos) {
       auto col = table->columns_->at(pos);
       auto current_size = rand_int((int)size / col_pos.size() * 2, 1);
@@ -567,12 +566,12 @@ Generated_Column::Generated_Column(std::string name, Table *table)
       case COLUMN_MAX:
       case GENERATED:
         throw std::runtime_error("unhandled " + col_type_to_string(col->type_) +
-                                 " at line " + to_string(__LINE__));
+                                 " at line " + std::to_string(__LINE__));
       }
       if (column_size > current_size) {
         actual_size += current_size;
         gen_sql +=
-            "SUBSTRING(" + col->name_ + ",1," + to_string(current_size) + "),";
+            "SUBSTRING(" + col->name_ + ",1," + std::to_string(current_size) + "),";
       } else {
         actual_size += column_size;
         gen_sql += col->name_ + ",";
@@ -581,14 +580,14 @@ Generated_Column::Generated_Column(std::string name, Table *table)
     gen_sql.pop_back();
     str = " " + col_type_to_string(g_type);
     if (g_type == VARCHAR || g_type == CHAR)
-      str += "(" + to_string(actual_size) + ")";
+      str += "(" + std::to_string(actual_size) + ")";
     str += " AS  (CONCAT(";
     str += gen_sql;
     str += ")";
     length = actual_size;
   } else {
     throw std::runtime_error("unhandled " + col_type_to_string(g_type) +
-                             " at line " + to_string(__LINE__));
+                             " at line " + std::to_string(__LINE__));
   }
   str += ")";
 
@@ -742,7 +741,7 @@ std::string Index::definition() {
         (idc->column->type_ == Column::GENERATED &&
          static_cast<Generated_Column *>(idc->column)->generate_type() ==
              Column::BLOB))
-      def += "(" + to_string(rand_int(g_max_columns_length, 1)) + ")";
+      def += "(" + std::to_string(rand_int(g_max_columns_length, 1)) + ")";
 
     def += (idc->desc ? " DESC" : (rand_int(3) ? "" : " ASC"));
     def += ", ";
@@ -1850,7 +1849,7 @@ static std::vector<std::string> load_special_sql_from() {
   auto file = opt_string(SQL_FILE);
   std::string line;
 
-  ifstream myfile(file);
+  std::ifstream myfile(file);
   if (myfile.is_open()) {
     while (!myfile.eof()) {
       getline(myfile, line);
@@ -1888,8 +1887,8 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
   bool table_found;
 
   do { // search for table
-    smatch match;
-    std::string tab_p = "T" + to_string(tab_sql); // table pattern
+    std::smatch match;
+    std::string tab_p = "T" + std::to_string(tab_sql); // table pattern
 
     if (regex_search(sql, match, std::regex(tab_p))) {
       table_found = true;
@@ -1899,7 +1898,7 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
       bool column_found;
 
       do { // search of int column
-        std::string col_p = tab_p + "_INT_" + to_string(col_sql);
+        std::string col_p = tab_p + "_INT_" + std::to_string(col_sql);
         if (regex_search(sql, match, std::regex(col_p))) {
           column_found = true;
           sql_tables.at(tab_sql - 1).at(INT)++;
@@ -1910,7 +1909,7 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
 
       col_sql = 1;
       do {
-        std::string col_p = tab_p + "_VARCHAR_" + to_string(col_sql);
+        std::string col_p = tab_p + "_VARCHAR_" + std::to_string(col_sql);
         if (regex_search(sql, match, std::regex(col_p))) {
           column_found = true;
           sql_tables.at(tab_sql - 1).at(VARCHAR)++;
@@ -1932,7 +1931,7 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
 
     auto int_columns = sql_tables.back().at(INT);
     auto varchar_columns = sql_tables.back().at(VARCHAR);
-    vector<std::string> int_cols_str, var_cols_str;
+    std::vector<std::string> int_cols_str, var_cols_str;
     int column_check = 20;
     auto table = all_tables->at(rand_int(all_tables->size() - 1));
     table->table_mutex.lock();
@@ -1964,18 +1963,18 @@ static void special_sql(std::vector<Table *> *all_tables, Thd1 *thd) {
 
     for (size_t i = 0; i < final_tables.size(); i++) {
       auto table = final_tables.at(i);
-      auto table_name = "T" + to_string(i + 1);
+      auto table_name = "T" + std::to_string(i + 1);
 
       /* replace int column */
       for (size_t j = 0; j < table.int_col.size(); j++)
         sql = std::regex_replace(
-            sql, std::regex(table_name + "_INT_" + to_string(j + 1)),
+            sql, std::regex(table_name + "_INT_" + std::to_string(j + 1)),
             table_name + "." + table.int_col.at(j));
 
       /* replace varchar column */
       for (size_t j = 0; j < table.varchar_col.size(); j++)
         sql = std::regex_replace(
-            sql, std::regex(table_name + "_VARCHAR_" + to_string(j + 1)),
+            sql, std::regex(table_name + "_VARCHAR_" + std::to_string(j + 1)),
             table_name + "." + table.varchar_col.at(j));
 
       /* replace table "T1 " => tt_N T1 */
@@ -1997,7 +1996,7 @@ void save_metadata_to_file() {
   if (path.size() == 0)
     path = opt_string(LOGDIR);
   auto file =
-      path + "/step_" + to_string(options->at(Option::STEP)->getInt()) + ".dll";
+      path + "/step_" + std::to_string(options->at(Option::STEP)->getInt()) + ".dll";
   std::cout << "Saving metadata to file " << file << std::endl;
 
   StringBuffer sb;
@@ -2050,7 +2049,7 @@ void create_in_memory_data() {
           if (g_tablespace[i].compare("innodb_system") == 0)
             continue;
           else
-            g_tablespace.push_back(g_tablespace[i] + to_string(j));
+            g_tablespace.push_back(g_tablespace[i] + std::to_string(j));
       }
     }
   }
@@ -2086,7 +2085,7 @@ void create_in_memory_data() {
   int undo_tbs_count = opt_int(NUMBER_OF_UNDO_TABLESPACE);
   if (undo_tbs_count > 0) {
     for (int i = 1; i <= undo_tbs_count; i++) {
-      g_undo_tablespace.push_back("undo_00" + to_string(i));
+      g_undo_tablespace.push_back("undo_00" + std::to_string(i));
     }
   }
 }
@@ -2097,7 +2096,7 @@ static std::string load_metadata_from_file() {
   auto path = opt_string(METADATA_PATH);
   if (path.size() == 0)
     path = opt_string(LOGDIR);
-  auto file = path + "/step_" + to_string(previous_step) + ".dll";
+  auto file = path + "/step_" + std::to_string(previous_step) + ".dll";
   FILE *fp = fopen(file.c_str(), "r");
 
   if (fp == nullptr)
@@ -2398,12 +2397,12 @@ void Thd1::run_some_query() {
       /* use savepoint or rollback to savepoint */
       if (trx_left > 0 && savepoint_prob > 0) {
         if (rand_int(1000) < savepoint_prob)
-          execute_sql("SAVEPOINT SAVE" + to_string(++current_save_point), this);
+          execute_sql("SAVEPOINT SAVE" + std::to_string(++current_save_point), this);
 
         /* 1/4 chances of rollbacking to savepoint */
         if (current_save_point > 0 && rand_int(1000 * 4) < savepoint_prob) {
           auto sv = rand_int(current_save_point, 1);
-          execute_sql("ROLLBACK TO SAVEPOINT SAVE" + to_string(sv), this);
+          execute_sql("ROLLBACK TO SAVEPOINT SAVE" + std::to_string(sv), this);
           current_save_point = sv - 1;
         }
 
