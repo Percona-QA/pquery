@@ -998,11 +998,11 @@ pquery_test(){
     if [[ ${PQUERY3} -eq 1 && ${TRIAL} -gt 1 ]]; then
       mkdir -p ${RUNDIR}/${TRIAL}/
       echoit "Copying datadir from $WORKDIR/$((${TRIAL}-1))/node1 into ${RUNDIR}/${TRIAL}/node1 ..."
-      cp -R ${WORKDIR}/$((${TRIAL}-1))/node1 ${RUNDIR}/${TRIAL}/node1 2>&1
+      rsync -ar --exclude='*core*' ${WORKDIR}/$((${TRIAL}-1))/node1/ ${RUNDIR}/${TRIAL}/node1/ 2>&1
       echoit "Copying datadir from $WORKDIR/$((${TRIAL}-1))/node2 into ${RUNDIR}/${TRIAL}/node2 ..."
-      cp -R ${WORKDIR}/$((${TRIAL}-1))/node2 ${RUNDIR}/${TRIAL}/node2 2>&1
+      rsync -ar --exclude='*core*' ${WORKDIR}/$((${TRIAL}-1))/node2/ ${RUNDIR}/${TRIAL}/node2/ 2>&1
       echoit "Copying datadir from $WORKDIR/$((${TRIAL}-1))/node3 into ${RUNDIR}/${TRIAL}/node3 ..."
-      cp -R ${WORKDIR}/$((${TRIAL}-1))/node3 ${RUNDIR}/${TRIAL}/node3 2>&1
+      rsync -ar --exclude='*core*' ${WORKDIR}/$((${TRIAL}-1))/node3/ ${RUNDIR}/${TRIAL}/node3/ 2>&1
       sed -i 's|safe_to_bootstrap:.*$|safe_to_bootstrap: 1|' ${RUNDIR}/${TRIAL}/node1/grastate.dat
     else
       mkdir -p ${RUNDIR}/${TRIAL}/
