@@ -375,7 +375,6 @@ if [[ $PXC -eq 1 ]];then
     echo "master_verify_checksum=on" >> ${BASEDIR}/my.cnf
     echo "binlog_checksum=CRC32" >> ${BASEDIR}/my.cnf
     echo "binlog_encryption=ON" >> ${BASEDIR}/my.cnf
-    echo "innodb_sys_tablespace_encrypt=ON" >> ${BASEDIR}/my.cnf
     echo "pxc_encrypt_cluster_traffic=ON" >> ${BASEDIR}/my.cnf
     if [[ $WITH_KEYRING_VAULT -ne 1 ]];then
       echo "early-plugin-load=keyring_file.so" >> ${BASEDIR}/my.cnf
@@ -396,7 +395,7 @@ pxc_startup(){
   SOCKET3=${RUNDIR}/${TRIAL}/node3/node3_socket.sock
   if check_for_version $MYSQL_VERSION "5.7.0" ; then
     if [[ "$ENCRYPTION_RUN" == 1 ]];then
-      MID="${BASEDIR}/bin/mysqld --no-defaults --initialize-insecure --early-plugin-load=keyring_file.so --keyring_file_data=keyring --innodb_sys_tablespace_encrypt=ON --basedir=${BASEDIR}"
+      MID="${BASEDIR}/bin/mysqld --no-defaults --initialize-insecure --early-plugin-load=keyring_file.so --keyring_file_data=keyring --basedir=${BASEDIR}"
 	else
       MID="${BASEDIR}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BASEDIR}"
     fi
