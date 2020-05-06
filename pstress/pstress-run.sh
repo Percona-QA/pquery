@@ -4,9 +4,8 @@
 # Updated by Mohit Joshi, Percona LLC
 
 # ========================================= User configurable variables ==========================================================
-# Note: if an option is passed to this script, it will use that option as the configuration file instead, for example ./pquery-run.sh pquery-run-ps.conf
-CONFIGURATION_FILE=pquery-run.conf  # Do not use any path specifiers, the .conf file should be in the same path as pquery-run.sh
-#CONFIGURATION_FILE=pquery-run-RocksDB.conf  # RocksDB testing
+# Note: if an option is passed to this script, it will use that option as the configuration file instead, for example ./pstress-run.sh pstress-run.conf
+CONFIGURATION_FILE=pstress-run.conf  # Do not use any path specifiers, the .conf file should be in the same path as pquery-run.sh
 
 # ========================================= Improvement ideas ====================================================================
 # * SAVE_TRIALS_WITH_CORE_OR_VALGRIND_ONLY=0 (These likely include some of the 'SIGKILL' issues - no core but terminated)
