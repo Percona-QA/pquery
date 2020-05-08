@@ -5,7 +5,7 @@
 
 # ========================================= User configurable variables ==========================================================
 # Note: if an option is passed to this script, it will use that option as the configuration file instead, for example ./pstress-run.sh pstress-run.conf
-CONFIGURATION_FILE=pstress-run.conf  # Do not use any path specifiers, the .conf file should be in the same path as pquery-run.sh
+CONFIGURATION_FILE=pstress-run.conf  # Do not use any path specifiers, the .conf file should be in the same path as pstress-run.sh
 
 # ========================================= Improvement ideas ====================================================================
 # * SAVE_TRIALS_WITH_CORE_OR_VALGRIND_ONLY=0 (These likely include some of the 'SIGKILL' issues - no core but terminated)
@@ -353,6 +353,7 @@ if [[ $PXC -eq 1 ]];then
   echo "[mysqld]" > ${BASEDIR}/my.cnf
   echo "basedir=${BASEDIR}" >> ${BASEDIR}/my.cnf
   echo "wsrep-debug=1" >> ${BASEDIR}/my.cnf
+  echo "pxc_strict_mode=disabled" >> ${BASEDIR}/my.cnf
   echo "innodb_file_per_table" >> ${BASEDIR}/my.cnf
   echo "innodb_autoinc_lock_mode=2" >> ${BASEDIR}/my.cnf
   if ! check_for_version $MYSQL_VERSION "8.0.0" ; then
@@ -399,7 +400,7 @@ pxc_startup(){
       MID="${BASEDIR}/bin/mysqld --no-defaults --initialize-insecure --basedir=${BASEDIR}"
     fi
   else
-    MID="${BASEDIR}/scripts/mysql_install_db --no-defaults --basedir=${BASEDIR}"
+    MID="${BASEDIR}/bin/mysqld --no-defaults --basedir=${BASEDIR}"
   fi
   pxc_startup_chk(){
     ERROR_LOG=$1
@@ -491,12 +492,10 @@ pxc_startup(){
       ${MID} --datadir=$node  > ${WORKDIR}/startup_node1.err 2>&1 || exit 1;
     fi
   done
-  if check_for_version $MYSQL_VERSION "8.0.0" ; then
     if [ "$IS_STARTUP" == "startup" ]; then
 	  mkdir ${WORKDIR}/cert
 	  cp ${WORKDIR}/node1.template/*.pem ${WORKDIR}/cert/
     fi
-  fi
   get_error_socket_file(){
     NR=$1
     if [ "$IS_STARTUP" == "startup" ]; then
