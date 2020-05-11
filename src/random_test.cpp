@@ -168,7 +168,10 @@ int sum_of_all_options(Thd1 *thd) {
   for (auto &opt : *options) {
     if (opt == nullptr)
       continue;
-    thd->thread_log << opt->getName() << "=>" << opt->getInt() << std::endl;
+    if (opt->getType() == Option::INT)
+      thd->thread_log << opt->getName() << "=>" << opt->getInt() << std::endl;
+    else if(opt->getType() == Option::BOOL)
+      thd->thread_log << opt->getName() << "=>" << opt->getBool() << std::endl;
     if (!opt->sql)
       continue;
     total += opt->getInt();
@@ -1060,7 +1063,7 @@ std::string Table::definition() {
   std::string def = "CREATE";
   if (type == TABLE_TYPES::TEMPORARY)
     def += " TEMPORARY";
-  def += " TABLE  " + name_ + " (";
+  def += " TABLE " + name_ + " (";
 
   if (columns_->size() == 0)
     throw std::runtime_error("no column in table " + name_);
@@ -1834,7 +1837,7 @@ void alter_tablespace_rename(Thd1 *thd) {
   if (g_tablespace.size() > 0) {
     auto tablespace = g_tablespace[rand_int(g_tablespace.size() - 1),
                                    1]; // don't pick innodb_system;
-    std::string sql = "ALTER tablespace " + tablespace;
+    std::string sql = "ALTER TABLESPACE " + tablespace;
     if (rand_int(1) == 0)
       sql += "_rename RENAME TO " + tablespace;
     else
