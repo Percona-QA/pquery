@@ -30,7 +30,9 @@ if [ ! -r ${SCRIPT_PWD}/${CONFIGURATION_FILE} ]; then echo "Assert: the confirua
 source ${SCRIPT_PWD}/$CONFIGURATION_FILE
 PQUERY_TOOL_NAME=$(basename ${PQUERY_BIN})
 if [ "${SEED}" == "" ]; then SEED=${RANDOMD}; fi
-if [[ ${PQUERY_TOOL_NAME} == "pstress-ps" || ${PQUERY_TOOL_NAME} == "pstress-pxc" ]]; then PQUERY3=1; fi
+if [[ ${PQUERY_TOOL_NAME} == "pstress-ms" || ${PQUERY_TOOL_NAME} == "pstress-ms" || ${PQUERY_TOOL_NAME} == "pstress-pxc" ]]; then
+ PQUERY3=1;
+fi
 
 # Safety checks: ensure variables are correctly set to avoid rm -Rf issues (if not set correctly, it was likely due to altering internal variables at the top of this file)
 if [ "${WORKDIR}" == "/sd[a-z][/]" ]; then echo "Assert! \$WORKDIR == '${WORKDIR}' - is it missing the \$RANDOMD suffix?"; exit 1; fi
@@ -849,7 +851,7 @@ pquery_test(){
     if [ "${VALGRIND_RUN}" == "0" ]; then
       CMD="${BIN} ${MYSAFE} ${MYEXTRA} --basedir=${BASEDIR} --datadir=${RUNDIR}/${TRIAL}/data --tmpdir=${RUNDIR}/${TRIAL}/tmp \
         --core-file --port=$PORT --pid_file=${RUNDIR}/${TRIAL}/pid.pid --socket=${SOCKET} \
-        --log-output=none --log-error=${RUNDIR}/${TRIAL}/log/master.err"
+        --log-output=none --log-error-verbosity=3 --log-error=${RUNDIR}/${TRIAL}/log/master.err"
     else
       CMD="${VALGRIND_CMD} ${BIN} ${MYSAFE} ${MYEXTRA} --basedir=${BASEDIR} --datadir=${RUNDIR}/${TRIAL}/data --tmpdir=${RUNDIR}/${TRIAL}/tmp \
         --core-file --port=$PORT --pid_file=${RUNDIR}/${TRIAL}/pid.pid --socket=${SOCKET} \
@@ -1563,7 +1565,6 @@ pquery_test(){
       fi
     else
       if [ ${QUERY_CORRECTNESS_TESTING} -ne 1 ]; then
-        timeout --signal=9 90s ${BASEDIR}/bin/mysqladmin -uroot -S${SOCKET} shutdown > /dev/null 2>&1  # Proper/clean shutdown attempt (up to 20 sec wait), necessary to get full Valgrind output in error log + see NOTE** above
         if [ $? -eq 137 ]; then
           echoit "mysqld failed to shutdown within 90 seconds for this trial, saving it (pquery-results.sh will show these trials seperately)..."
           touch ${RUNDIR}/${TRIAL}/SHUTDOWN_TIMEOUT_ISSUE
