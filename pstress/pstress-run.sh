@@ -785,7 +785,7 @@ pquery_test(){
       echoit "Note that this can be caused by not having perl-Data-Dumper installed (sudo yum install perl-Data-Dumper), which is required for mysql_install_db."
       exit 1
     elif [[ ${PQUERY3} -eq 1 && ${TRIAL} -gt 1 ]]; then
-      cp -R ${WORKDIR}/$((${TRIAL}-1))/data/* ${RUNDIR}/${TRIAL}/data 2>&1
+      rsync -ar --exclude='*core*' ${WORKDIR}/$((${TRIAL}-1))/data/* ${RUNDIR}/${TRIAL}/data 2>&1
     else
       cp -R ${WORKDIR}/data.template/* ${RUNDIR}/${TRIAL}/data 2>&1
     fi
@@ -1573,6 +1573,7 @@ pquery_test(){
         sleep 2
       fi
     fi
+    echoit "Killing mysqld server..."
     (sleep 0.2; kill -9 ${MPID} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID} >/dev/null 2>&1) &  # Terminate mysqld
     if [ ${QUERY_CORRECTNESS_TESTING} -eq 1 ]; then
       (sleep 0.2; kill -9 ${MPID2} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID2} >/dev/null 2>&1) &  # Terminate mysqld
