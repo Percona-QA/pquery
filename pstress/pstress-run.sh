@@ -30,7 +30,7 @@ if [ ! -r ${SCRIPT_PWD}/${CONFIGURATION_FILE} ]; then echo "Assert: the confirua
 source ${SCRIPT_PWD}/$CONFIGURATION_FILE
 PQUERY_TOOL_NAME=$(basename ${PQUERY_BIN})
 if [ "${SEED}" == "" ]; then SEED=${RANDOMD}; fi
-if [[ ${PQUERY_TOOL_NAME} == "pstress-ms" || ${PQUERY_TOOL_NAME} == "pstress-ms" || ${PQUERY_TOOL_NAME} == "pstress-pxc" ]]; then
+if [[ ${PQUERY_TOOL_NAME} == "pstress-ms" || ${PQUERY_TOOL_NAME} == "pstress-ps" || ${PQUERY_TOOL_NAME} == "pstress-pxc" ]]; then
  PQUERY3=1;
 fi
 
