@@ -1,0 +1,42 @@
+############################################################################################
+# Created by Mohit Joshi, Percona LLC                                                      #
+# Creation date: 07-APR-2020                                                               #
+#                                                                                          #
+# Note:                                                                                    #
+# (1). This file is used by search_string.sh to exclude any known errors/assertions.       #
+# (2). The file contains list of regular expressions to tag a particular error.            #
+# (3). Any known crash/error can be included in this file with a unique signature (regex)  #
+# (4). Line starting with a (#) will be treated as a comment & shall be ignored            #
+#                                                                                          #
+# How to use:                                                                              #
+# (1). Add a comment with the Bug# and tag it against the signature                        #
+# (2). Do not write anything after the signature                                           #
+#                                                                                          #
+# For ex:                                                                                  #
+#        # PS-6848                                                                         #
+#        Assertion failure.*fsp0fsp.cc.*encryption_op_in_progress                          #
+############################################################################################
+
+# Error reported by Mysqlx plugin when the socket is not free.
+.*\\[Server\\].*Plugin mysqlx reported.*
+
+# Error reported by InnoDB when an active undo tablespace is dropped.
+.*Cannot drop undo tablespace.*
+
+# PS-6848
+.*Assertion failure.*fsp0fsp.cc.*encryption_op_in_progress.*
+
+# PS-6847
+.*Assertion failure.*btr0btr.ic:.*level.*
+
+# Table storage engine 'InnoDB' does not support the create option 'COMPRESSION'' on query.
+.*Error_code.*MY-001478.*
+
+# Compressed column is not allowed in the key list' on query
+.*Error_code.*MY-007001.*
+
+# A general tablespace name cannot contain '/'.' on query.
+.*Error_code.*MY-003119.*
+
+# Request to create 'unencrypted' table while using an 'encrypted' tablespace.
+.*Error_code.*MY-003825.*
