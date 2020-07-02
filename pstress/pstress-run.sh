@@ -33,6 +33,10 @@ if [ "${SEED}" == "" ]; then SEED=${RANDOMD}; fi
 if [[ ${PQUERY_TOOL_NAME} == "pstress-ms" || ${PQUERY_TOOL_NAME} == "pstress-ps" || ${PQUERY_TOOL_NAME} == "pstress-pxc" ]]; then
  PQUERY3=1;
 fi
+if [[ ${SIGNAL} != "RANDOM" && ${SIGNAL} != "SHUTDOWN" && ${SIGNAL} != "9" && ${SIGNAL} != "4" ]]; then
+  echo "Assert: the value passed for the option SIGNAL is invalid. Must be either RANDOM,SHUTDOWN,9,4"
+  exit 1
+fi
 
 # Safety checks: ensure variables are correctly set to avoid rm -Rf issues (if not set correctly, it was likely due to altering internal variables at the top of this file)
 if [ "${WORKDIR}" == "/sd[a-z][/]" ]; then echo "Assert! \$WORKDIR == '${WORKDIR}' - is it missing the \$RANDOMD suffix?"; exit 1; fi
@@ -1574,8 +1578,30 @@ pquery_test(){
         sleep 2
       fi
     fi
-    echoit "Killing mysqld server..."
-    (sleep 0.2; kill -9 ${MPID} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID} >/dev/null 2>&1) &  # Terminate mysqld
+
+    if [ ${SIGNAL} == "RANDOM" ]; then
+      PROB=`expr $RANDOM % 3`
+      if [ $PROB -eq 0 ]; then
+        echoit "Killing mysqld server using Sig 9..."
+        (sleep 0.2; kill -9 ${MPID} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID} >/dev/null 2>&1) &  # Terminate mysqld using SIG 9
+      elif [ $PROB -eq 1 ]; then
+        echoit "Killing mysqld server using Sig 4..."
+        (sleep 0.2; kill -4 ${MPID} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID} >/dev/null 2>&1) &  # Terminate mysqld using SIG 4
+      elif [ $PROB -eq 2 ]; then
+        echoit "Shutting down mysqld..."
+        ${BASEDIR}/bin/mysqladmin -uroot -S${SOCKET} shutdown > /dev/null 2>&1
+      fi
+    elif [ ${SIGNAL} == "9" ]; then
+      echoit "Killing mysqld server using Sig 9..."
+      (sleep 0.2; kill -9 ${MPID} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID} >/dev/null 2>&1) &  # Terminate mysqld using SIG 9
+    elif [ ${SIGNAL} == "4" ]; then
+      echoit "Killing mysqld server using Sig 4..."
+      (sleep 0.2; kill -4 ${MPID} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID} >/dev/null 2>&1) &  # Terminate mysqld using SIG 4
+    else
+      echoit "Shutting down mysqld..."
+      ${BASEDIR}/bin/mysqladmin -uroot -S${SOCKET} shutdown > /dev/null 2>&1
+    fi
+
     if [ ${QUERY_CORRECTNESS_TESTING} -eq 1 ]; then
       (sleep 0.2; kill -9 ${MPID2} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${MPID2} >/dev/null 2>&1) &  # Terminate mysqld
       (sleep 0.2; kill -9 ${PQPID2} >/dev/null 2>&1; timeout -k5 -s9 5s wait ${PQPID2} >/dev/null 2>&1) &  # Terminate pquery (if it went past ${PQUERY_RUN_TIMEOUT} time, also see NOTE** above)
