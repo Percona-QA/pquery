@@ -34,7 +34,7 @@ reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *WEBSCALESQL* - **OFF** by default, build pquery with WebScaleSQL support
   * *MYSQL* - **OFF** by default, build pquery with Oracle MySQL support
   * *MARIADB* - **OFF** by default, build pquery with MariaDB support.
-  * *STATIC_LIB* - **ON** by default, compile pquery using the MySQL | Percona Server | WebScaleSQL static client library instead of the dynamic one. For most distributions, the static library is included in standard downloads and definitely if you build MySQL/Percona Server yourself. Note however that for MariaDB, no static client library is provided with the standard MariaDB optimized package, so pquery will automatically compile MariaDB with a shared library (which has to be installed on the OS first, i.e. yum/apt-get install mariadb-devel). In other words, when using -DMARIADB=ON, this option is turned off by default.
+  * *STATIC_LIBRARY* - **ON** by default, compile pquery using the MySQL | Percona Server | WebScaleSQL static client library instead of the dynamic one. For most distributions, the static library is included in standard downloads and definitely if you build MySQL/Percona Server yourself. Note however that for MariaDB, no static client library is provided with the standard MariaDB optimized package, so pquery will automatically compile MariaDB with a shared library (which has to be installed on the OS first, i.e. yum/apt-get install mariadb-devel). In other words, when using -DMARIADB=ON, this option is turned off by default.
   * *STRICT_CPU* - **OFF** by default, compile pquery without processor optimization. This allows running the binary on all types of processors. If this is enabled, the binary is strictly bound to the CPU used at the time of building, and may therefore work only on the machine it was built on. Enable it to favor performance over portability. When enabled, pquery will be built with `-march=native` and `-mtune=generic` resulting in all of the registers and capabilities from the currently installed CPU being used.
   * *STRICT_FLAGS* - **ON** by default, compile pquery with many compiler warnings enabled
   * *CMAKE_BUILD_TYPE* - **Release** by default, other options are **Debug**, **RelWithDebInfo**, **MinSizeRel**. For more informaton see https://cmake.org/cmake/help/v3.0/variable/CMAKE_BUILD_TYPE.html
@@ -46,7 +46,7 @@ reducer.sh is a powerful multi-threaded SQL testcase simplification tool. It is 
   * *pquery2-ws* for WebScaleSQL
   * *pquery2-md* for MariaDB
 
-Please note that only the MySQL client library will be linked statically if STATIC_LIB is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
+Please note that only the MySQL client library will be linked statically if STATIC_LIBRARY is set, all other required libraries (AIO, SSL, etc) will be linked dynamically.
 
 # Can you give an easy build example using an extracted Percona Server tarball?
 ```
